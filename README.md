@@ -41,7 +41,7 @@ Do not commit `.env.local`. The publishable key is intended for browser use; row
 ## Prototype walkthrough
 
 1. Choose one of the three predefined goals—**Communicate with clarity**, **Negotiate effectively**, or **Tell compelling stories**—or create a custom goal.
-2. Pick a skill area inside that goal and enter the practice room.
+2. Enter the practice room. The coach evaluates every skill inside the chosen goal after each answer.
 3. Choose one or more question categories, optionally add a topic, and select a question beside the camera preview.
 4. Allow camera and microphone access, then use **Start speaking** and **Done speaking**.
 5. Review the mock transcript, objective metrics, evidence-linked coaching, full-screen report, and Helpful/Unhelpful controls. With Supabase configured, the response and ratings are saved to the signed-in account.

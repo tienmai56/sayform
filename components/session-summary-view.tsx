@@ -46,7 +46,6 @@ export function SessionSummaryView() {
     resetSession,
     sessionStartedAt,
     setActiveExercise,
-    skillFocus,
     updateSetup,
   } = usePractice();
   const saveStarted = useRef(false);
@@ -60,7 +59,6 @@ export function SessionSummaryView() {
       sessionId: activeSessionId,
       goal: goalTitle,
       goalTemplateKey,
-      skillFocus,
       categories,
       prompt,
       answerCount,
@@ -72,7 +70,7 @@ export function SessionSummaryView() {
         setSaveState('saved');
       })
       .catch(() => setSaveState('error'));
-  }, [activeSessionId, answerCount, categories, goalTemplateKey, goalTitle, prompt, sessionStartedAt, setActiveExercise, skillFocus]);
+  }, [activeSessionId, answerCount, categories, goalTemplateKey, goalTitle, prompt, sessionStartedAt, setActiveExercise]);
 
   function startExercise() {
     if (!result?.exercise) return;

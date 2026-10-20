@@ -6,7 +6,6 @@ const transcriptText = `${transcript.before}${transcript.vague}${transcript.midd
 
 type AnalysisContext = {
   goalTemplateKey?: string | null;
-  skillFocus?: string;
 };
 
 const skillByDimension: Record<string, Record<FeedbackDimension, string>> = {
@@ -15,14 +14,14 @@ const skillByDimension: Record<string, Record<FeedbackDimension, string>> = {
     'Sentence structure': 'Be concise and direct',
     'Communication effectiveness': 'Lead with the main point',
     'Critical thinking': 'Build a logical flow',
-    'What worked': 'Lead with the main point',
+    'What worked': 'Explain complex ideas clearly',
   },
   negotiation: {
     Vocabulary: 'Frame tradeoffs and concessions',
     'Sentence structure': 'State your position and outcome',
     'Communication effectiveness': 'Close with a clear next step',
     'Critical thinking': 'Respond to objections',
-    'What worked': 'State your position and outcome',
+    'What worked': 'Surface interests and constraints',
   },
   storytelling: {
     Vocabulary: 'Choose relevant details',
@@ -40,8 +39,6 @@ export function createMockAnalysis(durationSeconds: number, context: AnalysisCon
   const normalized = words.map((word) => word.toLowerCase().replace(/[^a-z']/g, '')).filter(Boolean);
   const fillerWords = normalized.filter((word) => ['like', 'actually', 'basically'].includes(word));
   const safeDuration = Math.max(durationSeconds, 76);
-  const definition = getGoalDefinition(context.goalTemplateKey);
-  const focusedSkill = definition?.skills.find((skill) => skill.id === context.skillFocus)?.title;
   const dimensionMap = skillByDimension[context.goalTemplateKey ?? 'clarity'] ?? skillByDimension.clarity;
 
   return {
@@ -55,7 +52,7 @@ export function createMockAnalysis(durationSeconds: number, context: AnalysisCon
     },
     feedback: feedbackItems.map((item) => ({
       ...item,
-      skill: focusedSkill ?? dimensionMap[item.dimension],
+      skill: dimensionMap[item.dimension],
     })),
   };
 }
@@ -75,7 +72,6 @@ type SavedFeedback = {
 type SessionSummaryInput = {
   goalTitle: string;
   goalTemplateKey?: string | null;
-  skillFocus?: string;
   answerCount: number;
   feedback: SavedFeedback[];
 };
@@ -130,8 +126,7 @@ export function createMockSessionSummary(input: SessionSummaryInput) {
     evidence: 'kind of a big problem',
   });
   const definition = getGoalDefinition(input.goalTemplateKey);
-  const selectedSkill = definition?.skills.find((skill) => skill.id === input.skillFocus)?.title;
-  const targetSkill = selectedSkill ?? opportunityItems[0]?.skill ?? definition?.skills[0]?.title ?? 'Communicate with greater precision';
+  const targetSkill = opportunityItems[0]?.skill ?? definition?.skills[0]?.title ?? 'Communicate with greater precision';
   const sourceEvidence = opportunity.evidence ?? 'kind of a big problem';
   const exercise = exerciseCopy(input.goalTemplateKey, targetSkill, sourceEvidence);
   const occurrenceCount = Math.max(1, opportunityItems.length);

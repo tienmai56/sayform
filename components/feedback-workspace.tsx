@@ -41,12 +41,12 @@ export function FeedbackWorkspace() {
     activeExercise,
     clearRecording,
     feedbackIds,
+    goalSkills,
     goalTemplateKey,
     goalTitle,
     prompt,
     recordingUrl,
     resetSession,
-    skillFocus,
     updateSetup,
   } = usePractice();
   const [fullScreen, setFullScreen] = useState(false);
@@ -56,8 +56,8 @@ export function FeedbackWorkspace() {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const mockFeedback = useMemo(
-    () => createMockAnalysis(76, { goalTemplateKey, skillFocus }).feedback,
-    [goalTemplateKey, skillFocus],
+    () => createMockAnalysis(76, { goalTemplateKey }).feedback,
+    [goalTemplateKey],
   );
 
   const activeFeedback = useMemo(
@@ -87,7 +87,7 @@ export function FeedbackWorkspace() {
 
   function nextQuestion() {
     clearRecording();
-    const questions = getPracticeQuestions(goalTemplateKey, skillFocus);
+    const questions = getPracticeQuestions(goalTemplateKey);
     const index = questions.indexOf(prompt);
     updateSetup({ prompt: questions[(index + 1) % questions.length] });
     router.push('/practice/session');
@@ -118,7 +118,7 @@ export function FeedbackWorkspace() {
               <Sparkles className="size-4 text-[var(--teal)]" />
               <h2 className="font-display text-lg font-semibold tracking-[-0.02em] text-[var(--navy)]">{activeExercise ? 'Targeted exercise feedback' : 'Personalized feedback'}</h2>
             </div>
-            <p className="mt-1 text-xs text-[var(--muted-ink)]">{activeExercise ? `Focused on ${activeExercise.targetSkill}` : 'Based only on the words in this response'}</p>
+            <p className="mt-1 text-xs text-[var(--muted-ink)]">{activeExercise ? `Focused on ${activeExercise.targetSkill}` : goalSkills.length ? `Evaluated across all ${goalSkills.length} goal skills, based only on this response` : 'Evaluated across all coaching dimensions, based only on this response'}</p>
           </div>
           <Button
             variant="outline"

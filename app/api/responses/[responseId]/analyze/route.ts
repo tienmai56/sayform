@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   const { data: session, error: sessionError } = await context.supabase
     .from('sessions')
-    .select('skill_focus, goals(template_key)')
+    .select('goals(template_key)')
     .eq('id', response.session_id)
     .eq('user_id', context.userId)
     .single();
@@ -68,7 +68,6 @@ export async function POST(request: Request, { params }: RouteParams) {
   const goalRelation = Array.isArray(session.goals) ? session.goals[0] : session.goals;
   const analysis = createMockAnalysis(response.duration_seconds, {
     goalTemplateKey: goalRelation?.template_key,
-    skillFocus: session.skill_focus,
   });
   const { error: updateResponseError } = await context.supabase
     .from('responses')

@@ -9,7 +9,6 @@ type PracticeState = {
   goalTitle: string;
   goalTemplateKey: string | null;
   goalSkills: GoalSkill[];
-  skillFocus: string;
   categories: string[];
   customTopic: string;
   prompt: string;
@@ -25,7 +24,7 @@ type PracticeState = {
 type PracticeContextValue = PracticeState & {
   updateSetup: (
     next: Partial<
-      Pick<PracticeState, 'goalId' | 'goalTitle' | 'goalTemplateKey' | 'goalSkills' | 'skillFocus' | 'categories' | 'customTopic' | 'prompt'>
+      Pick<PracticeState, 'goalId' | 'goalTitle' | 'goalTemplateKey' | 'goalSkills' | 'categories' | 'customTopic' | 'prompt'>
     >,
   ) => void;
   setRecordingUrl: (url: string | null) => void;
@@ -43,7 +42,6 @@ const initialState: PracticeState = {
   goalTitle: initialGoal?.title ?? 'Communicate with clarity',
   goalTemplateKey: 'clarity',
   goalSkills: initialGoal?.skills ?? [],
-  skillFocus: 'coach-choice',
   categories: ['professional'],
   customTopic: '',
   prompt: getPracticeQuestions('clarity')[0],
@@ -67,7 +65,8 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = window.sessionStorage.getItem(practiceStorageKey);
       if (saved) {
-        const restored = JSON.parse(saved) as Partial<PracticeState>;
+        const restored = JSON.parse(saved) as Partial<PracticeState> & { skillFocus?: string };
+        delete restored.skillFocus;
         setState((current) => ({ ...current, ...restored, recordingUrl: null }));
       }
     } finally {

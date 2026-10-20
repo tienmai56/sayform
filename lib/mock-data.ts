@@ -67,6 +67,15 @@ export const feedbackItems: FeedbackItem[] = [
       'If the reliability work delayed a time-sensitive market test, I would narrow the scope instead of pausing it entirely.',
     ],
   },
+  {
+    id: 'clear-close',
+    dimension: 'What worked',
+    evidence: 'return to faster experiments with a clearer baseline',
+    title: 'Your ending gives the listener a path forward',
+    explanation:
+      'The closing connects the recommendation to what happens next. This makes the answer feel complete and helps the listener see how the decision can evolve.',
+    positive: true,
+  },
 ];
 
 export const transcript = {

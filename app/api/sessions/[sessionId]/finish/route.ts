@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   const { data: session, error: sessionError } = await context.supabase
     .from('sessions')
-    .select('id, status, created_at, title, goal_title, skill_focus, goals(template_key)')
+    .select('id, status, created_at, title, goal_title, goals(template_key)')
     .eq('id', sessionId)
     .eq('user_id', context.userId)
     .maybeSingle();
@@ -73,7 +73,6 @@ export async function POST(request: Request, { params }: RouteParams) {
   const summary = createMockSessionSummary({
     goalTitle: session.goal_title,
     goalTemplateKey: goalRelation?.template_key,
-    skillFocus: session.skill_focus,
     answerCount: completedResponses.length,
     feedback,
   });

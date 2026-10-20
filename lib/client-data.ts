@@ -103,7 +103,6 @@ export async function createPracticeSession(input: {
   goalId: string;
   goalTitle: string;
   categories: string[];
-  skillFocus: string;
   topic: string;
   prompt: string;
 }) {
@@ -115,7 +114,7 @@ export async function createPracticeSession(input: {
       goalId: input.goalId,
       goalTitle: input.goalTitle,
       categories: input.categories,
-      skillFocus: input.skillFocus,
+      skillFocus: 'all-skills',
       topic: input.topic,
       title: input.prompt.slice(0, 120),
     }),
@@ -173,7 +172,6 @@ export async function finishPracticeSession(input: {
   sessionId: string;
   goal: string;
   goalTemplateKey?: string | null;
-  skillFocus?: string | null;
   categories: string[];
   prompt: string;
   answerCount: number;
@@ -193,7 +191,6 @@ export async function finishPracticeSession(input: {
       input.answerCount,
       Math.max(1, Math.round((Date.now() - input.startedAt) / 1000)),
       input.goalTemplateKey,
-      input.skillFocus,
     );
   }
   const categoryTitles = input.categories.map(
@@ -219,7 +216,6 @@ export async function finishPracticeSession(input: {
     input.answerCount,
     durationMinutes * 60,
     input.goalTemplateKey,
-    input.skillFocus,
   );
 }
 
@@ -228,12 +224,9 @@ function createDemoFinishedSession(
   answerCount: number,
   durationSeconds: number,
   goalTemplateKey?: string | null,
-  skillFocus?: string | null,
 ): FinishedSession {
   const definition = getGoalDefinition(goalTemplateKey ?? 'clarity');
-  const targetSkill = definition?.skills.find((skill) => skill.id === skillFocus)?.title
-    ?? definition?.skills[0]?.title
-    ?? 'Communicate with intention';
+  const targetSkill = definition?.skills[0]?.title ?? 'Communicate with intention';
   return {
     session: {
       id: sessionId,

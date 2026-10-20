@@ -57,7 +57,6 @@ export function GoalsView() {
       goalTitle: goal.title,
       goalTemplateKey: goal.templateKey,
       goalSkills: goal.skills,
-      skillFocus: 'coach-choice',
       categories: [goal.defaultCategory],
       customTopic: '',
       prompt: questions[0],

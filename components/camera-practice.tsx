@@ -48,7 +48,6 @@ export function CameraPractice() {
     goalTitle,
     prompt,
     setRecordingUrl,
-    skillFocus,
     clearRecording,
     updateSetup,
   } = usePractice();
@@ -124,7 +123,6 @@ export function CameraPractice() {
           goalId,
           goalTitle,
           categories,
-          skillFocus,
           topic: customTopic,
           prompt,
         });
@@ -206,14 +204,9 @@ export function CameraPractice() {
   }
 
   async function tryAnotherQuestion() {
-    const questions = getPracticeQuestions(goalTemplateKey, skillFocus);
+    const questions = getPracticeQuestions(goalTemplateKey);
     const index = questions.indexOf(prompt);
     updateSetup({ prompt: questions[(index + 1) % questions.length] });
-  }
-
-  function chooseSkill(nextSkill: string) {
-    const questions = getPracticeQuestions(goalTemplateKey, nextSkill);
-    updateSetup({ skillFocus: nextSkill, prompt: questions[0] });
   }
 
   function toggleCategory(categoryId: string) {
@@ -324,7 +317,7 @@ export function CameraPractice() {
         <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#102630] p-7">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{activeExercise ? 'Personalized exercise' : 'Practice room'}</p>
-            <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise ? activeExercise.title : 'Choose your focus, then speak'}</h2>
+            <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise ? activeExercise.title : 'Review your setup, then speak'}</h2>
             <p className="mt-3 text-sm leading-6 text-white/55">The timer starts only when you choose <strong className="font-medium text-white/75">Start speaking</strong>.</p>
           </div>
 
@@ -345,18 +338,24 @@ export function CameraPractice() {
               </>
             ) : (
               <>
-                <div>
-                  <label htmlFor="skill-focus" className="text-xs font-semibold text-white/75">Skill focus</label>
-                  <select
-                    id="skill-focus"
-                    value={skillFocus}
-                    disabled={Boolean(activeSessionId)}
-                    onChange={(event) => chooseSkill(event.target.value)}
-                    className="mt-2 h-10 w-full rounded-xl border border-white/10 bg-white/8 px-3 text-sm text-white outline-none disabled:opacity-60"
-                  >
-                    <option value="coach-choice" className="text-black">Let the coach choose</option>
-                    {goalSkills.map((skill) => <option key={skill.id} value={skill.id} className="text-black">{skill.title}</option>)}
-                  </select>
+                <div className="rounded-2xl border border-[var(--mint)]/35 bg-[var(--mint)]/10 p-4">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-white/85">
+                    <Sparkles className="size-3.5 text-[var(--mint)]" /> Full skill review
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-white/55">
+                    {goalSkills.length
+                      ? 'The coach evaluates every skill in this goal after each answer.'
+                      : 'The coach evaluates vocabulary, structure, effectiveness, and reasoning after each answer.'}
+                  </p>
+                  {goalSkills.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {goalSkills.map((skill) => (
+                        <span key={skill.id} className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-medium text-white/65">
+                          {skill.title}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>

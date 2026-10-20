@@ -127,13 +127,9 @@ export function getGoalDefinition(templateKey?: string | null) {
   return goalCatalog.find((goal) => goal.key === templateKey);
 }
 
-export function getPracticeQuestions(templateKey?: string | null, skillFocus?: string) {
+export function getPracticeQuestions(templateKey?: string | null) {
   const definition = getGoalDefinition(templateKey);
   if (!definition) return fallbackQuestions;
-  if (skillFocus && skillFocus !== 'coach-choice') {
-    const focused = definition.questions.filter((question) => question.skillId === skillFocus);
-    if (focused.length) return focused.map((question) => question.prompt);
-  }
   return definition.questions.map((question) => question.prompt);
 }
 
