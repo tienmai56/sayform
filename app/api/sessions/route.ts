@@ -28,6 +28,8 @@ export async function POST(request: Request) {
       goal_title: body.data.goalTitle,
       title: body.data.title,
       categories: body.data.categories,
+      skill_focus: body.data.skillFocus,
+      topic: body.data.topic,
     })
     .select('id, status, created_at')
     .single();

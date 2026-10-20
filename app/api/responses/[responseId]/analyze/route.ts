@@ -58,7 +58,18 @@ export async function POST(request: Request, { params }: RouteParams) {
     .eq('user_id', context.userId);
   if (analyzingError) return databaseError(analyzingError);
 
-  const analysis = createMockAnalysis(response.duration_seconds);
+  const { data: session, error: sessionError } = await context.supabase
+    .from('sessions')
+    .select('skill_focus, goals(template_key)')
+    .eq('id', response.session_id)
+    .eq('user_id', context.userId)
+    .single();
+  if (sessionError) return databaseError(sessionError);
+  const goalRelation = Array.isArray(session.goals) ? session.goals[0] : session.goals;
+  const analysis = createMockAnalysis(response.duration_seconds, {
+    goalTemplateKey: goalRelation?.template_key,
+    skillFocus: session.skill_focus,
+  });
   const { error: updateResponseError } = await context.supabase
     .from('responses')
     .update({ transcript: analysis.transcript, status: 'completed' })
@@ -90,6 +101,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         user_id: context.userId,
         response_id: response.id,
         dimension: item.dimension,
+        skill: item.skill,
         evidence: item.evidence,
         title: item.title,
         explanation: item.explanation,

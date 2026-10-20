@@ -1,8 +1,9 @@
 'use client';
 
-import { categories as categoryOptions, feedbackItems, goals as seedGoals, sessions as seedSessions, transcript } from '@/lib/mock-data';
+import { categories as categoryOptions, feedbackItems, sessions as seedSessions, transcript } from '@/lib/mock-data';
+import { createDemoGoals, getGoalDefinition } from '@/lib/goal-catalog';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
-import type { Goal, PracticeSession, SessionDetail } from '@/lib/types';
+import type { FinishedSession, Goal, PracticeSession, SessionDetail } from '@/lib/types';
 
 const goalStorageKey = 'communication-coach:demo-goals';
 const sessionStorageKey = 'communication-coach:demo-sessions';
@@ -39,25 +40,40 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function listGoals(): Promise<Goal[]> {
-  if (!usesPersistentBackend) return readLocal(goalStorageKey, seedGoals);
+  if (!usesPersistentBackend) {
+    const stored = readLocal<Goal[]>(goalStorageKey, []);
+    const presets = createDemoGoals().map((preset) => {
+      const saved = stored.find((goal) => goal.templateKey === preset.templateKey);
+      return saved ? { ...preset, ...saved, skills: preset.skills, defaultCategory: preset.defaultCategory } : preset;
+    });
+    const custom = stored
+      .filter((goal) => goal.isCustom || (!goal.templateKey && goal.id.startsWith('demo-goal-')))
+      .map((goal) => ({ ...goal, templateKey: null, isCustom: true, skills: [], defaultCategory: 'spontaneous' }));
+    return [...presets, ...custom];
+  }
   const result = await apiRequest<{ goals: Goal[] }>('/api/goals');
   return result.goals;
 }
 
 export async function createGoal(input: { title: string; description: string }): Promise<Goal> {
   if (!usesPersistentBackend) {
-    const current = readLocal(goalStorageKey, seedGoals);
+    const current = await listGoals();
     const duplicate = current.find((goal) => goal.title.toLowerCase() === input.title.toLowerCase());
     if (duplicate) return duplicate;
     const goal: Goal = {
       id: `demo-goal-${crypto.randomUUID()}`,
+      templateKey: null,
+      isCustom: true,
       title: input.title,
       description: input.description,
+      skills: [],
+      defaultCategory: 'spontaneous',
       status: 'active',
       lastPractised: null,
       sessions: 0,
+      recommended: true,
     };
-    writeLocal(goalStorageKey, [...current, goal]);
+    writeLocal(goalStorageKey, [...current.filter((item) => item.isCustom), goal]);
     return goal;
   }
 
@@ -70,9 +86,9 @@ export async function createGoal(input: { title: string; description: string }):
 
 export async function updateGoal(goalId: string, input: Partial<Pick<Goal, 'title' | 'description' | 'status'>>) {
   if (!usesPersistentBackend) {
-    const current = readLocal(goalStorageKey, seedGoals);
+    const current = await listGoals();
     const next = current.map((goal) => (goal.id === goalId ? { ...goal, ...input } : goal));
-    writeLocal(goalStorageKey, next);
+    writeLocal(goalStorageKey, next.filter((goal) => goal.isCustom || goal.templateKey));
     return next.find((goal) => goal.id === goalId);
   }
 
@@ -87,6 +103,8 @@ export async function createPracticeSession(input: {
   goalId: string;
   goalTitle: string;
   categories: string[];
+  skillFocus: string;
+  topic: string;
   prompt: string;
 }) {
   if (!usesPersistentBackend) return { id: `demo-session-${crypto.randomUUID()}` };
@@ -97,6 +115,8 @@ export async function createPracticeSession(input: {
       goalId: input.goalId,
       goalTitle: input.goalTitle,
       categories: input.categories,
+      skillFocus: input.skillFocus,
+      topic: input.topic,
       title: input.prompt.slice(0, 120),
     }),
   });
@@ -152,20 +172,30 @@ export async function rateFeedback(
 export async function finishPracticeSession(input: {
   sessionId: string;
   goal: string;
+  goalTemplateKey?: string | null;
+  skillFocus?: string | null;
   categories: string[];
   prompt: string;
   answerCount: number;
   startedAt: number;
 }) {
   if (usesPersistentBackend) {
-    return apiRequest<{ exerciseId: string }>(`/api/sessions/${input.sessionId}/finish`, {
+    return apiRequest<FinishedSession>(`/api/sessions/${input.sessionId}/finish`, {
       method: 'POST',
       body: JSON.stringify({ title: input.prompt.slice(0, 120) }),
     });
   }
 
   const current = readLocal(sessionStorageKey, seedSessions);
-  if (current.some((session) => session.id === input.sessionId)) return { exerciseId: undefined };
+  if (current.some((session) => session.id === input.sessionId)) {
+    return createDemoFinishedSession(
+      input.sessionId,
+      input.answerCount,
+      Math.max(1, Math.round((Date.now() - input.startedAt) / 1000)),
+      input.goalTemplateKey,
+      input.skillFocus,
+    );
+  }
   const categoryTitles = input.categories.map(
     (category) => categoryOptions.find((option) => option.id === category)?.title ?? category,
   );
@@ -184,7 +214,52 @@ export async function finishPracticeSession(input: {
     hasExercise: false,
   };
   writeLocal(sessionStorageKey, [session, ...current]);
-  return { exerciseId: undefined };
+  return createDemoFinishedSession(
+    input.sessionId,
+    input.answerCount,
+    durationMinutes * 60,
+    input.goalTemplateKey,
+    input.skillFocus,
+  );
+}
+
+function createDemoFinishedSession(
+  sessionId: string,
+  answerCount: number,
+  durationSeconds: number,
+  goalTemplateKey?: string | null,
+  skillFocus?: string | null,
+): FinishedSession {
+  const definition = getGoalDefinition(goalTemplateKey ?? 'clarity');
+  const targetSkill = definition?.skills.find((skill) => skill.id === skillFocus)?.title
+    ?? definition?.skills[0]?.title
+    ?? 'Communicate with intention';
+  return {
+    session: {
+      id: sessionId,
+      status: 'completed',
+      answers: answerCount,
+      durationSeconds,
+      wordCount: 168 * Math.max(1, answerCount),
+      averageWpm: 132,
+      fillerCount: 3 * Math.max(1, answerCount),
+    },
+    summary: {
+      headline: `You made progress on ${definition?.title.toLowerCase() ?? 'your communication goal'}.`,
+      summary: `Your answers showed a clear intention. The next step is to make ${targetSkill.toLowerCase()} more consistent.`,
+      strengths: [{ title: targetSkill, detail: 'Your strongest moments gave listeners a clear frame for what followed.' }],
+      opportunities: [{ title: `Strengthen ${targetSkill.toLowerCase()}`, detail: 'Make the intended skill visible in every answer, especially under time pressure.', evidence: 'kind of a big problem' }],
+      takeaway: `Use your next answer to practise ${targetSkill.toLowerCase()} with one concrete example.`,
+    },
+    exercise: {
+      id: `demo-exercise-${sessionId}`,
+      title: 'Make the consequence concrete',
+      targetSkill,
+      selectionReason: `This session’s feedback showed that ${targetSkill.toLowerCase()} is the most useful skill to reinforce next.`,
+      prompt: `Answer again in 30 seconds. Focus only on ${targetSkill.toLowerCase()} and support your point with one concrete example.`,
+      sourceEvidence: 'kind of a big problem',
+    },
+  };
 }
 
 export async function completeExercise(exerciseId: string | null) {
@@ -229,6 +304,9 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
       feedbackExplanation: feedbackItems[0].explanation,
       summary: 'Your recommendation arrived early and made the reasoning easy to follow.',
       exerciseTitle: session.hasExercise ? 'Make the consequence concrete' : undefined,
+      exerciseTargetSkill: session.hasExercise ? 'Use precise language' : undefined,
+      exerciseReason: session.hasExercise ? 'This skill was selected from the recurring vocabulary feedback in the session.' : undefined,
+      exerciseEvidence: session.hasExercise ? 'kind of a big problem' : undefined,
     };
   }
 
@@ -251,8 +329,8 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
       }>;
       session_summaries: Array<{ summary: string }> | { summary: string } | null;
       exercises:
-        | Array<{ title: string; completed_at: string | null }>
-        | { title: string; completed_at: string | null }
+        | Array<{ title: string; target_skill: string; selection_reason: string; source_evidence: string; completed_at: string | null }>
+        | { title: string; target_skill: string; selection_reason: string; source_evidence: string; completed_at: string | null }
         | null;
     };
   }>(`/api/sessions/${sessionId}`);
@@ -291,5 +369,8 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
     feedbackExplanation: firstFeedback?.explanation ?? '',
     summary: summaries[0]?.summary ?? session.takeaway,
     exerciseTitle: exercises[0]?.title,
+    exerciseTargetSkill: exercises[0]?.target_skill,
+    exerciseReason: exercises[0]?.selection_reason,
+    exerciseEvidence: exercises[0]?.source_evidence,
   };
 }

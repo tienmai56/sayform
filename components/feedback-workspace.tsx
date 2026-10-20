@@ -19,7 +19,9 @@ import {
 import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { feedbackItems, practiceQuestions, transcript } from '@/lib/mock-data';
+import { transcript } from '@/lib/mock-data';
+import { createMockAnalysis } from '@/lib/analysis/mock-provider';
+import { getPracticeQuestions } from '@/lib/goal-catalog';
 import type { FeedbackDimension } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { usePractice } from '@/components/practice-context';
@@ -35,17 +37,32 @@ const dimensions: FeedbackDimension[] = [
 
 export function FeedbackWorkspace() {
   const router = useRouter();
-  const { recordingUrl, goalTitle, prompt, feedbackIds, updateSetup, clearRecording } = usePractice();
+  const {
+    activeExercise,
+    clearRecording,
+    feedbackIds,
+    goalTemplateKey,
+    goalTitle,
+    prompt,
+    recordingUrl,
+    resetSession,
+    skillFocus,
+    updateSetup,
+  } = usePractice();
   const [fullScreen, setFullScreen] = useState(false);
   const [selectedId, setSelectedId] = useState('vague-language');
   const [ratings, setRatings] = useState<Record<string, 'helpful' | 'unhelpful'>>({});
   const [pendingDismiss, setPendingDismiss] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [note, setNote] = useState('');
+  const mockFeedback = useMemo(
+    () => createMockAnalysis(76, { goalTemplateKey, skillFocus }).feedback,
+    [goalTemplateKey, skillFocus],
+  );
 
   const activeFeedback = useMemo(
-    () => feedbackItems.filter((item) => !dismissed.includes(item.id)),
-    [dismissed],
+    () => mockFeedback.filter((item) => !dismissed.includes(item.id)),
+    [dismissed, mockFeedback],
   );
 
   function rateHelpful(id: string) {
@@ -70,14 +87,21 @@ export function FeedbackWorkspace() {
 
   function nextQuestion() {
     clearRecording();
-    const index = practiceQuestions.indexOf(prompt);
-    updateSetup({ prompt: practiceQuestions[(index + 1) % practiceQuestions.length] });
+    const questions = getPracticeQuestions(goalTemplateKey, skillFocus);
+    const index = questions.indexOf(prompt);
+    updateSetup({ prompt: questions[(index + 1) % questions.length] });
     router.push('/practice/session');
   }
 
   function endSession() {
     clearRecording();
     router.push('/session/summary');
+  }
+
+  function finishExercise() {
+    clearRecording();
+    resetSession();
+    router.push('/history');
   }
 
   const report = (
@@ -92,9 +116,9 @@ export function FeedbackWorkspace() {
           <div>
             <div className="flex items-center gap-2">
               <Sparkles className="size-4 text-[var(--teal)]" />
-              <h2 className="font-display text-lg font-semibold tracking-[-0.02em] text-[var(--navy)]">Personalized feedback</h2>
+              <h2 className="font-display text-lg font-semibold tracking-[-0.02em] text-[var(--navy)]">{activeExercise ? 'Targeted exercise feedback' : 'Personalized feedback'}</h2>
             </div>
-            <p className="mt-1 text-xs text-[var(--muted-ink)]">Based only on the words in this response</p>
+            <p className="mt-1 text-xs text-[var(--muted-ink)]">{activeExercise ? `Focused on ${activeExercise.targetSkill}` : 'Based only on the words in this response'}</p>
           </div>
           <Button
             variant="outline"
@@ -107,6 +131,12 @@ export function FeedbackWorkspace() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          {activeExercise && (
+            <div className="mb-5 grid grid-cols-[minmax(0,1fr)_minmax(300px,0.7fr)] gap-4 rounded-2xl border border-[var(--mint)] bg-[var(--mint-soft)] p-5">
+              <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Skill practised</p><h3 className="mt-1.5 text-base font-semibold text-[var(--navy)]">{activeExercise.targetSkill}</h3><p className="mt-2 text-sm leading-6 text-[#516b6b]">Your response made the target behavior more explicit. Keep the same meaning while making the evidence concrete.</p></div>
+              <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Compared with the session evidence</p><p className="mt-2 text-xs italic leading-5 text-[#52666d]">“{activeExercise.sourceEvidence}”</p></div>
+            </div>
+          )}
           <div className="grid grid-cols-4 gap-3">
             <MetricCard label="Average pace" value="132 WPM" detail="Within 100–165 presentation reference" />
             <MetricCard label="Fillers" value="3" detail="1.8 per 100 transcribed words" />
@@ -194,6 +224,7 @@ export function FeedbackWorkspace() {
                       {item.positive && <span className="flex items-center gap-1 text-[11px] font-medium text-[var(--teal-dark)]"><Check className="size-3" />What worked</span>}
                     </div>
                     <h4 className="mt-3 text-sm font-semibold leading-5 text-[var(--navy)]">{item.title}</h4>
+                    {item.skill && <p className="mt-1 text-[11px] font-medium text-[var(--teal-dark)]">Skill · {item.skill}</p>}
                     <blockquote className="mt-3 border-l-2 border-[var(--mint)] pl-3 text-xs italic leading-5 text-[var(--muted-ink)]">“{item.evidence}”</blockquote>
                     <p className="mt-3 text-sm leading-6 text-[#53666e]">{item.explanation}</p>
                   </button>
@@ -236,10 +267,11 @@ export function FeedbackWorkspace() {
         </div>
 
         <footer className="flex items-center justify-between border-t border-[var(--line)] bg-[var(--canvas)] px-6 py-4">
-          <button onClick={endSession} className="text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">End session</button>
-          <Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">
-            Next question <ArrowRight className="ml-1 size-4" />
-          </Button>
+          {activeExercise ? (
+            <><span className="text-sm text-[var(--muted-ink)]">Exercise complete · saved with this session</span><Button onClick={finishExercise} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">Finish exercise <ArrowRight className="ml-1 size-4" /></Button></>
+          ) : (
+            <><button onClick={endSession} className="text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">End session</button><Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">Next question <ArrowRight className="ml-1 size-4" /></Button></>
+          )}
         </footer>
       </div>
     </section>
@@ -249,13 +281,13 @@ export function FeedbackWorkspace() {
     <AppShell>
       {fullScreen && <div className="fixed inset-0 z-40 bg-[#0e222d]/55 backdrop-blur-sm" />}
       <Screen wide>
-        <Breadcrumbs items={[{ label: 'Practice', href: '/practice/setup' }, { label: 'Answer feedback' }]} />
+        <Breadcrumbs items={[{ label: 'Goals', href: '/goals' }, { label: activeExercise ? 'Exercise feedback' : 'Answer feedback' }]} />
         <div className="mb-6 flex items-start justify-between gap-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Answer complete</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">{activeExercise ? 'Exercise complete' : 'Answer complete'}</p>
             <h1 className="mt-2 max-w-4xl font-display text-2xl font-semibold leading-8 tracking-[-0.03em] text-[var(--navy)]">{prompt}</h1>
           </div>
-          <span className="shrink-0 rounded-full bg-[var(--mint-soft)] px-3 py-1.5 text-xs font-medium text-[var(--teal-dark)]">Goal · {goalTitle}</span>
+          <span className="shrink-0 rounded-full bg-[var(--mint-soft)] px-3 py-1.5 text-xs font-medium text-[var(--teal-dark)]">{activeExercise ? `Skill · ${activeExercise.targetSkill}` : `Goal · ${goalTitle}`}</span>
         </div>
 
         <div className="grid h-[calc(100vh-190px)] min-h-[720px] grid-cols-[minmax(420px,0.72fr)_minmax(620px,1.28fr)] gap-5">

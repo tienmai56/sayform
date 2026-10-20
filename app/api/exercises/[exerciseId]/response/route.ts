@@ -13,10 +13,18 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   const { data, error } = await context.supabase
     .from('exercises')
-    .update({ answer_text: body.data.answerText, completed_at: new Date().toISOString() })
+    .update({
+      answer_text: body.data.answerText,
+      completed_at: new Date().toISOString(),
+      metrics: { wordCount: body.data.answerText.trim().split(/\s+/).length },
+      coaching: {
+        outcome: 'The revised response makes the target behavior more explicit.',
+        nextStep: 'Carry the same specific wording into the next full practice session.',
+      },
+    })
     .eq('id', exerciseId)
     .eq('user_id', context.userId)
-    .select('id, completed_at')
+    .select('id, target_skill, answer_text, metrics, coaching, completed_at')
     .maybeSingle();
 
   if (error) return databaseError(error);

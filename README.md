@@ -11,7 +11,7 @@ pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The root route opens onboarding.
+Open [http://localhost:3000](http://localhost:3000). The root route opens the Goals page (or the login page when Supabase is enabled and no account is signed in).
 
 Without Supabase credentials, the app runs in demo mode and stores goals and session history in this browser. This keeps the full product flow testable while the backend is being configured.
 
@@ -34,20 +34,20 @@ Phase 2 uses Supabase Auth and PostgreSQL. The checked-in migration creates the 
    ```
 
 4. Add `http://localhost:3000/auth/callback` to the project’s allowed Auth redirect URLs.
-5. Restart `pnpm dev`, create an account at `/login`, and complete onboarding.
+5. Restart `pnpm dev`, create an account at `/login`, and open the Goals page.
 
 Do not commit `.env.local`. The publishable key is intended for browser use; row-level security is still responsible for isolating each account’s records.
 
 ## Prototype walkthrough
 
-1. Choose communication goals during onboarding.
-2. Select a goal on the Goals dashboard.
-3. Choose one or more practice categories and a question.
+1. Choose one of the three predefined goals—**Communicate with clarity**, **Negotiate effectively**, or **Tell compelling stories**—or create a custom goal.
+2. Pick a skill area inside that goal and enter the practice room.
+3. Choose one or more question categories, optionally add a topic, and select a question beside the camera preview.
 4. Allow camera and microphone access, then use **Start speaking** and **Done speaking**.
 5. Review the mock transcript, objective metrics, evidence-linked coaching, full-screen report, and Helpful/Unhelpful controls. With Supabase configured, the response and ratings are saved to the signed-in account.
 6. Continue to another question or end the session.
-7. Review the aggregate summary, start the optional exercise, or open History.
-8. Filter History, open a text-only saved session, or permanently delete a session and its child records after confirmation.
+7. Review patterns across the completed answers. Only then is one optional exercise recommended from the saved feedback and its transcript evidence.
+8. Complete or skip that exercise, then open History to revisit the text-only session record.
 
 If camera access is unavailable, use the prototype fallback on the permission error screen. It exercises the same navigation and mock-feedback flow without recording media.
 

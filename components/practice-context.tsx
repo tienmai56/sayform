@@ -1,11 +1,15 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { practiceQuestions } from '@/lib/mock-data';
+import { getGoalDefinition, getPracticeQuestions } from '@/lib/goal-catalog';
+import type { ExerciseRecommendation, GoalSkill } from '@/lib/types';
 
 type PracticeState = {
   goalId: string;
   goalTitle: string;
+  goalTemplateKey: string | null;
+  goalSkills: GoalSkill[];
+  skillFocus: string;
   categories: string[];
   customTopic: string;
   prompt: string;
@@ -15,13 +19,13 @@ type PracticeState = {
   answerCount: number;
   sessionStartedAt: number;
   feedbackIds: Record<string, string>;
-  activeExerciseId: string | null;
+  activeExercise: ExerciseRecommendation | null;
 };
 
 type PracticeContextValue = PracticeState & {
   updateSetup: (
     next: Partial<
-      Pick<PracticeState, 'goalId' | 'goalTitle' | 'categories' | 'customTopic' | 'prompt'>
+      Pick<PracticeState, 'goalId' | 'goalTitle' | 'goalTemplateKey' | 'goalSkills' | 'skillFocus' | 'categories' | 'customTopic' | 'prompt'>
     >,
   ) => void;
   setRecordingUrl: (url: string | null) => void;
@@ -29,22 +33,27 @@ type PracticeContextValue = PracticeState & {
   beginSession: (sessionId: string) => void;
   completeResponse: (responseId: string, feedbackIds: Record<string, string>) => void;
   resetSession: () => void;
-  setActiveExerciseId: (exerciseId: string | null) => void;
+  setActiveExercise: (exercise: ExerciseRecommendation | null) => void;
 };
 
+const initialGoal = getGoalDefinition('clarity');
+
 const initialState: PracticeState = {
-  goalId: 'clear-ideas',
-  goalTitle: 'Express complex ideas clearly',
+  goalId: 'demo-goal-clarity',
+  goalTitle: initialGoal?.title ?? 'Communicate with clarity',
+  goalTemplateKey: 'clarity',
+  goalSkills: initialGoal?.skills ?? [],
+  skillFocus: 'coach-choice',
   categories: ['professional'],
   customTopic: '',
-  prompt: practiceQuestions[0],
+  prompt: getPracticeQuestions('clarity')[0],
   recordingUrl: null,
   activeSessionId: null,
   activeResponseId: null,
   answerCount: 0,
   sessionStartedAt: Date.now(),
   feedbackIds: {},
-  activeExerciseId: null,
+  activeExercise: null,
 };
 
 const PracticeContext = createContext<PracticeContextValue | null>(null);
@@ -99,7 +108,7 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           answerCount: 0,
           sessionStartedAt: Date.now(),
           feedbackIds: {},
-          activeExerciseId: null,
+          activeExercise: null,
         }));
       },
       completeResponse(responseId, feedbackIds) {
@@ -118,11 +127,11 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           answerCount: 0,
           sessionStartedAt: Date.now(),
           feedbackIds: {},
-          activeExerciseId: null,
+          activeExercise: null,
         }));
       },
-      setActiveExerciseId(exerciseId) {
-        setState((current) => ({ ...current, activeExerciseId: exerciseId }));
+      setActiveExercise(exercise) {
+        setState((current) => ({ ...current, activeExercise: exercise }));
       },
     }),
     [state],

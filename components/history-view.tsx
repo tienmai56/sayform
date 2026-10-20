@@ -75,7 +75,7 @@ export function HistoryView() {
           title="Your practice sessions"
           description="Revisit questions, transcripts, coaching, and exercises. Recordings are never stored in History."
           action={
-            <Button onClick={() => router.push('/practice/setup')} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">Start a new session</Button>
+            <Button onClick={() => router.push('/goals')} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">Start a new session</Button>
           }
         />
 

@@ -1,8 +1,5 @@
-import type { Metadata } from 'next';
-import { OnboardingView } from '@/components/onboarding-view';
-
-export const metadata: Metadata = { title: 'Get started' };
+import { redirect } from 'next/navigation';
 
 export default function OnboardingPage() {
-  return <OnboardingView />;
+  redirect('/goals');
 }

@@ -82,7 +82,10 @@ export function HistoryDetailView() {
                 <span className="grid size-10 place-items-center rounded-xl bg-white text-[var(--teal-dark)]"><Dumbbell className="size-5" /></span>
                 <p className="mt-5 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Completed exercise</p>
                 <h2 className="mt-2 font-display text-xl font-semibold text-[var(--navy)]">{session.exerciseTitle ?? 'Make the consequence concrete'}</h2>
-                <div className="mt-4 rounded-xl bg-white/75 p-4"><p className="flex items-center gap-2 text-xs font-semibold text-[var(--navy)]"><Target className="size-4 text-[var(--teal)]" />Targeted feedback</p><p className="mt-2 text-xs leading-5 text-[#55706f]">Your revision named “customer trust” directly and removed the vague qualifier without changing the original meaning.</p></div>
+                {session.exerciseTargetSkill && <p className="mt-2 text-xs font-semibold text-[var(--teal-dark)]">Skill · {session.exerciseTargetSkill}</p>}
+                <p className="mt-3 text-xs leading-5 text-[#55706f]">{session.exerciseReason ?? 'This exercise was selected from the feedback saved in this session.'}</p>
+                {session.exerciseEvidence && <blockquote className="mt-4 border-l-2 border-[var(--teal)] pl-3 text-xs italic leading-5 text-[#55706f]">“{session.exerciseEvidence}”</blockquote>}
+                <div className="mt-4 rounded-xl bg-white/75 p-4"><p className="flex items-center gap-2 text-xs font-semibold text-[var(--navy)]"><Target className="size-4 text-[var(--teal)]" />Targeted feedback</p><p className="mt-2 text-xs leading-5 text-[#55706f]">The completed exercise and its focused coaching are saved with the originating session.</p></div>
               </div>
             )}
           </aside>

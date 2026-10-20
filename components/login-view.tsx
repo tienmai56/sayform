@@ -43,7 +43,7 @@ export function LoginView({ nextPath, initialError }: { nextPath: string; initia
     }
 
     const callback = new URL('/auth/callback', window.location.origin);
-    callback.searchParams.set('next', nextPath === '/goals' ? '/onboarding' : nextPath);
+    callback.searchParams.set('next', nextPath);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -55,7 +55,7 @@ export function LoginView({ nextPath, initialError }: { nextPath: string; initia
       return;
     }
     if (data.session) {
-      router.push('/onboarding');
+      router.push('/goals');
       router.refresh();
       return;
     }
@@ -71,7 +71,7 @@ export function LoginView({ nextPath, initialError }: { nextPath: string; initia
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Database className="size-6" /></span>
           <h1 className="mt-5 font-display text-3xl font-semibold tracking-[-0.04em] text-[var(--navy)]">Backend setup is ready</h1>
           <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">Add your Supabase project details to enable accounts and cloud persistence. Until then, Communication Coach runs in a private demo mode in this browser.</p>
-          <Link href="/onboarding" className={cn(buttonVariants(), 'mt-6 h-11 w-full rounded-xl bg-[var(--navy)]')}>Continue in demo mode <ArrowRight className="ml-1 size-4" /></Link>
+          <Link href="/goals" className={cn(buttonVariants(), 'mt-6 h-11 w-full rounded-xl bg-[var(--navy)]')}>Continue in demo mode <ArrowRight className="ml-1 size-4" /></Link>
         </section>
       </main>
     );

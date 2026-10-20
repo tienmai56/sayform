@@ -18,6 +18,8 @@ export const sessionCreateSchema = z.object({
   goalTitle: z.string().trim().min(3).max(120),
   title: z.string().trim().min(3).max(160).default('Practice session'),
   categories: z.array(z.string().trim().min(1).max(80)).min(1).max(8),
+  skillFocus: z.string().trim().min(1).max(120).default('coach-choice'),
+  topic: z.string().trim().max(500).default(''),
 });
 
 export const responseCreateSchema = z.object({

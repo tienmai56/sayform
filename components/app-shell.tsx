@@ -6,7 +6,6 @@ import {
   BookOpenText,
   ChevronRight,
   History,
-  Mic2,
   Settings,
   LogOut,
   Sparkles,
@@ -17,7 +16,6 @@ import { useAuth } from '@/components/auth-provider';
 
 const navigation = [
   { label: 'Goals', href: '/goals', icon: Target },
-  { label: 'Practice', href: '/practice/setup', icon: Mic2 },
   { label: 'History', href: '/history', icon: History },
 ];
 
@@ -93,8 +91,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[var(--line)] bg-[color:rgba(250,249,246,0.92)] px-5 backdrop-blur lg:hidden">
         <Brand />
-        <Link href="/practice/setup" className="rounded-lg bg-[var(--navy)] px-3 py-2 text-xs font-semibold text-white">
-          Practice
+        <Link href="/goals" className="rounded-lg bg-[var(--navy)] px-3 py-2 text-xs font-semibold text-white">
+          Choose goal
         </Link>
       </header>
 

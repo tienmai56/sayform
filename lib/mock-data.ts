@@ -1,55 +1,4 @@
-import type { FeedbackItem, Goal, PracticeSession } from '@/lib/types';
-
-export const goals: Goal[] = [
-  {
-    id: 'clear-ideas',
-    title: 'Express complex ideas clearly',
-    description: 'Lead with the main point, then make the reasoning easy to follow.',
-    status: 'active',
-    lastPractised: 'Today',
-    sessions: 8,
-  },
-  {
-    id: 'persuasion',
-    title: 'Be more persuasive',
-    description: 'Make stronger claims and support them with concise evidence.',
-    status: 'active',
-    lastPractised: 'Oct 16',
-    sessions: 4,
-  },
-  {
-    id: 'stories',
-    title: 'Tell memorable stories',
-    description: 'Give anecdotes a clear turn, relevant detail, and a purposeful ending.',
-    status: 'active',
-    lastPractised: null,
-    sessions: 0,
-    recommended: true,
-  },
-];
-
-export const goalTemplates = [
-  {
-    id: 'clarity',
-    title: 'Speak with clarity',
-    description: 'Organize ideas so people can follow them on the first listen.',
-  },
-  {
-    id: 'concise',
-    title: 'Be more concise',
-    description: 'Say what matters with less repetition and fewer detours.',
-  },
-  {
-    id: 'persuasive',
-    title: 'Sound more persuasive',
-    description: 'Build claims with relevant reasons, examples, and counterpoints.',
-  },
-  {
-    id: 'storytelling',
-    title: 'Tell stronger stories',
-    description: 'Create a clear setup, turning point, and useful takeaway.',
-  },
-];
+import type { FeedbackItem, PracticeSession } from '@/lib/types';
 
 export const categories = [
   {
@@ -72,12 +21,6 @@ export const categories = [
     title: 'Spontaneous thinking',
     description: 'Respond to an unfamiliar prompt with composure.',
   },
-];
-
-export const practiceQuestions = [
-  'Your team can invest in speed or reliability this quarter, but not both. Which would you choose, and how would you explain the tradeoff?',
-  'Describe a decision you changed after receiving new information. What changed your mind?',
-  'What is one common workplace habit you think teams should reconsider, and why?',
 ];
 
 export const feedbackItems: FeedbackItem[] = [

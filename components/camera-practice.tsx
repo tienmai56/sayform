@@ -8,6 +8,7 @@ import {
   Check,
   ChevronRight,
   Clock3,
+  Lightbulb,
   Mic,
   RefreshCw,
   ShieldCheck,
@@ -16,9 +17,12 @@ import {
 } from 'lucide-react';
 import { Brand } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { usePractice } from '@/components/practice-context';
-import { practiceQuestions } from '@/lib/mock-data';
-import { completeExercise, saveAndAnalyzeResponse } from '@/lib/client-data';
+import { getPracticeQuestions } from '@/lib/goal-catalog';
+import { categories as categoryOptions } from '@/lib/mock-data';
+import { completeExercise, createPracticeSession, saveAndAnalyzeResponse } from '@/lib/client-data';
+import { cn } from '@/lib/utils';
 
 type PracticeStatus = 'permission' | 'ready' | 'recording' | 'processing' | 'error';
 
@@ -30,7 +34,24 @@ function formatTime(totalSeconds: number) {
 
 export function CameraPractice() {
   const router = useRouter();
-  const { activeExerciseId, activeSessionId, answerCount, goalTitle, prompt, updateSetup, setRecordingUrl, clearRecording, completeResponse } = usePractice();
+  const {
+    activeExercise,
+    activeSessionId,
+    answerCount,
+    beginSession,
+    categories,
+    completeResponse,
+    customTopic,
+    goalId,
+    goalSkills,
+    goalTemplateKey,
+    goalTitle,
+    prompt,
+    setRecordingUrl,
+    skillFocus,
+    clearRecording,
+    updateSetup,
+  } = usePractice();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -41,6 +62,8 @@ export function CameraPractice() {
   const [errorMessage, setErrorMessage] = useState('');
   const [demoMode, setDemoMode] = useState(false);
   const [errorKind, setErrorKind] = useState<'media' | 'save'>('media');
+  const [starting, setStarting] = useState(false);
+  const [setupError, setSetupError] = useState('');
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -88,7 +111,31 @@ export function CameraPractice() {
     setStatus('ready');
   }
 
-  function startSpeaking() {
+  async function startSpeaking() {
+    if (!activeExercise && categories.length === 0) {
+      setSetupError('Choose at least one practice category.');
+      return;
+    }
+    setStarting(true);
+    setSetupError('');
+    try {
+      if (!activeExercise && !activeSessionId) {
+        const session = await createPracticeSession({
+          goalId,
+          goalTitle,
+          categories,
+          skillFocus,
+          topic: customTopic,
+          prompt,
+        });
+        beginSession(session.id);
+      }
+    } catch (caught) {
+      setSetupError(caught instanceof Error ? caught.message : 'The practice session could not be started.');
+      setStarting(false);
+      return;
+    }
+
     clearRecording();
     chunksRef.current = [];
     setElapsed(0);
@@ -110,12 +157,12 @@ export function CameraPractice() {
 
     setStatus('recording');
     timerRef.current = setInterval(() => setElapsed((current) => current + 1), 1000);
+    setStarting(false);
   }
 
   async function persistResponse() {
-    if (activeExerciseId) {
-      await completeExercise(activeExerciseId);
-      completeResponse(`exercise-response-${activeExerciseId}`, {});
+    if (activeExercise) {
+      await completeExercise(activeExercise.id);
       return;
     }
     if (!activeSessionId) return;
@@ -159,8 +206,22 @@ export function CameraPractice() {
   }
 
   async function tryAnotherQuestion() {
-    const index = practiceQuestions.indexOf(prompt);
-    updateSetup({ prompt: practiceQuestions[(index + 1) % practiceQuestions.length] });
+    const questions = getPracticeQuestions(goalTemplateKey, skillFocus);
+    const index = questions.indexOf(prompt);
+    updateSetup({ prompt: questions[(index + 1) % questions.length] });
+  }
+
+  function chooseSkill(nextSkill: string) {
+    const questions = getPracticeQuestions(goalTemplateKey, nextSkill);
+    updateSetup({ skillFocus: nextSkill, prompt: questions[0] });
+  }
+
+  function toggleCategory(categoryId: string) {
+    const next = categories.includes(categoryId)
+      ? categories.filter((category) => category !== categoryId)
+      : [...categories, categoryId];
+    updateSetup({ categories: next });
+    setSetupError('');
   }
 
   return (
@@ -171,7 +232,7 @@ export function CameraPractice() {
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">Goal · {goalTitle}</span>
-          <Button variant="ghost" onClick={() => router.push('/session/summary')} className="text-white/65 hover:bg-white/10 hover:text-white">End session</Button>
+          {!activeExercise && activeSessionId && answerCount > 0 && <Button variant="ghost" onClick={() => router.push('/session/summary')} className="text-white/65 hover:bg-white/10 hover:text-white">End session</Button>}
         </div>
       </header>
 
@@ -233,7 +294,7 @@ export function CameraPractice() {
 
             <div className="absolute inset-x-0 top-0 flex items-center justify-between p-5">
               <span className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium backdrop-blur">
-                Question 1
+                {activeExercise ? 'Targeted exercise' : `Question ${answerCount + 1}`}
               </span>
               <span className="flex items-center gap-2 rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium backdrop-blur">
                 {status === 'recording' ? <><span className="size-2 animate-pulse rounded-full bg-[#ff7668]" />Recording · {formatTime(elapsed)}</> : <><span className="size-2 rounded-full bg-white/45" />Recording off</>}
@@ -262,23 +323,96 @@ export function CameraPractice() {
 
         <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#102630] p-7">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">Speaking practice</p>
-            <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em]">Answer in your own words</h2>
-            <p className="mt-3 text-sm leading-6 text-white/55">Take a moment to think. The timer starts only when you choose <strong className="font-medium text-white/75">Start speaking</strong>.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{activeExercise ? 'Personalized exercise' : 'Practice room'}</p>
+            <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise ? activeExercise.title : 'Choose your focus, then speak'}</h2>
+            <p className="mt-3 text-sm leading-6 text-white/55">The timer starts only when you choose <strong className="font-medium text-white/75">Start speaking</strong>.</p>
           </div>
 
           <div className="my-7 h-px bg-white/10" />
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm text-white/70"><Check className="size-4 text-[var(--mint)]" />Answer naturally, not perfectly</div>
-            <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm text-white/70"><Clock3 className="size-4 text-[var(--mint)]" />Suggested session: about 10 min</div>
-            <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-sm text-white/70"><ShieldCheck className="size-4 text-[var(--mint)]" />Video is never uploaded or saved</div>
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+            {activeExercise ? (
+              <>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--mint)]">Target skill</p>
+                  <p className="mt-2 text-sm font-semibold text-white/90">{activeExercise.targetSkill}</p>
+                  <p className="mt-2 text-xs leading-5 text-white/55">{activeExercise.selectionReason}</p>
+                </div>
+                <div className="rounded-2xl border-l-2 border-[var(--mint)] bg-white/5 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-white/45">Evidence from your session</p>
+                  <p className="mt-2 text-xs italic leading-5 text-white/70">“{activeExercise.sourceEvidence}”</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label htmlFor="skill-focus" className="text-xs font-semibold text-white/75">Skill focus</label>
+                  <select
+                    id="skill-focus"
+                    value={skillFocus}
+                    disabled={Boolean(activeSessionId)}
+                    onChange={(event) => chooseSkill(event.target.value)}
+                    className="mt-2 h-10 w-full rounded-xl border border-white/10 bg-white/8 px-3 text-sm text-white outline-none disabled:opacity-60"
+                  >
+                    <option value="coach-choice" className="text-black">Let the coach choose</option>
+                    {goalSkills.map((skill) => <option key={skill.id} value={skill.id} className="text-black">{skill.title}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-white/75">Practice category</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {categoryOptions.map((category) => {
+                      const selected = categories.includes(category.id);
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          disabled={Boolean(activeSessionId)}
+                          onClick={() => toggleCategory(category.id)}
+                          className={cn(
+                            'rounded-xl border px-3 py-2 text-left text-[11px] font-medium leading-4 transition-colors disabled:opacity-60',
+                            selected ? 'border-[var(--mint)] bg-[var(--mint)]/15 text-white' : 'border-white/10 bg-white/5 text-white/55 hover:text-white',
+                          )}
+                        >
+                          {selected && <Check className="mr-1 inline size-3 text-[var(--mint)]" />}{category.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {!activeSessionId && (
+                  <div>
+                    <label htmlFor="practice-topic" className="text-xs font-semibold text-white/75">Optional topic</label>
+                    <Textarea
+                      id="practice-topic"
+                      value={customTopic}
+                      onChange={(event) => updateSetup({ customTopic: event.target.value })}
+                      placeholder="A situation you want to practise"
+                      className="mt-2 min-h-16 resize-none border-white/10 bg-white/5 text-xs text-white placeholder:text-white/30"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--mint)]"><Lightbulb className="size-3.5" />{activeExercise ? 'Exercise prompt' : 'Your question'}</p>
+              <p className="mt-2 text-sm font-medium leading-6 text-white/90">{prompt}</p>
+              {!activeExercise && <button onClick={() => void tryAnotherQuestion()} disabled={status === 'recording' || status === 'processing'} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-white/55 hover:text-white"><RefreshCw className="size-3.5" />Try another question</button>}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><Clock3 className="size-4 text-[var(--mint)]" />Suggested session: about 10 min</div>
+              <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><ShieldCheck className="size-4 text-[var(--mint)]" />Video is never uploaded or saved</div>
+            </div>
           </div>
 
           <div className="mt-auto space-y-3">
             {status === 'ready' && (
-              <Button onClick={startSpeaking} size="lg" className="h-12 w-full rounded-xl bg-[#f4f0e4] text-[var(--navy)] hover:bg-white">
-                <Mic className="size-4" /> Start speaking
+              <Button onClick={() => void startSpeaking()} disabled={starting || (!activeExercise && categories.length === 0)} size="lg" className="h-12 w-full rounded-xl bg-[#f4f0e4] text-[var(--navy)] hover:bg-white">
+                <Mic className="size-4" /> {starting ? 'Preparing session…' : 'Start speaking'}
               </Button>
             )}
             {status === 'recording' && (
@@ -289,12 +423,8 @@ export function CameraPractice() {
             {(status === 'permission' || status === 'error') && (
               <Button disabled size="lg" className="h-12 w-full rounded-xl bg-white/10 text-white/45">Start speaking</Button>
             )}
-            <Button onClick={tryAnotherQuestion} variant="ghost" disabled={status === 'recording' || status === 'processing'} className="h-10 w-full text-white/60 hover:bg-white/8 hover:text-white">
-              <RefreshCw className="size-4" /> Skip to another question
-            </Button>
-            <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">
-              End session <ChevronRight className="size-3.5" />
-            </button>
+            {setupError && <p role="alert" className="rounded-xl bg-[#8f4336]/20 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc]">{setupError}</p>}
+            {!activeExercise && activeSessionId && answerCount > 0 && <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">End session <ChevronRight className="size-3.5" /></button>}
           </div>
         </aside>
       </div>

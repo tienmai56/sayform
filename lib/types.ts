@@ -1,9 +1,19 @@
 export type GoalStatus = 'active' | 'completed' | 'archived';
 
-export type Goal = {
+export type GoalSkill = {
   id: string;
   title: string;
   description: string;
+};
+
+export type Goal = {
+  id: string;
+  templateKey: string | null;
+  isCustom: boolean;
+  title: string;
+  description: string;
+  skills: GoalSkill[];
+  defaultCategory: string;
   status: GoalStatus;
   lastPractised: string | null;
   sessions: number;
@@ -20,11 +30,48 @@ export type FeedbackDimension =
 export type FeedbackItem = {
   id: string;
   dimension: FeedbackDimension;
+  skill?: string;
   evidence: string;
   title: string;
   explanation: string;
   alternatives?: string[];
   positive?: boolean;
+};
+
+export type SummaryPattern = {
+  title: string;
+  detail: string;
+  evidence?: string;
+  responseIds?: string[];
+};
+
+export type ExerciseRecommendation = {
+  id: string;
+  title: string;
+  targetSkill: string;
+  selectionReason: string;
+  prompt: string;
+  sourceEvidence: string;
+};
+
+export type FinishedSession = {
+  session: {
+    id: string;
+    status: 'completed';
+    answers: number;
+    durationSeconds: number;
+    wordCount: number;
+    averageWpm: number;
+    fillerCount: number;
+  };
+  summary: {
+    headline: string;
+    summary: string;
+    strengths: SummaryPattern[];
+    opportunities: SummaryPattern[];
+    takeaway: string;
+  };
+  exercise: ExerciseRecommendation | null;
 };
 
 export type PracticeSession = {
@@ -48,4 +95,7 @@ export type SessionDetail = PracticeSession & {
   feedbackExplanation: string;
   summary: string;
   exerciseTitle?: string;
+  exerciseTargetSkill?: string;
+  exerciseReason?: string;
+  exerciseEvidence?: string;
 };
