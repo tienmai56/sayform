@@ -200,7 +200,6 @@ export function GoalsView() {
 
         <div className="mt-8 flex items-center justify-between rounded-2xl border border-dashed border-[#bcc8c4] bg-transparent px-5 py-4">
           <div><p className="text-sm font-semibold text-[var(--navy)]">Your first session is your baseline</p><p className="mt-1 text-xs text-[var(--muted-ink)]">No assessment is required. Choose a goal and start with a real speaking question.</p></div>
-          <span className="text-xs font-medium text-[var(--teal-dark)]">Suggested session · about 10 minutes</span>
         </div>
       </Screen>
 

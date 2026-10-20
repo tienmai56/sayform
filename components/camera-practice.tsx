@@ -5,9 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Camera,
   CameraOff,
-  Check,
   ChevronRight,
-  Clock3,
   Lightbulb,
   Mic,
   RefreshCw,
@@ -22,7 +20,6 @@ import { usePractice } from '@/components/practice-context';
 import { getPracticeQuestions } from '@/lib/goal-catalog';
 import { categories as categoryOptions } from '@/lib/mock-data';
 import { completeExercise, createPracticeSession, saveAndAnalyzeResponse } from '@/lib/client-data';
-import { cn } from '@/lib/utils';
 
 type PracticeStatus = 'permission' | 'ready' | 'recording' | 'processing' | 'error';
 
@@ -63,6 +60,10 @@ export function CameraPractice() {
   const [errorKind, setErrorKind] = useState<'media' | 'save'>('media');
   const [starting, setStarting] = useState(false);
   const [setupError, setSetupError] = useState('');
+  const practiceCategories = categories.length > 0 ? categories : ['spontaneous'];
+  const categoryTitle = activeExercise
+    ? activeExercise.targetSkill
+    : categoryOptions.find((category) => category.id === practiceCategories[0])?.title ?? 'Spontaneous thinking';
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -111,18 +112,15 @@ export function CameraPractice() {
   }
 
   async function startSpeaking() {
-    if (!activeExercise && categories.length === 0) {
-      setSetupError('Choose at least one practice category.');
-      return;
-    }
     setStarting(true);
     setSetupError('');
     try {
       if (!activeExercise && !activeSessionId) {
+        if (categories.length === 0) updateSetup({ categories: practiceCategories });
         const session = await createPracticeSession({
           goalId,
           goalTitle,
-          categories,
+          categories: practiceCategories,
           topic: customTopic,
           prompt,
         });
@@ -207,14 +205,6 @@ export function CameraPractice() {
     const questions = getPracticeQuestions(goalTemplateKey);
     const index = questions.indexOf(prompt);
     updateSetup({ prompt: questions[(index + 1) % questions.length] });
-  }
-
-  function toggleCategory(categoryId: string) {
-    const next = categories.includes(categoryId)
-      ? categories.filter((category) => category !== categoryId)
-      : [...categories, categoryId];
-    updateSetup({ categories: next });
-    setSetupError('');
   }
 
   return (
@@ -316,8 +306,9 @@ export function CameraPractice() {
 
         <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#102630] p-7">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{activeExercise ? 'Personalized exercise' : 'Practice room'}</p>
-            <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise ? activeExercise.title : 'Review your setup, then speak'}</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{activeExercise ? 'Personalized exercise' : 'Practice category'}</p>
+            <p className="mt-2 text-sm font-semibold text-white/80">{categoryTitle}</p>
+            <h2 className="mt-4 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise ? activeExercise.title : 'Review your setup, then speak'}</h2>
             <p className="mt-3 text-sm leading-6 text-white/55">The timer starts only when you choose <strong className="font-medium text-white/75">Start speaking</strong>.</p>
           </div>
 
@@ -358,29 +349,6 @@ export function CameraPractice() {
                   )}
                 </div>
 
-                <div>
-                  <p className="text-xs font-semibold text-white/75">Practice category</p>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {categoryOptions.map((category) => {
-                      const selected = categories.includes(category.id);
-                      return (
-                        <button
-                          key={category.id}
-                          type="button"
-                          disabled={Boolean(activeSessionId)}
-                          onClick={() => toggleCategory(category.id)}
-                          className={cn(
-                            'rounded-xl border px-3 py-2 text-left text-[11px] font-medium leading-4 transition-colors disabled:opacity-60',
-                            selected ? 'border-[var(--mint)] bg-[var(--mint)]/15 text-white' : 'border-white/10 bg-white/5 text-white/55 hover:text-white',
-                          )}
-                        >
-                          {selected && <Check className="mr-1 inline size-3 text-[var(--mint)]" />}{category.title}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {!activeSessionId && (
                   <div>
                     <label htmlFor="practice-topic" className="text-xs font-semibold text-white/75">Optional topic</label>
@@ -403,14 +371,13 @@ export function CameraPractice() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><Clock3 className="size-4 text-[var(--mint)]" />Suggested session: about 10 min</div>
               <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><ShieldCheck className="size-4 text-[var(--mint)]" />Video is never uploaded or saved</div>
             </div>
           </div>
 
           <div className="mt-auto space-y-3">
             {status === 'ready' && (
-              <Button onClick={() => void startSpeaking()} disabled={starting || (!activeExercise && categories.length === 0)} size="lg" className="h-12 w-full rounded-xl bg-[#f4f0e4] text-[var(--navy)] hover:bg-white">
+              <Button onClick={() => void startSpeaking()} disabled={starting} size="lg" className="h-12 w-full rounded-xl bg-[#f4f0e4] text-[var(--navy)] hover:bg-white">
                 <Mic className="size-4" /> {starting ? 'Preparing session…' : 'Start speaking'}
               </Button>
             )}
