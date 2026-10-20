@@ -1,20 +1,56 @@
 import { NextResponse } from 'next/server';
-import { apiError, databaseError, parseBody, requireApiUser } from '@/lib/api-response';
-import { createMockAnalysis } from '@/lib/analysis/mock-provider';
+import { apiError, databaseError, requireApiUser } from '@/lib/api-response';
+import { generateResponseFeedback, OpenRouterRequestError, transcribeAudio } from '@/lib/analysis/openrouter-provider';
+import { createSpeechMetrics } from '@/lib/analysis/speech-metrics';
+import { getGoalDefinition } from '@/lib/goal-catalog';
 import { analyzeResponseSchema } from '@/lib/validation';
 
 type RouteParams = { params: Promise<{ responseId: string }> };
 
+const maximumAudioBytes = 15 * 1024 * 1024;
+const allowedAudioTypes = new Set([
+  'audio/webm',
+  'audio/mp4',
+  'audio/ogg',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/x-m4a',
+]);
+
+function parseUpload(formData: FormData) {
+  const body = analyzeResponseSchema.safeParse({ idempotencyKey: formData.get('idempotencyKey') });
+  if (!body.success) return { error: apiError(400, 'invalid_request', 'The analysis request is missing its identifier.') } as const;
+  const audio = formData.get('audio');
+  if (!(audio instanceof File) || audio.size === 0) {
+    return { error: apiError(400, 'audio_required', 'Record an answer before requesting feedback.') } as const;
+  }
+  const normalizedType = audio.type.split(';')[0].toLocaleLowerCase();
+  if (normalizedType && !allowedAudioTypes.has(normalizedType)) {
+    return { error: apiError(415, 'unsupported_audio', 'This browser produced an unsupported audio format.') } as const;
+  }
+  if (audio.size > maximumAudioBytes) {
+    return { error: apiError(413, 'audio_too_large', 'Keep each answer under the 15 MB recording limit.') } as const;
+  }
+  return { data: { idempotencyKey: body.data.idempotencyKey, audio } } as const;
+}
+
 export async function POST(request: Request, { params }: RouteParams) {
   const context = await requireApiUser();
   if ('error' in context) return context.error;
-  const body = await parseBody(request, analyzeResponseSchema);
-  if ('error' in body) return body.error;
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return apiError(400, 'invalid_upload', 'The audio upload could not be read.');
+  }
+  const upload = parseUpload(formData);
+  if ('error' in upload) return upload.error;
   const { responseId } = await params;
 
   const { data: response, error: responseError } = await context.supabase
     .from('responses')
-    .select('id, session_id, duration_seconds, status')
+    .select('id, session_id, prompt, duration_seconds, status')
     .eq('id', responseId)
     .eq('user_id', context.userId)
     .maybeSingle();
@@ -24,8 +60,8 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   const { data: existingJob, error: existingJobError } = await context.supabase
     .from('analysis_jobs')
-    .select('id, state')
-    .eq('idempotency_key', body.data.idempotencyKey)
+    .select('id, state, attempts')
+    .eq('idempotency_key', upload.data.idempotencyKey)
     .eq('user_id', context.userId)
     .maybeSingle();
 
@@ -43,7 +79,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         session_id: response.session_id,
         response_id: response.id,
         state: 'queued',
-        idempotency_key: body.data.idempotencyKey,
+        idempotency_key: upload.data.idempotencyKey,
       })
       .select('id')
       .single();
@@ -51,73 +87,128 @@ export async function POST(request: Request, { params }: RouteParams) {
     jobId = job.id;
   }
 
-  const { error: analyzingError } = await context.supabase
+  const { error: transcribingJobError } = await context.supabase
     .from('analysis_jobs')
-    .update({ state: 'analyzing', attempts: 1 })
+    .update({ state: 'transcribing', attempts: (existingJob?.attempts ?? 0) + 1, last_error: null })
     .eq('id', jobId)
     .eq('user_id', context.userId);
-  if (analyzingError) return databaseError(analyzingError);
+  if (transcribingJobError) return databaseError(transcribingJobError);
+
+  const { error: transcribingResponseError } = await context.supabase
+    .from('responses')
+    .update({ status: 'transcribing' })
+    .eq('id', response.id)
+    .eq('user_id', context.userId);
+  if (transcribingResponseError) return databaseError(transcribingResponseError);
 
   const { data: session, error: sessionError } = await context.supabase
     .from('sessions')
-    .select('goals(template_key)')
+    .select('goal_title, topic, goals(template_key, title, description)')
     .eq('id', response.session_id)
     .eq('user_id', context.userId)
     .single();
   if (sessionError) return databaseError(sessionError);
+
   const goalRelation = Array.isArray(session.goals) ? session.goals[0] : session.goals;
-  const analysis = createMockAnalysis(response.duration_seconds, {
-    goalTemplateKey: goalRelation?.template_key,
-  });
-  const { error: updateResponseError } = await context.supabase
-    .from('responses')
-    .update({ transcript: analysis.transcript, status: 'completed' })
-    .eq('id', response.id)
-    .eq('user_id', context.userId);
-  if (updateResponseError) return databaseError(updateResponseError);
+  const goalDefinition = getGoalDefinition(goalRelation?.template_key);
 
-  const { error: metricsError } = await context.supabase.from('response_metrics').upsert({
-    response_id: response.id,
-    user_id: context.userId,
-    word_count: analysis.metrics.wordCount,
-    unique_word_count: analysis.metrics.uniqueWordCount,
-    average_wpm: analysis.metrics.averageWpm,
-    filler_count: analysis.metrics.fillerCount,
-    filler_words: analysis.metrics.fillerWords,
-  });
-  if (metricsError) return databaseError(metricsError);
+  try {
+    const transcript = await transcribeAudio(upload.data.audio);
+    const metrics = createSpeechMetrics(transcript, response.duration_seconds);
 
-  const { data: existingFeedback, error: feedbackReadError } = await context.supabase
-    .from('feedback_items')
-    .select('id')
-    .eq('response_id', response.id)
-    .limit(1);
-  if (feedbackReadError) return databaseError(feedbackReadError);
+    await context.supabase.from('analysis_jobs').update({ state: 'analyzing' }).eq('id', jobId).eq('user_id', context.userId);
+    await context.supabase.from('responses').update({ transcript, status: 'analyzing' }).eq('id', response.id).eq('user_id', context.userId);
 
-  if (!existingFeedback?.length) {
-    const { error: feedbackError } = await context.supabase.from('feedback_items').upsert(
-      analysis.feedback.map((item) => ({
-        user_id: context.userId,
-        response_id: response.id,
-        dimension: item.dimension,
-        skill: item.skill,
-        evidence: item.evidence,
-        title: item.title,
-        explanation: item.explanation,
-        alternatives: item.alternatives ?? [],
-        positive: item.positive ?? false,
-      })),
-      { onConflict: 'response_id,title', ignoreDuplicates: true },
-    );
-    if (feedbackError) return databaseError(feedbackError);
+    const feedback = await generateResponseFeedback({
+      prompt: response.prompt,
+      goalTitle: session.goal_title,
+      goalDescription: goalRelation?.description ?? session.topic,
+      goalSkills: goalDefinition?.skills ?? [],
+      transcript,
+      metrics,
+    });
+
+    const { error: metricsError } = await context.supabase.from('response_metrics').upsert({
+      response_id: response.id,
+      user_id: context.userId,
+      word_count: metrics.wordCount,
+      unique_word_count: metrics.uniqueWordCount,
+      average_wpm: metrics.averageWpm,
+      filler_count: metrics.fillerCount,
+      filler_words: metrics.fillerWords,
+    });
+    if (metricsError) throw new Error(`Could not save response metrics: ${metricsError.message}`);
+
+    const { error: deleteFeedbackError } = await context.supabase
+      .from('feedback_items')
+      .delete()
+      .eq('response_id', response.id)
+      .eq('user_id', context.userId);
+    if (deleteFeedbackError) throw new Error(`Could not replace feedback: ${deleteFeedbackError.message}`);
+
+    const { data: savedFeedback, error: feedbackError } = await context.supabase
+      .from('feedback_items')
+      .insert(
+        feedback.map((item) => ({
+          user_id: context.userId,
+          response_id: response.id,
+          dimension: item.dimension,
+          skill: item.skill,
+          evidence: item.evidence,
+          title: item.title,
+          explanation: item.explanation,
+          alternatives: item.alternatives ?? [],
+          positive: item.positive ?? false,
+        })),
+      )
+      .select('id, dimension, skill, evidence, title, explanation, alternatives, positive');
+    if (feedbackError) throw new Error(`Could not save feedback: ${feedbackError.message}`);
+
+    const { error: updateResponseError } = await context.supabase
+      .from('responses')
+      .update({ transcript, status: 'completed' })
+      .eq('id', response.id)
+      .eq('user_id', context.userId);
+    if (updateResponseError) throw new Error(`Could not finish the response: ${updateResponseError.message}`);
+
+    const { error: completedError } = await context.supabase
+      .from('analysis_jobs')
+      .update({ state: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', jobId)
+      .eq('user_id', context.userId);
+    if (completedError) throw new Error(`Could not finish the analysis job: ${completedError.message}`);
+
+    return NextResponse.json({
+      responseId,
+      status: 'completed',
+      provider: 'openrouter',
+      analysis: {
+        transcript,
+        durationSeconds: response.duration_seconds,
+        metrics,
+        feedback: savedFeedback ?? [],
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown analysis error';
+    console.error('Response analysis failed', { responseId, message });
+    await Promise.all([
+      context.supabase
+        .from('responses')
+        .update({ status: 'failed' })
+        .eq('id', response.id)
+        .eq('user_id', context.userId),
+      context.supabase
+        .from('analysis_jobs')
+        .update({ state: 'failed', last_error: message.slice(0, 1000) })
+        .eq('id', jobId)
+        .eq('user_id', context.userId),
+    ]);
+    const userMessage = message === 'No speech was detected in the recording.'
+      ? message
+      : error instanceof OpenRouterRequestError && error.status === 402
+        ? 'OpenRouter needs at least $0.50 of available balance for speech transcription. Add credit or raise this key’s usable limit, then try again.'
+        : 'The speech analysis could not be completed. Please try again.';
+    return apiError(error instanceof OpenRouterRequestError ? error.status : 502, 'analysis_failed', userMessage);
   }
-
-  const { error: completedError } = await context.supabase
-    .from('analysis_jobs')
-    .update({ state: 'completed', completed_at: new Date().toISOString() })
-    .eq('id', jobId)
-    .eq('user_id', context.userId);
-  if (completedError) return databaseError(completedError);
-
-  return NextResponse.json({ responseId, status: 'completed', provider: 'mock' });
 }

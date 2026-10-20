@@ -1,9 +1,10 @@
 'use client';
 
 import { categories as categoryOptions, feedbackItems, sessions as seedSessions, transcript } from '@/lib/mock-data';
+import { createMockAnalysis } from '@/lib/analysis/mock-provider';
 import { createDemoGoals, getGoalDefinition } from '@/lib/goal-catalog';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
-import type { FinishedSession, Goal, PracticeSession, SessionDetail } from '@/lib/types';
+import type { FeedbackDimension, FinishedSession, Goal, PracticeSession, ResponseAnalysis, SessionDetail } from '@/lib/types';
 
 const goalStorageKey = 'communication-coach:demo-goals';
 const sessionStorageKey = 'communication-coach:demo-sessions';
@@ -26,7 +27,9 @@ function writeLocal<T>(key: string, value: T) {
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
-  if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (init?.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
   const response = await fetch(path, {
     ...init,
     headers,
@@ -127,34 +130,89 @@ export async function saveAndAnalyzeResponse(input: {
   prompt: string;
   durationSeconds: number;
   sequenceNumber: number;
+  audio: Blob;
 }) {
   if (!usesPersistentBackend) {
-    return { responseId: `demo-response-${crypto.randomUUID()}`, feedbackIds: {} as Record<string, string> };
+    const responseId = `demo-response-${crypto.randomUUID()}`;
+    const mock = createMockAnalysis(input.durationSeconds);
+    const analysis: ResponseAnalysis = {
+      transcript: mock.transcript,
+      durationSeconds: input.durationSeconds,
+      metrics: mock.metrics,
+      feedback: mock.feedback,
+    };
+    return { responseId, feedbackIds: {} as Record<string, string>, analysis };
   }
 
   const created = await apiRequest<{ response: { id: string } }>(`/api/sessions/${input.sessionId}/responses`, {
     method: 'POST',
     body: JSON.stringify({
       prompt: input.prompt,
-      durationSeconds: input.durationSeconds,
+      durationSeconds: Math.max(1, input.durationSeconds),
       sequenceNumber: input.sequenceNumber,
     }),
   });
-  const idempotencyKey = `${input.sessionId}:${input.sequenceNumber}:mock-v1`;
-  await apiRequest(`/api/responses/${created.response.id}/analyze`, {
+  const idempotencyKey = `${input.sessionId}:${input.sequenceNumber}:openrouter-v1`;
+  const upload = new FormData();
+  upload.set('idempotencyKey', idempotencyKey);
+  upload.set('audio', input.audio, input.audio.type.includes('mp4') ? 'answer.m4a' : 'answer.webm');
+  const analyzed = await apiRequest<{ analysis?: ResponseAnalysis }>(`/api/responses/${created.response.id}/analyze`, {
     method: 'POST',
-    body: JSON.stringify({ idempotencyKey }),
+    body: upload,
   });
-  const analyzed = await apiRequest<{
-    response: { feedback_items: { id: string; title: string }[] };
-  }>(`/api/responses/${created.response.id}`);
-  const feedbackIds = Object.fromEntries(
-    feedbackItems.flatMap((item) => {
-      const saved = analyzed.response.feedback_items.find((candidate) => candidate.title === item.title);
-      return saved ? [[item.id, saved.id]] : [];
-    }),
-  );
-  return { responseId: created.response.id, feedbackIds };
+  const analysis = analyzed.analysis ?? await getResponseAnalysis(created.response.id);
+  if (!analysis) throw new Error('The completed analysis could not be loaded.');
+  const feedbackIds = Object.fromEntries(analysis.feedback.map((item) => [item.id, item.id]));
+  return { responseId: created.response.id, feedbackIds, analysis };
+}
+
+export async function getResponseAnalysis(responseId: string): Promise<ResponseAnalysis | null> {
+  if (!usesPersistentBackend) return null;
+  const result = await apiRequest<{
+    response: {
+      transcript: string;
+      duration_seconds: number;
+      response_metrics: Array<{
+        word_count: number;
+        unique_word_count: number;
+        average_wpm: number;
+        filler_count: number;
+        filler_words: Record<string, number>;
+      }> | {
+        word_count: number;
+        unique_word_count: number;
+        average_wpm: number;
+        filler_count: number;
+        filler_words: Record<string, number>;
+      } | null;
+      feedback_items: Array<{
+        id: string;
+        dimension: FeedbackDimension;
+        skill: string;
+        evidence: string;
+        title: string;
+        explanation: string;
+        alternatives: string[];
+        positive: boolean;
+      }>;
+    };
+  }>(`/api/responses/${responseId}`);
+  const metricsRelation = Array.isArray(result.response.response_metrics)
+    ? result.response.response_metrics[0]
+    : result.response.response_metrics;
+  if (!metricsRelation) return null;
+  return {
+    transcript: result.response.transcript,
+    durationSeconds: result.response.duration_seconds,
+    metrics: {
+      wordCount: metricsRelation.word_count,
+      uniqueWordCount: metricsRelation.unique_word_count,
+      averageWpm: metricsRelation.average_wpm,
+      fillerCount: metricsRelation.filler_count,
+      fillerWords: metricsRelation.filler_words,
+    },
+    feedback: result.response.feedback_items,
+  };
 }
 
 export async function rateFeedback(
@@ -255,14 +313,24 @@ function createDemoFinishedSession(
   };
 }
 
-export async function completeExercise(exerciseId: string | null) {
-  if (!usesPersistentBackend || !exerciseId) return;
-  await apiRequest(`/api/exercises/${exerciseId}/response`, {
+export async function completeExercise(exerciseId: string | null, audio: Blob, durationSeconds: number) {
+  if (!usesPersistentBackend || !exerciseId) {
+    const mock = createMockAnalysis(durationSeconds);
+    return {
+      transcript: mock.transcript,
+      durationSeconds,
+      metrics: mock.metrics,
+      feedback: mock.feedback,
+    } satisfies ResponseAnalysis;
+  }
+  const upload = new FormData();
+  upload.set('durationSeconds', String(Math.max(1, durationSeconds)));
+  upload.set('audio', audio, audio.type.includes('mp4') ? 'exercise.m4a' : 'exercise.webm');
+  const result = await apiRequest<{ analysis: ResponseAnalysis }>(`/api/exercises/${exerciseId}/response`, {
     method: 'POST',
-    body: JSON.stringify({
-      answerText: 'Moving too quickly can increase support incidents and erode customer trust later.',
-    }),
+    body: upload,
   });
+  return result.analysis;
 }
 
 export async function listHistory(): Promise<PracticeSession[]> {

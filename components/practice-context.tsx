@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getGoalDefinition, getPracticeQuestions } from '@/lib/goal-catalog';
-import type { ExerciseRecommendation, GoalSkill } from '@/lib/types';
+import type { ExerciseRecommendation, GoalSkill, ResponseAnalysis } from '@/lib/types';
 
 type PracticeState = {
   goalId: string;
@@ -18,6 +18,7 @@ type PracticeState = {
   answerCount: number;
   sessionStartedAt: number;
   feedbackIds: Record<string, string>;
+  currentAnalysis: ResponseAnalysis | null;
   activeExercise: ExerciseRecommendation | null;
 };
 
@@ -30,7 +31,8 @@ type PracticeContextValue = PracticeState & {
   setRecordingUrl: (url: string | null) => void;
   clearRecording: () => void;
   beginSession: (sessionId: string) => void;
-  completeResponse: (responseId: string, feedbackIds: Record<string, string>) => void;
+  completeResponse: (responseId: string, feedbackIds: Record<string, string>, analysis: ResponseAnalysis) => void;
+  setCurrentAnalysis: (analysis: ResponseAnalysis | null) => void;
   resetSession: () => void;
   setActiveExercise: (exercise: ExerciseRecommendation | null) => void;
 };
@@ -51,6 +53,7 @@ const initialState: PracticeState = {
   answerCount: 0,
   sessionStartedAt: Date.now(),
   feedbackIds: {},
+  currentAnalysis: null,
   activeExercise: null,
 };
 
@@ -107,16 +110,21 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           answerCount: 0,
           sessionStartedAt: Date.now(),
           feedbackIds: {},
+          currentAnalysis: null,
           activeExercise: null,
         }));
       },
-      completeResponse(responseId, feedbackIds) {
+      completeResponse(responseId, feedbackIds, analysis) {
         setState((current) => ({
           ...current,
           activeResponseId: responseId,
           answerCount: current.answerCount + 1,
           feedbackIds,
+          currentAnalysis: analysis,
         }));
+      },
+      setCurrentAnalysis(analysis) {
+        setState((current) => ({ ...current, currentAnalysis: analysis }));
       },
       resetSession() {
         setState((current) => ({
@@ -126,6 +134,7 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           answerCount: 0,
           sessionStartedAt: Date.now(),
           feedbackIds: {},
+          currentAnalysis: null,
           activeExercise: null,
         }));
       },

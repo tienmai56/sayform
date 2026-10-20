@@ -28,6 +28,21 @@ function formatTime(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
+function createRecorder(stream: MediaStream, mimeTypes: string[]) {
+  const mimeType = mimeTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate));
+  return mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+}
+
+function stopRecorder(recorder: MediaRecorder | null, chunks: Blob[]) {
+  if (!recorder || recorder.state === 'inactive') return Promise.resolve<Blob | null>(null);
+  return new Promise<Blob | null>((resolve) => {
+    recorder.addEventListener('stop', () => {
+      resolve(chunks.length ? new Blob(chunks, { type: recorder.mimeType }) : null);
+    }, { once: true });
+    recorder.stop();
+  });
+}
+
 export function CameraPractice() {
   const router = useRouter();
   const {
@@ -43,14 +58,18 @@ export function CameraPractice() {
     goalTemplateKey,
     goalTitle,
     prompt,
+    setCurrentAnalysis,
     setRecordingUrl,
     clearRecording,
     updateSetup,
   } = usePractice();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const previewRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioRecorderRef = useRef<MediaRecorder | null>(null);
+  const previewChunksRef = useRef<Blob[]>([]);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const retryAudioRef = useRef<Blob | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [status, setStatus] = useState<PracticeStatus>('permission');
   const [elapsed, setElapsed] = useState(0);
@@ -104,10 +123,17 @@ export function CameraPractice() {
     }
   }
 
-  function useDemoMode() {
-    setDemoMode(true);
+  async function enableAudioOnly() {
     setErrorMessage('');
-    setStatus('ready');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+      streamRef.current = stream;
+      setDemoMode(true);
+      setStatus('ready');
+    } catch {
+      setErrorMessage('Microphone access was not granted. Speech analysis requires an audio recording.');
+      setStatus('error');
+    }
   }
 
   async function startSpeaking() {
@@ -132,22 +158,39 @@ export function CameraPractice() {
     }
 
     clearRecording();
-    chunksRef.current = [];
+    previewChunksRef.current = [];
+    audioChunksRef.current = [];
+    retryAudioRef.current = null;
     setElapsed(0);
 
     if (streamRef.current && typeof MediaRecorder !== 'undefined') {
-      const recorder = new MediaRecorder(streamRef.current);
-      recorderRef.current = recorder;
-      recorder.ondataavailable = (event: BlobEvent) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
+      const previewRecorder = streamRef.current.getVideoTracks().length
+        ? createRecorder(streamRef.current, [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+            'video/mp4',
+          ])
+        : null;
+      const audioStream = new MediaStream(streamRef.current.getAudioTracks());
+      const audioRecorder = createRecorder(audioStream, [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+      ]);
+      previewRecorderRef.current = previewRecorder;
+      audioRecorderRef.current = audioRecorder;
+      if (previewRecorder) {
+        previewRecorder.ondataavailable = (event: BlobEvent) => {
+          if (event.data.size > 0) previewChunksRef.current.push(event.data);
+        };
+      }
+      audioRecorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
-      recorder.onstop = () => {
-        if (chunksRef.current.length > 0) {
-          const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' });
-          setRecordingUrl(URL.createObjectURL(blob));
-        }
-      };
-      recorder.start();
+      previewRecorder?.start(1000);
+      audioRecorder.start(1000);
     }
 
     setStatus('recording');
@@ -155,9 +198,11 @@ export function CameraPractice() {
     setStarting(false);
   }
 
-  async function persistResponse() {
+  async function persistResponse(audio: Blob | null) {
+    if (!audio) throw new Error('A microphone recording is required for speech analysis.');
     if (activeExercise) {
-      await completeExercise(activeExercise.id);
+      const analysis = await completeExercise(activeExercise.id, audio, elapsed);
+      setCurrentAnalysis(analysis);
       return;
     }
     if (!activeSessionId) return;
@@ -166,18 +211,24 @@ export function CameraPractice() {
       prompt,
       durationSeconds: elapsed,
       sequenceNumber: answerCount + 1,
+      audio,
     });
-    completeResponse(result.responseId, result.feedbackIds);
+    completeResponse(result.responseId, result.feedbackIds, result.analysis);
   }
 
   async function doneSpeaking() {
     stopTimer();
-    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-    releaseCamera();
     setStatus('processing');
     try {
+      const [previewBlob, audioBlob] = await Promise.all([
+        stopRecorder(previewRecorderRef.current, previewChunksRef.current),
+        stopRecorder(audioRecorderRef.current, audioChunksRef.current),
+      ]);
+      retryAudioRef.current = audioBlob;
+      if (previewBlob) setRecordingUrl(URL.createObjectURL(previewBlob));
+      releaseCamera();
       await Promise.all([
-        persistResponse(),
+        persistResponse(audioBlob),
         new Promise((resolve) => window.setTimeout(resolve, 900)),
       ]);
       router.push('/practice/feedback');
@@ -192,7 +243,7 @@ export function CameraPractice() {
   async function retrySave() {
     setStatus('processing');
     try {
-      await persistResponse();
+      await persistResponse(retryAudioRef.current);
       router.push('/practice/feedback');
     } catch (caught) {
       setErrorMessage(caught instanceof Error ? caught.message : 'This response could not be saved.');
@@ -232,7 +283,7 @@ export function CameraPractice() {
                   {status === 'permission' && (
                     <>
                       <h1 className="mt-6 font-display text-2xl font-semibold tracking-[-0.03em]">Set up your camera</h1>
-                      <p className="mt-2 text-sm leading-6 text-white/60">Your recording stays in this browser and is available only for the immediate feedback view.</p>
+                      <p className="mt-2 text-sm leading-6 text-white/60">Video stays in this browser. A temporary audio-only track is sent securely for transcription and coaching.</p>
                       <Button onClick={enableCamera} className="mt-6 h-11 rounded-xl bg-white px-5 text-[var(--navy)] hover:bg-[var(--mint-soft)]">
                         <Camera className="size-4" /> Enable camera & microphone
                       </Button>
@@ -244,7 +295,7 @@ export function CameraPractice() {
                       <p className="mt-2 text-sm leading-6 text-white/60">{errorMessage}</p>
                       <div className="mt-6 flex justify-center gap-3">
                         <Button onClick={enableCamera} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">Try again</Button>
-                        <Button onClick={useDemoMode} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Use prototype without camera</Button>
+                        <Button onClick={() => void enableAudioOnly()} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Use microphone only</Button>
                       </div>
                     </>
                   )}
@@ -261,7 +312,7 @@ export function CameraPractice() {
                   {demoMode && status !== 'recording' && (
                     <>
                       <h1 className="mt-6 font-display text-2xl font-semibold">Prototype camera</h1>
-                      <p className="mt-2 text-sm text-white/60">Camera preview is off. The practice controls and mock coaching flow remain available.</p>
+                      <p className="mt-2 text-sm text-white/60">Camera preview is off. Your microphone will still provide real transcription and coaching.</p>
                     </>
                   )}
                 </div>
@@ -270,7 +321,7 @@ export function CameraPractice() {
 
             {status === 'recording' && demoMode && (
               <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#244858_0%,#152c37_42%,#10242e_100%)]">
-                <div className="text-center"><Mic className="mx-auto size-10 text-[var(--mint)]" /><p className="mt-4 text-sm text-white/65">Prototype recording in progress</p></div>
+                <div className="text-center"><Mic className="mx-auto size-10 text-[var(--mint)]" /><p className="mt-4 text-sm text-white/65">Microphone recording in progress</p></div>
               </div>
             )}
 
@@ -371,7 +422,7 @@ export function CameraPractice() {
             )}
 
             <div className="space-y-2">
-              <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><ShieldCheck className="size-4 text-[var(--mint)]" />Video is never uploaded or saved</div>
+              <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><ShieldCheck className="size-4 text-[var(--mint)]" />Video stays local; temporary audio is not saved</div>
             </div>
           </div>
 

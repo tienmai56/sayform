@@ -38,6 +38,21 @@ export type FeedbackItem = {
   positive?: boolean;
 };
 
+export type ResponseMetrics = {
+  wordCount: number;
+  uniqueWordCount: number;
+  averageWpm: number;
+  fillerCount: number;
+  fillerWords: Record<string, number>;
+};
+
+export type ResponseAnalysis = {
+  transcript: string;
+  durationSeconds: number;
+  metrics: ResponseMetrics;
+  feedback: FeedbackItem[];
+};
+
 export type SummaryPattern = {
   title: string;
   detail: string;

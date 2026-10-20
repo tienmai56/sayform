@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { apiError, databaseError, parseBody, requireApiUser } from '@/lib/api-response';
-import { createMockSessionSummary } from '@/lib/analysis/mock-provider';
+import { generateSessionSummary } from '@/lib/analysis/openrouter-provider';
+import { getGoalDefinition } from '@/lib/goal-catalog';
 import { finishSessionSchema } from '@/lib/validation';
 import type { FeedbackDimension } from '@/lib/types';
 
@@ -37,7 +38,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   const { data: session, error: sessionError } = await context.supabase
     .from('sessions')
-    .select('id, status, created_at, title, goal_title, goals(template_key)')
+    .select('id, status, created_at, title, goal_title, takeaway, goals(template_key)')
     .eq('id', sessionId)
     .eq('user_id', context.userId)
     .maybeSingle();
@@ -69,13 +70,76 @@ export async function POST(request: Request, { params }: RouteParams) {
       responseId: response.id,
     })),
   );
+
+  if (session.status === 'completed') {
+    const [{ data: savedSummary }, { data: savedExercise }] = await Promise.all([
+      context.supabase
+        .from('session_summaries')
+        .select('summary, strengths, opportunities')
+        .eq('session_id', sessionId)
+        .eq('user_id', context.userId)
+        .maybeSingle(),
+      context.supabase
+        .from('exercises')
+        .select('id, title, target_skill, selection_reason, prompt, source_evidence')
+        .eq('session_id', sessionId)
+        .eq('user_id', context.userId)
+        .maybeSingle(),
+    ]);
+    if (savedSummary && savedExercise) {
+      const strengths = Array.isArray(savedSummary.strengths) ? savedSummary.strengths : [];
+      const opportunities = Array.isArray(savedSummary.opportunities) ? savedSummary.opportunities : [];
+      const firstStrength = strengths[0] as { title?: string } | undefined;
+      return NextResponse.json({
+        session: {
+          id: sessionId,
+          status: 'completed',
+          answers: completedResponses.length,
+          durationSeconds: totalDuration,
+          wordCount,
+          averageWpm,
+          fillerCount,
+        },
+        summary: {
+          headline: firstStrength?.title ?? 'Session complete',
+          summary: savedSummary.summary,
+          strengths,
+          opportunities,
+          takeaway: session.takeaway,
+        },
+        exercise: {
+          id: savedExercise.id,
+          title: savedExercise.title,
+          targetSkill: savedExercise.target_skill,
+          selectionReason: savedExercise.selection_reason,
+          prompt: savedExercise.prompt,
+          sourceEvidence: savedExercise.source_evidence,
+        },
+      });
+    }
+  }
+
   const goalRelation = Array.isArray(session.goals) ? session.goals[0] : session.goals;
-  const summary = createMockSessionSummary({
-    goalTitle: session.goal_title,
-    goalTemplateKey: goalRelation?.template_key,
-    answerCount: completedResponses.length,
-    feedback,
-  });
+  const goalDefinition = getGoalDefinition(goalRelation?.template_key);
+  let summary: Awaited<ReturnType<typeof generateSessionSummary>>;
+  try {
+    summary = await generateSessionSummary({
+      goalTitle: session.goal_title,
+      goalSkills: goalDefinition?.skills ?? [],
+      responses: completedResponses.map((response) => ({
+        id: response.id,
+        prompt: response.prompt,
+        transcript: response.transcript,
+      })),
+      feedback,
+    });
+  } catch (error) {
+    console.error('Session summary generation failed', {
+      sessionId,
+      message: error instanceof Error ? error.message : 'Unknown summary error',
+    });
+    return apiError(502, 'summary_failed', 'The personalized session summary could not be completed. Please try again.');
+  }
   const completedAt = new Date().toISOString();
 
   const { error: updateError } = await context.supabase

@@ -19,10 +19,8 @@ import {
 import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { transcript } from '@/lib/mock-data';
-import { createMockAnalysis } from '@/lib/analysis/mock-provider';
 import { getPracticeQuestions } from '@/lib/goal-catalog';
-import type { FeedbackDimension } from '@/lib/types';
+import type { FeedbackDimension, FeedbackItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { usePractice } from '@/components/practice-context';
 import { rateFeedback } from '@/lib/client-data';
@@ -35,11 +33,61 @@ const dimensions: FeedbackDimension[] = [
   'What worked',
 ];
 
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes ? `${minutes} min ${seconds} sec` : `${seconds} sec`;
+}
+
+function TranscriptWithHighlights({
+  text,
+  feedback,
+  selectedId,
+  onSelect,
+}: {
+  text: string;
+  feedback: FeedbackItem[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  const matches = feedback
+    .map((item) => ({ item, index: text.toLocaleLowerCase().indexOf(item.evidence.toLocaleLowerCase()) }))
+    .filter((match) => match.index >= 0)
+    .sort((left, right) => left.index - right.index)
+    .filter((match, index, all) => index === 0 || match.index >= all[index - 1].index + all[index - 1].item.evidence.length);
+  if (!matches.length) return text;
+
+  const content: React.ReactNode[] = [];
+  let cursor = 0;
+  for (const match of matches) {
+    if (match.index > cursor) content.push(text.slice(cursor, match.index));
+    const evidence = text.slice(match.index, match.index + match.item.evidence.length);
+    content.push(
+      <button
+        key={`${match.item.id}-${match.index}`}
+        onClick={() => onSelect(match.item.id)}
+        className={cn(
+          'rounded px-1 py-0.5 font-medium underline decoration-2 underline-offset-4',
+          selectedId === match.item.id
+            ? 'bg-[var(--amber-soft)] text-[#6f5018] decoration-[#c58d2e]'
+            : 'bg-[#fbf4e4] decoration-[#d6a554]',
+        )}
+      >
+        {evidence}
+      </button>,
+    );
+    cursor = match.index + match.item.evidence.length;
+  }
+  if (cursor < text.length) content.push(text.slice(cursor));
+  return content;
+}
+
 export function FeedbackWorkspace() {
   const router = useRouter();
   const {
     activeExercise,
     clearRecording,
+    currentAnalysis,
     feedbackIds,
     goalSkills,
     goalTemplateKey,
@@ -50,20 +98,20 @@ export function FeedbackWorkspace() {
     updateSetup,
   } = usePractice();
   const [fullScreen, setFullScreen] = useState(false);
-  const [selectedId, setSelectedId] = useState('vague-language');
+  const [selectedId, setSelectedId] = useState('');
   const [ratings, setRatings] = useState<Record<string, 'helpful' | 'unhelpful'>>({});
   const [pendingDismiss, setPendingDismiss] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [note, setNote] = useState('');
-  const mockFeedback = useMemo(
-    () => createMockAnalysis(76, { goalTemplateKey }).feedback,
-    [goalTemplateKey],
-  );
+  const feedback = useMemo(() => currentAnalysis?.feedback ?? [], [currentAnalysis]);
 
   const activeFeedback = useMemo(
-    () => mockFeedback.filter((item) => !dismissed.includes(item.id)),
-    [dismissed, mockFeedback],
+    () => feedback.filter((item) => !dismissed.includes(item.id)),
+    [dismissed, feedback],
   );
+  const effectiveSelectedId = activeFeedback.some((item) => item.id === selectedId)
+    ? selectedId
+    : activeFeedback[0]?.id ?? '';
 
   function rateHelpful(id: string) {
     setRatings((current) => ({ ...current, [id]: 'helpful' }));
@@ -138,10 +186,16 @@ export function FeedbackWorkspace() {
             </div>
           )}
           <div className="grid grid-cols-4 gap-3">
-            <MetricCard label="Average pace" value="132 WPM" detail="Within 100–165 presentation reference" />
-            <MetricCard label="Fillers" value="3" detail="1.8 per 100 transcribed words" />
-            <MetricCard label="Total words" value="168" detail="Across 1 min 16 sec" />
-            <MetricCard label="Distinct words" value="103" detail="Consistent normalization" />
+            <MetricCard label="Average pace" value={currentAnalysis ? `${currentAnalysis.metrics.averageWpm} WPM` : '—'} detail="Calculated from this recording" />
+            <MetricCard
+              label="Fillers"
+              value={currentAnalysis ? String(currentAnalysis.metrics.fillerCount) : '—'}
+              detail={currentAnalysis && currentAnalysis.metrics.wordCount
+                ? `${((currentAnalysis.metrics.fillerCount / currentAnalysis.metrics.wordCount) * 100).toFixed(1)} per 100 transcribed words`
+                : 'From the transcript'}
+            />
+            <MetricCard label="Total words" value={currentAnalysis ? String(currentAnalysis.metrics.wordCount) : '—'} detail={currentAnalysis ? `Across ${formatDuration(currentAnalysis.durationSeconds)}` : 'From the transcript'} />
+            <MetricCard label="Distinct words" value={currentAnalysis ? String(currentAnalysis.metrics.uniqueWordCount) : '—'} detail="Case-normalized word count" />
           </div>
 
           <div className="mt-7 grid grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)] gap-6">
@@ -151,33 +205,14 @@ export function FeedbackWorkspace() {
                 <span className="text-[11px] text-[var(--muted-ink)]">Select a highlight to see the coaching</span>
               </div>
               <div className="rounded-2xl border border-[var(--line)] bg-white p-5 text-[15px] leading-8 text-[#344b55]">
-                {transcript.before}
-                <button
-                  onClick={() => setSelectedId('vague-language')}
-                  className={cn('rounded px-1 py-0.5 font-medium underline decoration-2 underline-offset-4', selectedId === 'vague-language' ? 'bg-[var(--amber-soft)] text-[#6f5018] decoration-[#c58d2e]' : 'bg-[#fbf4e4] decoration-[#d6a554]')}
-                >
-                  {transcript.vague}
-                </button>
-                {transcript.middle.split('I think').map((part, index, array) => (
-                  <span key={`${index}-${part.slice(0, 8)}`}>
-                    {part}
-                    {index < array.length - 1 && (
-                      <button
-                        onClick={() => setSelectedId('repeated-opening')}
-                        className={cn('rounded px-1 py-0.5 font-medium underline decoration-2 underline-offset-4', selectedId === 'repeated-opening' ? 'bg-[#e7edf7] text-[#3e577f] decoration-[#748db2]' : 'bg-[#f0f3f8] decoration-[#9aa9c1]')}
-                      >
-                        I think
-                      </button>
-                    )}
-                  </span>
-                ))}
-                <button
-                  onClick={() => setSelectedId('repeated-opening')}
-                  className={cn('rounded px-1 py-0.5 font-medium underline decoration-2 underline-offset-4', selectedId === 'repeated-opening' ? 'bg-[#e7edf7] text-[#3e577f] decoration-[#748db2]' : 'bg-[#f0f3f8] decoration-[#9aa9c1]')}
-                >
-                  {transcript.repeated}
-                </button>
-                {transcript.after}
+                {currentAnalysis ? (
+                  <TranscriptWithHighlights
+                    text={currentAnalysis.transcript}
+                    feedback={activeFeedback}
+                    selectedId={effectiveSelectedId}
+                    onSelect={setSelectedId}
+                  />
+                ) : 'Your transcript is unavailable.'}
               </div>
               <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-[var(--muted-ink)]">
                 <Expand className="mt-0.5 size-3.5 shrink-0" /> Transcript highlights explain language choices. They do not control video playback.
@@ -194,7 +229,7 @@ export function FeedbackWorkspace() {
                         onClick={() => item && setSelectedId(item.id)}
                         className={cn(
                           'rounded-full border px-3 py-1.5 text-xs font-medium',
-                          item?.id === selectedId
+                          item?.id === effectiveSelectedId
                             ? 'border-[var(--teal)] bg-[var(--mint-soft)] text-[var(--teal-dark)]'
                             : 'border-[var(--line)] bg-white text-[var(--muted-ink)] hover:text-[var(--ink)]',
                         )}
@@ -213,7 +248,7 @@ export function FeedbackWorkspace() {
                   key={item.id}
                   className={cn(
                     'rounded-2xl border bg-white p-5 transition-all',
-                    selectedId === item.id ? 'border-[var(--teal)] shadow-[0_0_0_3px_rgb(22_127_118/8%)]' : 'border-[var(--line)]',
+                    effectiveSelectedId === item.id ? 'border-[var(--teal)] shadow-[0_0_0_3px_rgb(22_127_118/8%)]' : 'border-[var(--line)]',
                   )}
                 >
                   <button onClick={() => setSelectedId(item.id)} className="w-full text-left">
@@ -229,7 +264,7 @@ export function FeedbackWorkspace() {
                     <p className="mt-3 text-sm leading-6 text-[#53666e]">{item.explanation}</p>
                   </button>
 
-                  {item.alternatives && selectedId === item.id && (
+                  {item.alternatives && effectiveSelectedId === item.id && (
                     <div className="mt-4 rounded-xl bg-[var(--canvas)] p-4">
                       <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--teal-dark)]"><Lightbulb className="size-3.5" />Try instead</p>
                       <ul className="mt-2 space-y-2">
@@ -306,7 +341,7 @@ export function FeedbackWorkspace() {
                 <div className="max-w-xs text-center text-white">
                   <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-white/8 text-[var(--mint)]"><VideoOff className="size-7" /></div>
                   <p className="mt-5 font-display text-xl font-semibold">Recording preview unavailable</p>
-                  <p className="mt-2 text-sm leading-6 text-white/50">This demo answer did not capture video. Feedback remains available for the prototype transcript.</p>
+                  <p className="mt-2 text-sm leading-6 text-white/50">The local video preview is unavailable. Your transcript and feedback remain available.</p>
                 </div>
               )}
             </div>
