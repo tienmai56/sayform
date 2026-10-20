@@ -6,7 +6,6 @@ import {
   Camera,
   CameraOff,
   ChevronRight,
-  Lightbulb,
   Mic,
   RefreshCw,
   ShieldCheck,
@@ -285,7 +284,14 @@ export function CameraPractice() {
             </div>
 
             <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/10 bg-[#07161d]/80 p-5 backdrop-blur-md">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--mint)]">Your prompt</p>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--mint)]">{activeExercise ? 'Exercise prompt' : 'Your prompt'}</p>
+                {!activeExercise && (
+                  <button onClick={() => void tryAnotherQuestion()} disabled={status === 'recording' || status === 'processing'} className="flex items-center gap-1.5 text-xs font-medium text-white/55 hover:text-white disabled:opacity-40">
+                    <RefreshCw className="size-3.5" /> Try another question
+                  </button>
+                )}
+              </div>
               <p className="mt-2 max-w-4xl font-display text-lg font-medium leading-7">{prompt}</p>
             </div>
           </div>
@@ -363,12 +369,6 @@ export function CameraPractice() {
                 )}
               </>
             )}
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--mint)]"><Lightbulb className="size-3.5" />{activeExercise ? 'Exercise prompt' : 'Your question'}</p>
-              <p className="mt-2 text-sm font-medium leading-6 text-white/90">{prompt}</p>
-              {!activeExercise && <button onClick={() => void tryAnotherQuestion()} disabled={status === 'recording' || status === 'processing'} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-white/55 hover:text-white"><RefreshCw className="size-3.5" />Try another question</button>}
-            </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><ShieldCheck className="size-4 text-[var(--mint)]" />Video is never uploaded or saved</div>
