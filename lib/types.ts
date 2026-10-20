@@ -40,3 +40,12 @@ export type PracticeSession = {
   takeaway: string;
   hasExercise: boolean;
 };
+
+export type SessionDetail = PracticeSession & {
+  prompt: string;
+  transcript: string;
+  feedbackTitle: string;
+  feedbackExplanation: string;
+  summary: string;
+  exerciseTitle?: string;
+};

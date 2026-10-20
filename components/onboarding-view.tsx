@@ -9,12 +9,17 @@ import { Input } from '@/components/ui/input';
 import { goalTemplates } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { usePractice } from '@/components/practice-context';
+import { useAuth } from '@/components/auth-provider';
+import { createGoal, usesPersistentBackend } from '@/lib/client-data';
 
 export function OnboardingView() {
   const router = useRouter();
   const { updateSetup } = usePractice();
+  const { user } = useAuth();
   const [selected, setSelected] = useState<string[]>(['clarity']);
   const [customGoal, setCustomGoal] = useState('');
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
 
   function toggleGoal(id: string) {
     setSelected((current) =>
@@ -22,13 +27,33 @@ export function OnboardingView() {
     );
   }
 
-  function continueToGoals() {
-    const primary = goalTemplates.find((goal) => goal.id === selected[0]);
-    if (primary) updateSetup({ goalId: primary.id, goalTitle: primary.title });
-    if (!primary && customGoal.trim()) {
-      updateSetup({ goalId: 'custom', goalTitle: customGoal.trim() });
+  async function continueToGoals() {
+    if (usesPersistentBackend && !user) {
+      router.push('/login?next=/onboarding');
+      return;
     }
-    router.push('/goals');
+
+    setPending(true);
+    setError('');
+    try {
+      const choices = goalTemplates.filter((goal) => selected.includes(goal.id));
+      if (customGoal.trim()) {
+        choices.push({
+          id: 'custom',
+          title: customGoal.trim(),
+          description: 'A personal communication goal created during onboarding.',
+        });
+      }
+      const created = await Promise.all(
+        choices.map((goal) => createGoal({ title: goal.title, description: goal.description })),
+      );
+      const primary = created[0];
+      if (primary) updateSetup({ goalId: primary.id, goalTitle: primary.title });
+      router.push('/goals');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Your goals could not be created.');
+      setPending(false);
+    }
   }
 
   const canContinue = selected.length > 0 || customGoal.trim().length > 2;
@@ -71,7 +96,7 @@ export function OnboardingView() {
 
       <section className="flex min-h-screen flex-col px-16 py-10">
         <div className="flex justify-end text-sm text-[var(--muted-ink)]">
-          Already have an account? <button className="ml-1 font-semibold text-[var(--teal-dark)] hover:underline">Log in</button>
+          Already have an account? <button onClick={() => router.push('/login')} className="ml-1 font-semibold text-[var(--teal-dark)] hover:underline">Log in</button>
         </div>
 
         <div className="my-auto w-full max-w-[650px] py-12">
@@ -129,13 +154,14 @@ export function OnboardingView() {
 
           <Button
             onClick={continueToGoals}
-            disabled={!canContinue}
+            disabled={!canContinue || pending}
             size="lg"
             className="mt-7 h-12 w-full rounded-xl bg-[var(--navy)] text-[15px] hover:bg-[#1d4255]"
           >
-            Create my goals
+            {pending ? 'Creating your goals…' : 'Create my goals'}
             <ArrowRight className="ml-1 size-4" />
           </Button>
+          {error && <p role="alert" className="mt-3 rounded-xl bg-[var(--rose-soft)] px-4 py-3 text-sm text-[#8f4336]">{error}</p>}
           <p className="mt-3 text-center text-xs text-[var(--muted-ink)]">No baseline test required. Your first practice becomes your starting point.</p>
         </div>
       </section>

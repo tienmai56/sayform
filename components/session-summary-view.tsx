@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
@@ -15,13 +16,44 @@ import {
 import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { usePractice } from '@/components/practice-context';
+import { finishPracticeSession, usesPersistentBackend } from '@/lib/client-data';
 
 const exercisePrompt =
   'Rephrase this idea in one clear sentence using a specific consequence: “Moving too quickly creates kind of a big problem later.”';
 
 export function SessionSummaryView() {
   const router = useRouter();
-  const { goalTitle, updateSetup } = usePractice();
+  const {
+    activeSessionId,
+    answerCount,
+    categories,
+    goalTitle,
+    prompt,
+    sessionStartedAt,
+    setActiveExerciseId,
+    updateSetup,
+  } = usePractice();
+  const saveStarted = useRef(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    if (!activeSessionId || saveStarted.current) return;
+    saveStarted.current = true;
+    setSaveState('saving');
+    void finishPracticeSession({
+      sessionId: activeSessionId,
+      goal: goalTitle,
+      categories,
+      prompt,
+      answerCount,
+      startedAt: sessionStartedAt,
+    })
+      .then((result) => {
+        setActiveExerciseId(result?.exerciseId ?? null);
+        setSaveState('saved');
+      })
+      .catch(() => setSaveState('error'));
+  }, [activeSessionId, answerCount, categories, goalTitle, prompt, sessionStartedAt, setActiveExerciseId]);
 
   function startExercise() {
     updateSetup({ prompt: exercisePrompt, categories: ['targeted-exercise'] });
@@ -126,7 +158,7 @@ export function SessionSummaryView() {
                 <p className="mt-2 text-sm leading-6 text-[#53666e]">{exercisePrompt}</p>
               </div>
 
-              <Button onClick={startExercise} className="mt-5 h-11 w-full rounded-xl bg-[var(--navy)] hover:bg-[#1d4255]">
+              <Button disabled={usesPersistentBackend && saveState !== 'saved'} onClick={startExercise} className="mt-5 h-11 w-full rounded-xl bg-[var(--navy)] hover:bg-[#1d4255]">
                 Start exercise <ArrowRight className="ml-1 size-4" />
               </Button>
               <button onClick={() => router.push('/history')} className="mt-3 w-full py-2 text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">Finish session</button>
@@ -137,7 +169,7 @@ export function SessionSummaryView() {
         <div className="mt-7 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-[var(--paper)] px-5 py-4">
           <div className="flex items-center gap-3">
             <span className="grid size-9 place-items-center rounded-xl bg-[var(--warm)] text-[var(--navy)]"><Sparkles className="size-4" /></span>
-            <div><p className="text-sm font-semibold text-[var(--navy)]">Your session has been added to History</p><p className="mt-0.5 text-xs text-[var(--muted-ink)]">Transcript, metrics, and feedback are saved. The recording is not.</p></div>
+            <div><p className="text-sm font-semibold text-[var(--navy)]">{saveState === 'saving' ? 'Saving your session…' : saveState === 'error' ? 'This session still needs to be saved' : 'Your session has been added to History'}</p><p className="mt-0.5 text-xs text-[var(--muted-ink)]">{saveState === 'error' ? 'Return to the summary to try again after checking your connection.' : usesPersistentBackend ? 'Transcript, metrics, and feedback are saved to your account. The recording is not.' : 'Demo data is stored only in this browser. The recording is not saved.'}</p></div>
           </div>
           <Button variant="outline" onClick={() => router.push('/history')} className="rounded-xl bg-white">View history</Button>
         </div>

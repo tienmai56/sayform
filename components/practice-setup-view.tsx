@@ -9,13 +9,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { categories, practiceQuestions } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
 import { usePractice } from '@/components/practice-context';
+import { createPracticeSession } from '@/lib/client-data';
 
 export function PracticeSetupView() {
   const router = useRouter();
-  const { goalTitle, categories: savedCategories, prompt: savedPrompt, updateSetup } = usePractice();
+  const { goalId, goalTitle, categories: savedCategories, prompt: savedPrompt, updateSetup, beginSession } = usePractice();
   const [selectedCategories, setSelectedCategories] = useState<string[]>(savedCategories);
   const [customTopic, setCustomTopic] = useState('');
   const [questionIndex, setQuestionIndex] = useState(Math.max(0, practiceQuestions.indexOf(savedPrompt)));
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
 
   function toggleCategory(id: string) {
     setSelectedCategories((current) =>
@@ -27,9 +30,24 @@ export function PracticeSetupView() {
     setQuestionIndex((current) => (current + 1) % practiceQuestions.length);
   }
 
-  function begin() {
-    updateSetup({ categories: selectedCategories, customTopic, prompt: practiceQuestions[questionIndex] });
-    router.push('/practice/session');
+  async function begin() {
+    const nextPrompt = practiceQuestions[questionIndex];
+    setPending(true);
+    setError('');
+    try {
+      const session = await createPracticeSession({
+        goalId,
+        goalTitle,
+        categories: selectedCategories,
+        prompt: nextPrompt,
+      });
+      updateSetup({ categories: selectedCategories, customTopic, prompt: nextPrompt });
+      beginSession(session.id);
+      router.push('/practice/session');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The practice session could not be created.');
+      setPending(false);
+    }
   }
 
   return (
@@ -125,14 +143,15 @@ export function PracticeSetupView() {
             </dl>
 
             <Button
-              onClick={begin}
-              disabled={selectedCategories.length === 0}
+              onClick={() => void begin()}
+              disabled={selectedCategories.length === 0 || pending}
               size="lg"
               className="mt-8 h-12 w-full rounded-xl bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]"
             >
-              Open practice room <ArrowRight className="ml-1 size-4" />
+              {pending ? 'Opening practice room…' : 'Open practice room'} <ArrowRight className="ml-1 size-4" />
             </Button>
             {selectedCategories.length === 0 && <p className="mt-2 text-center text-xs text-white/55">Choose at least one category.</p>}
+            {error && <p role="alert" className="mt-3 rounded-xl bg-white/10 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc]">{error}</p>}
           </aside>
         </div>
       </Screen>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays, ChevronRight, Filter, History as HistoryIcon, Search, Trash2, VideoOff } from 'lucide-react';
 import { AppShell, PageHeader, Screen } from '@/components/app-shell';
@@ -17,18 +17,31 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { sessions as initialSessions } from '@/lib/mock-data';
 import { cn } from '@/lib/utils';
-
-const filters = ['All goals', 'Express complex ideas clearly', 'Be more persuasive'];
+import { deleteSession, listHistory } from '@/lib/client-data';
+import type { PracticeSession } from '@/lib/types';
 
 export function HistoryView() {
   const router = useRouter();
-  const [sessions, setSessions] = useState(initialSessions);
+  const [sessions, setSessions] = useState<PracticeSession[]>([]);
   const [filter, setFilter] = useState('All goals');
   const [query, setQuery] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deletedTitle, setDeletedTitle] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    void listHistory()
+      .then(setSessions)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : 'History could not be loaded.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filters = useMemo(
+    () => ['All goals', ...Array.from(new Set(sessions.map((session) => session.goal)))],
+    [sessions],
+  );
 
   const visibleSessions = useMemo(
     () =>
@@ -40,11 +53,18 @@ export function HistoryView() {
     [filter, query, sessions],
   );
 
-  function confirmDelete() {
+  async function confirmDelete() {
+    if (!deleteTarget) return;
     const target = sessions.find((session) => session.id === deleteTarget);
-    if (target) setDeletedTitle(target.title);
-    setSessions((current) => current.filter((session) => session.id !== deleteTarget));
-    setDeleteTarget(null);
+    try {
+      await deleteSession(deleteTarget);
+      if (target) setDeletedTitle(target.title);
+      setSessions((current) => current.filter((session) => session.id !== deleteTarget));
+      setDeleteTarget(null);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The session could not be deleted.');
+      setDeleteTarget(null);
+    }
   }
 
   return (
@@ -63,6 +83,12 @@ export function HistoryView() {
           <div className="mb-5 flex items-center justify-between rounded-xl border border-[var(--line)] bg-white px-4 py-3 text-sm text-[var(--muted-ink)] shadow-[var(--shadow-sm)]">
             <span>“{deletedTitle}” was permanently deleted.</span>
             <button onClick={() => setDeletedTitle('')} className="text-xs font-semibold text-[var(--teal-dark)]">Dismiss</button>
+          </div>
+        )}
+
+        {error && (
+          <div role="alert" className="mb-5 flex items-center justify-between rounded-xl border border-[#e8c6bf] bg-[var(--rose-soft)] px-4 py-3 text-sm text-[#8f4336]">
+            <span>{error}</span><button onClick={() => setError('')} className="text-xs font-semibold">Dismiss</button>
           </div>
         )}
 
@@ -93,7 +119,9 @@ export function HistoryView() {
           <p className="text-xs text-[var(--muted-ink)]">Newest first</p>
         </div>
 
-        {visibleSessions.length > 0 ? (
+        {loading ? (
+          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#bcc8c4] bg-white/45 text-sm text-[var(--muted-ink)]">Loading session history…</div>
+        ) : visibleSessions.length > 0 ? (
           <div className="space-y-4">
             {visibleSessions.map((session) => (
               <article key={session.id} className="group grid grid-cols-[150px_minmax(0,1fr)_330px_44px] items-center gap-6 rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-5 shadow-[var(--shadow-sm)] transition-all hover:border-[#bcc8c4] hover:shadow-md">
@@ -141,7 +169,7 @@ export function HistoryView() {
           </AlertDialogHeader>
           <AlertDialogFooter className="-mx-6 -mb-6 px-6 py-4">
             <AlertDialogCancel>Keep session</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={confirmDelete}>Delete permanently</AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={() => void confirmDelete()}>Delete permanently</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

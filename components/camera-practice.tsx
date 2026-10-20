@@ -18,6 +18,7 @@ import { Brand } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { usePractice } from '@/components/practice-context';
 import { practiceQuestions } from '@/lib/mock-data';
+import { completeExercise, saveAndAnalyzeResponse } from '@/lib/client-data';
 
 type PracticeStatus = 'permission' | 'ready' | 'recording' | 'processing' | 'error';
 
@@ -29,7 +30,7 @@ function formatTime(totalSeconds: number) {
 
 export function CameraPractice() {
   const router = useRouter();
-  const { goalTitle, prompt, updateSetup, setRecordingUrl, clearRecording } = usePractice();
+  const { activeExerciseId, activeSessionId, answerCount, goalTitle, prompt, updateSetup, setRecordingUrl, clearRecording, completeResponse } = usePractice();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -39,6 +40,7 @@ export function CameraPractice() {
   const [elapsed, setElapsed] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [demoMode, setDemoMode] = useState(false);
+  const [errorKind, setErrorKind] = useState<'media' | 'save'>('media');
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -62,6 +64,7 @@ export function CameraPractice() {
 
   async function enableCamera() {
     setErrorMessage('');
+    setErrorKind('media');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -109,12 +112,50 @@ export function CameraPractice() {
     timerRef.current = setInterval(() => setElapsed((current) => current + 1), 1000);
   }
 
-  function doneSpeaking() {
+  async function persistResponse() {
+    if (activeExerciseId) {
+      await completeExercise(activeExerciseId);
+      completeResponse(`exercise-response-${activeExerciseId}`, {});
+      return;
+    }
+    if (!activeSessionId) return;
+    const result = await saveAndAnalyzeResponse({
+      sessionId: activeSessionId,
+      prompt,
+      durationSeconds: elapsed,
+      sequenceNumber: answerCount + 1,
+    });
+    completeResponse(result.responseId, result.feedbackIds);
+  }
+
+  async function doneSpeaking() {
     stopTimer();
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
     releaseCamera();
     setStatus('processing');
-    window.setTimeout(() => router.push('/practice/feedback'), 1450);
+    try {
+      await Promise.all([
+        persistResponse(),
+        new Promise((resolve) => window.setTimeout(resolve, 900)),
+      ]);
+      router.push('/practice/feedback');
+    } catch (caught) {
+      setErrorKind('save');
+      setErrorMessage(caught instanceof Error ? caught.message : 'This response could not be saved.');
+      setDemoMode(true);
+      setStatus('error');
+    }
+  }
+
+  async function retrySave() {
+    setStatus('processing');
+    try {
+      await persistResponse();
+      router.push('/practice/feedback');
+    } catch (caught) {
+      setErrorMessage(caught instanceof Error ? caught.message : 'This response could not be saved.');
+      setStatus('error');
+    }
   }
 
   async function tryAnotherQuestion() {
@@ -154,13 +195,23 @@ export function CameraPractice() {
                       </Button>
                     </>
                   )}
-                  {status === 'error' && (
+                  {status === 'error' && errorKind === 'media' && (
                     <>
                       <h1 className="mt-6 font-display text-2xl font-semibold">Permission needed</h1>
                       <p className="mt-2 text-sm leading-6 text-white/60">{errorMessage}</p>
                       <div className="mt-6 flex justify-center gap-3">
                         <Button onClick={enableCamera} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">Try again</Button>
                         <Button onClick={useDemoMode} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Use prototype without camera</Button>
+                      </div>
+                    </>
+                  )}
+                  {status === 'error' && errorKind === 'save' && (
+                    <>
+                      <h1 className="mt-6 font-display text-2xl font-semibold">Couldn’t save this response</h1>
+                      <p className="mt-2 text-sm leading-6 text-white/60">{errorMessage}</p>
+                      <div className="mt-6 flex justify-center gap-3">
+                        <Button onClick={() => void retrySave()} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">Try saving again</Button>
+                        <Button onClick={() => router.push('/practice/feedback')} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Continue without saving</Button>
                       </div>
                     </>
                   )}

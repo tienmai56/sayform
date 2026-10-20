@@ -23,6 +23,7 @@ import { feedbackItems, practiceQuestions, transcript } from '@/lib/mock-data';
 import type { FeedbackDimension } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { usePractice } from '@/components/practice-context';
+import { rateFeedback } from '@/lib/client-data';
 
 const dimensions: FeedbackDimension[] = [
   'Vocabulary',
@@ -34,7 +35,7 @@ const dimensions: FeedbackDimension[] = [
 
 export function FeedbackWorkspace() {
   const router = useRouter();
-  const { recordingUrl, goalTitle, prompt, updateSetup, clearRecording } = usePractice();
+  const { recordingUrl, goalTitle, prompt, feedbackIds, updateSetup, clearRecording } = usePractice();
   const [fullScreen, setFullScreen] = useState(false);
   const [selectedId, setSelectedId] = useState('vague-language');
   const [ratings, setRatings] = useState<Record<string, 'helpful' | 'unhelpful'>>({});
@@ -50,6 +51,7 @@ export function FeedbackWorkspace() {
   function rateHelpful(id: string) {
     setRatings((current) => ({ ...current, [id]: 'helpful' }));
     setPendingDismiss(null);
+    void rateFeedback(feedbackIds[id], { rating: 'helpful' });
   }
 
   function openUnhelpful(id: string) {
@@ -63,6 +65,7 @@ export function FeedbackWorkspace() {
     setPendingDismiss(null);
     const next = activeFeedback.find((item) => item.id !== id);
     if (next) setSelectedId(next.id);
+    void rateFeedback(feedbackIds[id], { rating: 'unhelpful', note, dismissed: true });
   }
 
   function nextQuestion() {

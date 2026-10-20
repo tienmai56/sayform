@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Archive, ArrowRight, CalendarDays, CheckCircle2, MoreHorizontal, Pencil, Plus, Sparkles } from 'lucide-react';
+import { Archive, ArrowRight, CalendarDays, CheckCircle2, MoreHorizontal, Pencil, Plus, Sparkles, Target } from 'lucide-react';
 import { AppShell, PageHeader, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,17 +14,26 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { goals as initialGoals } from '@/lib/mock-data';
 import type { Goal } from '@/lib/types';
 import { usePractice } from '@/components/practice-context';
+import { createGoal, listGoals, updateGoal } from '@/lib/client-data';
 
 export function GoalsView() {
   const router = useRouter();
   const { updateSetup } = usePractice();
-  const [goals, setGoals] = useState<Goal[]>(initialGoals);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [editing, setEditing] = useState<Goal | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    void listGoals()
+      .then(setGoals)
+      .catch((caught) => setError(caught instanceof Error ? caught.message : 'Goals could not be loaded.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const activeGoals = goals.filter((goal) => goal.status === 'active');
 
@@ -38,16 +47,39 @@ export function GoalsView() {
     setDraftTitle(goal.title);
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     if (!editing || !draftTitle.trim()) return;
-    setGoals((current) => current.map((goal) => (goal.id === editing.id ? { ...goal, title: draftTitle.trim() } : goal)));
-    setEditing(null);
-    setNotice('Goal updated');
+    try {
+      await updateGoal(editing.id, { title: draftTitle.trim() });
+      setGoals((current) => current.map((goal) => (goal.id === editing.id ? { ...goal, title: draftTitle.trim() } : goal)));
+      setEditing(null);
+      setNotice('Goal updated');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Goal could not be updated.');
+    }
   }
 
-  function changeStatus(goal: Goal, status: Goal['status']) {
-    setGoals((current) => current.map((item) => (item.id === goal.id ? { ...item, status } : item)));
-    setNotice(status === 'completed' ? 'Goal marked complete' : 'Goal archived');
+  async function changeStatus(goal: Goal, status: Goal['status']) {
+    try {
+      await updateGoal(goal.id, { status });
+      setGoals((current) => current.map((item) => (item.id === goal.id ? { ...item, status } : item)));
+      setNotice(status === 'completed' ? 'Goal marked complete' : 'Goal archived');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Goal could not be updated.');
+    }
+  }
+
+  async function addGoal() {
+    try {
+      const goal = await createGoal({
+        title: 'New communication goal',
+        description: 'Add a description that makes the practice goal specific.',
+      });
+      setGoals((current) => current.some((item) => item.id === goal.id) ? current : [...current, goal]);
+      openEdit(goal);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Goal could not be created.');
+    }
   }
 
   return (
@@ -62,19 +94,7 @@ export function GoalsView() {
               variant="outline"
               size="lg"
               className="h-10 rounded-xl border-[var(--line)] bg-white px-4"
-              onClick={() => {
-                const goal: Goal = {
-                  id: `goal-${Date.now()}`,
-                  title: 'New communication goal',
-                  description: 'Add a description that makes the practice goal specific.',
-                  status: 'active',
-                  lastPractised: null,
-                  sessions: 0,
-                  recommended: true,
-                };
-                setGoals((current) => [...current, goal]);
-                openEdit(goal);
-              }}
+              onClick={() => void addGoal()}
             >
               <Plus className="size-4" />
               Add goal
@@ -89,7 +109,19 @@ export function GoalsView() {
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-5">
+        {error && (
+          <div role="alert" className="mb-5 flex items-center justify-between rounded-xl border border-[#e8c6bf] bg-[var(--rose-soft)] px-4 py-3 text-sm text-[#8f4336]">
+            <span>{error}</span><button onClick={() => setError('')} className="text-xs font-semibold hover:underline">Dismiss</button>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#bcc8c4] bg-white/45 text-sm text-[var(--muted-ink)]">Loading your goals…</div>
+        ) : activeGoals.length === 0 ? (
+          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#bcc8c4] bg-white/45 text-center">
+            <div><Target className="mx-auto size-8 text-[var(--teal)]" /><h2 className="mt-4 text-base font-semibold text-[var(--navy)]">Create your first goal</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">A focused goal helps the coach prioritize useful feedback.</p><Button onClick={() => void addGoal()} className="mt-5 rounded-xl">Add goal</Button></div>
+          </div>
+        ) : <div className="grid grid-cols-3 gap-5">
           {activeGoals.map((goal, index) => (
             <article key={goal.id} className="group flex min-h-[310px] flex-col rounded-3xl border border-[var(--line)] bg-[var(--paper)] p-6 shadow-[var(--shadow-sm)] transition-all hover:-translate-y-0.5 hover:shadow-lg">
               <div className="flex items-start justify-between">
@@ -117,13 +149,13 @@ export function GoalsView() {
                 </Button>
                 <div className="mt-3 flex items-center justify-center gap-1 text-xs text-[var(--muted-ink)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                   <button onClick={() => openEdit(goal)} className="flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-[var(--warm)]"><Pencil className="size-3" />Edit</button>
-                  <button onClick={() => changeStatus(goal, 'completed')} className="flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-[var(--warm)]"><CheckCircle2 className="size-3" />Complete</button>
-                  <button onClick={() => changeStatus(goal, 'archived')} className="flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-[var(--warm)]"><Archive className="size-3" />Archive</button>
+                  <button onClick={() => void changeStatus(goal, 'completed')} className="flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-[var(--warm)]"><CheckCircle2 className="size-3" />Complete</button>
+                  <button onClick={() => void changeStatus(goal, 'archived')} className="flex items-center gap-1 rounded-md px-2 py-1.5 hover:bg-[var(--warm)]"><Archive className="size-3" />Archive</button>
                 </div>
               </div>
             </article>
           ))}
-        </div>
+        </div>}
 
         <div className="mt-8 flex items-center justify-between rounded-2xl border border-dashed border-[#bcc8c4] bg-transparent px-5 py-4">
           <div>
@@ -143,7 +175,7 @@ export function GoalsView() {
           <Input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} className="h-11" />
           <DialogFooter className="-mx-6 -mb-6 mt-2 px-6 py-4">
             <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button onClick={saveEdit}>Save goal</Button>
+            <Button onClick={() => void saveEdit()}>Save goal</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

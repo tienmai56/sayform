@@ -8,10 +8,12 @@ import {
   History,
   Mic2,
   Settings,
+  LogOut,
   Sparkles,
   Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/components/auth-provider';
 
 const navigation = [
   { label: 'Goals', href: '/goals', icon: Target },
@@ -36,6 +38,9 @@ export function Brand({ compact = false }: { compact?: boolean }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { configured, user, signOut } = useAuth();
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Tien';
+  const initials = String(displayName).split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
@@ -73,12 +78,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="mt-5 flex items-center gap-3 border-t border-[var(--line)] pt-5">
-          <span className="grid size-9 place-items-center rounded-full bg-[var(--sand)] text-sm font-semibold text-[var(--navy)]">TM</span>
+          <span className="grid size-9 place-items-center rounded-full bg-[var(--sand)] text-sm font-semibold text-[var(--navy)]">{initials || 'CC'}</span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">Tien</p>
-            <p className="text-xs text-[var(--muted-ink)]">Personal practice</p>
+            <p className="truncate text-sm font-medium">{displayName}</p>
+            <p className="truncate text-xs text-[var(--muted-ink)]">{configured ? user?.email : 'Demo mode · this browser'}</p>
           </div>
-          <Settings className="size-4 text-[var(--muted-ink)]" />
+          {configured ? (
+            <button onClick={() => void signOut()} className="grid size-8 place-items-center rounded-lg text-[var(--muted-ink)] hover:bg-[var(--warm)] hover:text-[var(--ink)]" aria-label="Sign out"><LogOut className="size-4" /></button>
+          ) : (
+            <Settings className="size-4 text-[var(--muted-ink)]" />
+          )}
         </div>
       </aside>
 
