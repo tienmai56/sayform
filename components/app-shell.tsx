@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -8,7 +9,6 @@ import {
   History,
   Settings,
   LogOut,
-  Sparkles,
   Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,17 +19,22 @@ const navigation = [
   { label: 'History', href: '/history', icon: History },
 ];
 
-export function Brand({ compact = false }: { compact?: boolean }) {
+export function Brand({ inverted = false }: { inverted?: boolean }) {
   return (
-    <Link href="/goals" className="inline-flex items-center gap-3" aria-label="Communication Coach home">
-      <span className="grid size-9 place-items-center rounded-xl bg-[var(--navy)] text-white shadow-sm">
-        <Sparkles className="size-4" strokeWidth={2.2} />
+    <Link href="/goals" className="inline-flex items-center" aria-label="Sayform home">
+      <span className="relative block h-9 w-[136px] overflow-hidden" aria-hidden="true">
+        <Image
+          src="/sayform-logo.png"
+          alt=""
+          width={1600}
+          height={608}
+          priority
+          className={cn(
+            'absolute -left-8 -top-5 h-auto w-[200px] max-w-none',
+            inverted && 'brightness-0 invert',
+          )}
+        />
       </span>
-      {!compact && (
-        <span className="text-[15px] font-semibold tracking-[-0.02em] text-[var(--navy)]">
-          Communication Coach
-        </span>
-      )}
     </Link>
   );
 }

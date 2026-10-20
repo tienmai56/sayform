@@ -20,7 +20,7 @@ import { getPracticeQuestions } from '@/lib/goal-catalog';
 import { categories as categoryOptions } from '@/lib/mock-data';
 import { completeExercise, createPracticeSession, saveAndAnalyzeResponse } from '@/lib/client-data';
 
-type PracticeStatus = 'permission' | 'ready' | 'recording' | 'processing' | 'error';
+type PracticeStatus = 'permission' | 'requesting' | 'ready' | 'recording' | 'processing' | 'error';
 
 function formatTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -71,6 +71,7 @@ export function CameraPractice() {
   const audioChunksRef = useRef<Blob[]>([]);
   const retryAudioRef = useRef<Blob | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const automaticCameraRequestRef = useRef(false);
   const [status, setStatus] = useState<PracticeStatus>('permission');
   const [elapsed, setElapsed] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
@@ -103,9 +104,10 @@ export function CameraPractice() {
     };
   }, [releaseCamera, stopTimer]);
 
-  async function enableCamera() {
+  const enableCamera = useCallback(async () => {
     setErrorMessage('');
     setErrorKind('media');
+    setStatus('requesting');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -118,13 +120,21 @@ export function CameraPractice() {
       }
       setStatus('ready');
     } catch {
+      releaseCamera();
       setErrorMessage('Camera or microphone access was not granted. Update your browser permissions and try again.');
       setStatus('error');
     }
-  }
+  }, [releaseCamera]);
+
+  useEffect(() => {
+    if (!activeExercise || status !== 'permission' || automaticCameraRequestRef.current) return;
+    automaticCameraRequestRef.current = true;
+    void enableCamera();
+  }, [activeExercise, enableCamera, status]);
 
   async function enableAudioOnly() {
     setErrorMessage('');
+    setStatus('requesting');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
       streamRef.current = stream;
@@ -260,8 +270,8 @@ export function CameraPractice() {
   return (
     <main className="min-h-screen bg-[#0e222d] text-white">
       <header className="flex h-[72px] items-center justify-between border-b border-white/10 px-7">
-        <div className="[&_span:first-child]:bg-white [&_span:first-child]:text-[var(--navy)] [&_span:last-child]:text-white">
-          <Brand />
+        <div>
+          <Brand inverted />
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">Goal · {goalTitle}</span>
@@ -274,18 +284,18 @@ export function CameraPractice() {
           <div className="relative aspect-video w-full max-w-[1120px] overflow-hidden rounded-[28px] border border-white/10 bg-[#152c37] shadow-2xl">
             <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />
 
-            {(status === 'permission' || status === 'error' || demoMode) && (
+            {(status === 'permission' || status === 'requesting' || status === 'error' || demoMode) && (
               <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#244858_0%,#152c37_42%,#10242e_100%)]">
                 <div className="max-w-md text-center">
                   <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-white/10 text-[var(--mint)] ring-1 ring-white/10">
                     {status === 'error' ? <CameraOff className="size-7" /> : <Camera className="size-7" />}
                   </div>
-                  {status === 'permission' && (
+                  {(status === 'permission' || status === 'requesting') && (
                     <>
-                      <h1 className="mt-6 font-display text-2xl font-semibold tracking-[-0.03em]">Set up your camera</h1>
-                      <p className="mt-2 text-sm leading-6 text-white/60">Video stays in this browser. A temporary audio-only track is sent securely for transcription and coaching.</p>
-                      <Button onClick={enableCamera} className="mt-6 h-11 rounded-xl bg-white px-5 text-[var(--navy)] hover:bg-[var(--mint-soft)]">
-                        <Camera className="size-4" /> Enable camera & microphone
+                      <h1 className="mt-6 font-display text-2xl font-semibold tracking-[-0.03em]">{status === 'requesting' ? 'Starting your camera…' : 'Set up your camera'}</h1>
+                      <p className="mt-2 text-sm leading-6 text-white/60">{status === 'requesting' ? 'Allow camera and microphone access if your browser asks.' : 'Video stays in this browser. A temporary audio-only track is sent securely for transcription and coaching.'}</p>
+                      <Button onClick={enableCamera} disabled={status === 'requesting'} className="mt-6 h-11 rounded-xl bg-white px-5 text-[var(--navy)] hover:bg-[var(--mint-soft)]">
+                        <Camera className="size-4" /> {status === 'requesting' ? 'Preparing camera…' : 'Enable camera & microphone'}
                       </Button>
                     </>
                   )}
@@ -437,8 +447,8 @@ export function CameraPractice() {
                 <Square className="size-4 fill-current" /> Done speaking
               </Button>
             )}
-            {(status === 'permission' || status === 'error') && (
-              <Button disabled size="lg" className="h-12 w-full rounded-xl bg-white/10 text-white/45">Start speaking</Button>
+            {(status === 'permission' || status === 'requesting' || status === 'error') && (
+              <Button disabled size="lg" className="h-12 w-full rounded-xl bg-white/10 text-white/45">{status === 'requesting' ? 'Preparing camera…' : 'Start speaking'}</Button>
             )}
             {setupError && <p role="alert" className="rounded-xl bg-[#8f4336]/20 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc]">{setupError}</p>}
             {!activeExercise && activeSessionId && answerCount > 0 && <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">End session <ChevronRight className="size-3.5" /></button>}

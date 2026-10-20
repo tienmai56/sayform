@@ -197,35 +197,49 @@ async function requestStructuredOutput<T>(input: {
   parse: (value: unknown) => T;
 }) {
   const config = getOpenRouterConfig();
-  const response = await fetch(`${openRouterBaseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL?.trim() || 'http://localhost:3000',
-      'X-OpenRouter-Title': 'Communication Coach',
-    },
-    body: JSON.stringify({
-      model: config.feedbackModel,
-      messages: [
-        { role: 'system', content: input.system },
-        { role: 'user', content: input.user },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: { name: input.name, strict: true, schema: input.schema },
+  const request = async (reasoningEffort: 'minimal' | 'low') => {
+    const response = await fetch(`${openRouterBaseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL?.trim() || 'http://localhost:3000',
+        'X-OpenRouter-Title': 'Sayform',
       },
-      max_tokens: 3000,
-      provider: { require_parameters: true, zdr: true },
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
+      body: JSON.stringify({
+        model: config.feedbackModel,
+        messages: [
+          { role: 'system', content: input.system },
+          { role: 'user', content: input.user },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: input.name, strict: true, schema: input.schema },
+        },
+        // Routine coaching stays fast. A low-effort retry below handles the rare
+        // incomplete structured response without slowing down successful calls.
+        reasoning: { effort: reasoningEffort, exclude: true },
+        max_tokens: 3000,
+        provider: { require_parameters: true, zdr: true },
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
 
-  if (!response.ok) throw new OpenRouterRequestError(response.status, `OpenRouter coaching failed: ${await readProviderError(response)}`);
-  const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-  const content = payload.choices?.[0]?.message?.content;
-  if (!content) throw new Error('OpenRouter returned an empty coaching response.');
-  return input.parse(JSON.parse(content));
+    if (!response.ok) throw new OpenRouterRequestError(response.status, `OpenRouter coaching failed: ${await readProviderError(response)}`);
+    const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const content = payload.choices?.[0]?.message?.content;
+    if (!content) throw new Error('OpenRouter returned an empty coaching response.');
+    return input.parse(JSON.parse(content));
+  };
+
+  try {
+    return await request('minimal');
+  } catch (error) {
+    const retryableProviderError = error instanceof OpenRouterRequestError
+      && (error.status === 408 || error.status === 429 || error.status >= 500);
+    if (error instanceof OpenRouterRequestError && !retryableProviderError) throw error;
+    return request('low');
+  }
 }
 
 function exactEvidence(transcript: string, proposed: string) {
@@ -245,7 +259,7 @@ export async function transcribeAudio(audio: File) {
       Authorization: `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL?.trim() || 'http://localhost:3000',
-      'X-OpenRouter-Title': 'Communication Coach',
+      'X-OpenRouter-Title': 'Sayform',
     },
     body: JSON.stringify({
       model: config.transcriptionModel,

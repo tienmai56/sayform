@@ -36,9 +36,11 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (!exercise) return apiError(404, 'exercise_not_found', 'Exercise not found.');
 
   const sessionRelation = Array.isArray(exercise.sessions) ? exercise.sessions[0] : exercise.sessions;
+  let stage: 'transcription' | 'feedback' | 'saving' = 'transcription';
   try {
     const transcript = await transcribeAudio(audio);
     const metrics = createSpeechMetrics(transcript, durationSeconds);
+    stage = 'feedback';
     const feedback = await generateResponseFeedback({
       prompt: exercise.prompt,
       goalTitle: sessionRelation?.goal_title ?? 'Personalized communication exercise',
@@ -48,6 +50,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       metrics,
     });
 
+    stage = 'saving';
     const { data, error } = await context.supabase
       .from('exercises')
       .update({
@@ -70,11 +73,15 @@ export async function POST(request: Request, { params }: RouteParams) {
   } catch (error) {
     console.error('Exercise analysis failed', {
       exerciseId,
+      stage,
       message: error instanceof Error ? error.message : 'Unknown exercise analysis error',
     });
-    const userMessage = error instanceof OpenRouterRequestError && error.status === 402
-      ? 'OpenRouter needs at least $0.50 of available balance for speech transcription. Add credit or raise this key’s usable limit, then try again.'
-      : 'The exercise analysis could not be completed. Please try again.';
+    const message = error instanceof Error ? error.message : '';
+    const userMessage = message === 'No speech was detected in the recording.'
+      ? 'No speech was detected. Check your microphone and record the exercise again.'
+      : error instanceof OpenRouterRequestError && error.status === 402
+        ? 'OpenRouter needs at least $0.50 of available balance for speech transcription. Add credit or raise this key’s usable limit, then try again.'
+        : 'The exercise analysis could not be completed. Please try again.';
     return apiError(error instanceof OpenRouterRequestError ? error.status : 502, 'analysis_failed', userMessage);
   }
 }

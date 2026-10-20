@@ -5,8 +5,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Communication Coach',
-    template: '%s · Communication Coach',
+    default: 'Sayform',
+    template: '%s · Sayform',
   },
   description: 'Practice spoken English and get evidence-based communication coaching.',
 };

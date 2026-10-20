@@ -70,7 +70,7 @@ export function LoginView({ nextPath, initialError }: { nextPath: string; initia
         <section className="w-full max-w-lg rounded-3xl border border-[var(--line)] bg-[var(--paper)] p-8 text-center shadow-[var(--shadow-lg)]">
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Database className="size-6" /></span>
           <h1 className="mt-5 font-display text-3xl font-semibold tracking-[-0.04em] text-[var(--navy)]">Backend setup is ready</h1>
-          <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">Add your Supabase project details to enable accounts and cloud persistence. Until then, Communication Coach runs in a private demo mode in this browser.</p>
+          <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">Add your Supabase project details to enable accounts and cloud persistence. Until then, Sayform runs in a private demo mode in this browser.</p>
           <Link href="/goals" className={cn(buttonVariants(), 'mt-6 h-11 w-full rounded-xl bg-[var(--navy)]')}>Continue in demo mode <ArrowRight className="ml-1 size-4" /></Link>
         </section>
       </main>
@@ -81,7 +81,7 @@ export function LoginView({ nextPath, initialError }: { nextPath: string; initia
     <main className="grid min-h-screen grid-cols-[minmax(0,0.9fr)_minmax(560px,1.1fr)] bg-[var(--paper)]">
       <section className="relative flex flex-col overflow-hidden bg-[var(--navy)] px-14 py-10 text-white">
         <div className="absolute -left-24 top-24 size-80 rounded-full bg-[var(--teal)]/20 blur-3xl" />
-        <div className="relative [&_a]:text-white [&_span:first-child]:bg-white [&_span:first-child]:text-[var(--navy)] [&_span:last-child]:text-white"><Brand /></div>
+        <div className="relative"><Brand inverted /></div>
         <div className="relative my-auto max-w-lg py-16">
           <span className="grid size-12 place-items-center rounded-2xl bg-white/10 text-[var(--mint)]"><LockKeyhole className="size-5" /></span>
           <h1 className="mt-6 font-display text-5xl font-semibold leading-[1.05] tracking-[-0.05em]">Your practice history, wherever you work.</h1>
@@ -95,7 +95,7 @@ export function LoginView({ nextPath, initialError }: { nextPath: string; initia
 
       <section className="flex items-center justify-center px-16 py-12">
         <div className="w-full max-w-md">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--teal-dark)]"><Sparkles className="size-4" />Welcome to Communication Coach</div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--teal-dark)]"><Sparkles className="size-4" />Welcome to Sayform</div>
           <h2 className="mt-3 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">{mode === 'sign-in' ? 'Sign in to practise' : 'Create your account'}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">{mode === 'sign-in' ? 'Continue with your saved goals and session history.' : 'Start with a communication goal—no baseline test required.'}</p>
 
