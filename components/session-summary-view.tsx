@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, BookOpenCheck, CheckCircle2, Dumbbell, Lightbulb, Sparkles, Target } from 'lucide-react';
+import { ArrowRight, BookOpenCheck, CheckCircle2, Clock3, Dumbbell, Lightbulb, Sparkles, Target } from 'lucide-react';
 import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { usePractice } from '@/components/practice-context';
-import { finishPracticeSession, usesPersistentBackend } from '@/lib/client-data';
+import { finishPracticeSession, updateExerciseStatus, usesPersistentBackend } from '@/lib/client-data';
 import type { FinishedSession, SummaryPattern } from '@/lib/types';
 
 function formatDuration(totalSeconds: number) {
@@ -46,7 +46,7 @@ export function SessionSummaryView() {
     resetSession,
     sessionStartedAt,
     setActiveExercise,
-    updateSetup,
+    startExercise: beginExercise,
   } = usePractice();
   const saveStarted = useRef(false);
   const [result, setResult] = useState<FinishedSession | null>(null);
@@ -72,14 +72,14 @@ export function SessionSummaryView() {
       .catch(() => setSaveState('error'));
   }, [activeSessionId, answerCount, categories, goalTemplateKey, goalTitle, prompt, sessionStartedAt, setActiveExercise]);
 
-  function startExercise() {
+  async function startExercise() {
     if (!result?.exercise) return;
-    setActiveExercise(result.exercise);
-    updateSetup({ prompt: result.exercise.prompt, categories: ['targeted-exercise'] });
+    await updateExerciseStatus(result.exercise.id, 'in_progress');
+    beginExercise(result.exercise);
     router.push('/practice/session');
   }
 
-  function finishSession() {
+  async function finishSession() {
     resetSession();
     router.push('/history');
   }
@@ -131,8 +131,9 @@ export function SessionSummaryView() {
           <aside className="self-start overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--paper)] shadow-[var(--shadow-sm)]">
             <div className="bg-[var(--mint-soft)] p-6">
               <div className="flex items-center justify-between"><span className="grid size-11 place-items-center rounded-2xl bg-white text-[var(--teal-dark)] shadow-sm"><Dumbbell className="size-5" /></span><span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">After-session exercise</span></div>
-              <h2 className="mt-5 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{exercise?.title ?? 'Selecting one focused exercise…'}</h2>
-              <p className="mt-2 text-sm leading-6 text-[#516b6b]">{exercise ? `Targets ${exercise.targetSkill}` : 'The recommendation is based on this session’s saved feedback.'}</p>
+              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">{exercise ? `Let’s work on ${exercise.targetSkill.toLocaleLowerCase()}` : 'Selecting one focused exercise…'}</p>
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{exercise?.title ?? 'Personalized practice'}</h2>
+              {exercise && <p className="mt-2 flex items-center gap-1.5 text-sm text-[#516b6b]"><Clock3 className="size-4" />About {exercise.estimatedMinutes} minutes</p>}
             </div>
 
             <div className="p-6">
@@ -140,20 +141,20 @@ export function SessionSummaryView() {
                 <>
                   <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Why this exercise</p>
                   <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">{exercise.selectionReason}</p>
-                  <blockquote className="mt-4 rounded-xl border-l-2 border-[var(--mint)] bg-[var(--canvas)] p-4 text-sm italic leading-6 text-[#52666d]">“{exercise.sourceEvidence}”</blockquote>
-                  <div className="mt-5 rounded-xl border border-[var(--line)] p-4"><p className="flex items-center gap-2 text-xs font-semibold text-[var(--navy)]"><Target className="size-4 text-[var(--teal)]" />Exercise prompt</p><p className="mt-2 text-sm leading-6 text-[#53666e]">{exercise.prompt}</p></div>
+                  <div className="mt-4 rounded-xl bg-[var(--canvas)] p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Evidence from your session</p><p className="mt-2 text-sm font-medium leading-6 text-[var(--ink)]">“{exercise.sourceEvidence}”</p></div>
+                  <div className="mt-4 rounded-xl border border-[var(--line)] p-4"><p className="flex items-center gap-2 text-xs font-semibold text-[var(--navy)]"><Target className="size-4 text-[var(--teal)]" />What you’ll practise</p><p className="mt-2 text-sm leading-6 text-[#53666e]">{exercise.targetBehavior}</p><ul className="mt-3 space-y-1.5">{exercise.instructions.map((instruction) => <li key={instruction} className="flex gap-2 text-xs leading-5 text-[var(--muted-ink)]"><span className="text-[var(--teal)]">•</span>{instruction}</li>)}</ul></div>
                 </>
               ) : <div className="grid min-h-48 place-items-center text-center text-sm leading-6 text-[var(--muted-ink)]">Finish saving the session to reveal its evidence-linked exercise.</div>}
 
-              <Button disabled={!exercise || saveState !== 'saved'} onClick={startExercise} className="mt-5 h-11 w-full rounded-xl bg-[var(--navy)] hover:bg-[#1d4255]">Start exercise <ArrowRight className="ml-1 size-4" /></Button>
-              <button onClick={finishSession} className="mt-3 w-full py-2 text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">Finish session</button>
+              <Button disabled={!exercise || saveState !== 'saved'} onClick={() => void startExercise()} className="mt-5 h-11 w-full rounded-xl bg-[var(--navy)] hover:bg-[#1d4255]">Practice this skill <ArrowRight className="ml-1 size-4" /></Button>
+              <button onClick={() => void finishSession()} className="mt-3 w-full py-2 text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">Finish session</button>
             </div>
           </aside>
         </div>
 
         <div className="mt-7 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-[var(--paper)] px-5 py-4">
           <div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-[var(--warm)] text-[var(--navy)]"><Sparkles className="size-4" /></span><div><p className="text-sm font-semibold text-[var(--navy)]">{saveState === 'saving' ? 'Saving your session…' : saveState === 'error' ? 'This session still needs to be saved' : 'Your session has been added to History'}</p><p className="mt-0.5 text-xs text-[var(--muted-ink)]">{saveState === 'error' ? 'Reload after checking your connection.' : usesPersistentBackend ? 'Transcript, metrics, feedback, and the exercise recommendation are saved. The recording is not.' : 'Demo data is stored only in this browser. The recording is not saved.'}</p></div></div>
-          <Button variant="outline" onClick={finishSession} className="rounded-xl bg-white">View history</Button>
+          <Button variant="outline" onClick={() => void finishSession()} className="rounded-xl bg-white">View history</Button>
         </div>
       </Screen>
     </AppShell>

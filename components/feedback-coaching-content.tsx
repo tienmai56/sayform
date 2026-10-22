@@ -1,0 +1,71 @@
+import type { FeedbackItem } from '@/lib/types';
+import { cn } from '@/lib/utils';
+
+function pairedCorrections(item: FeedbackItem) {
+  const seenEvidence = new Set<string>();
+  const stored = (item.corrections ?? []).filter((correction) => {
+    const evidence = correction.evidence.trim();
+    const evidenceKey = evidence.toLocaleLowerCase().replace(/\s+/g, ' ');
+    const wordCount = evidence.split(/\s+/).filter(Boolean).length;
+    if (!evidence || !correction.suggestion.trim() || wordCount > 16 || evidence.length > 140 || seenEvidence.has(evidenceKey)) return false;
+    seenEvidence.add(evidenceKey);
+    return true;
+  });
+  if (stored.length) return stored.slice(0, 2);
+
+  const firstAlternative = item.alternatives?.find((alternative) => alternative.trim());
+  const fallbackWordCount = item.evidence.trim().split(/\s+/).filter(Boolean).length;
+  if (!item.positive && item.evidence.trim() && fallbackWordCount <= 12 && item.evidence.length <= 120 && firstAlternative) {
+    return [{ evidence: item.evidence.trim(), suggestion: firstAlternative.trim() }];
+  }
+  return [];
+}
+
+export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
+  const corrections = pairedCorrections(item);
+  const progressLabel = item.progressStatus === 'resolved'
+    ? 'Resolved'
+    : item.progressStatus === 'still_happening'
+      ? 'Still happening'
+      : item.progressStatus === 'new'
+        ? item.positive ? 'New strength' : 'New issue'
+        : null;
+
+  return (
+    <>
+      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">
+        <span className={cn('size-2 rounded-full', item.positive ? 'bg-[#55a887]' : 'bg-[#d19a29]')} />
+        {item.dimension}
+        {progressLabel && (
+          <span className={cn(
+            'ml-auto rounded-full px-2 py-1 text-[9px] tracking-[0.06em]',
+            item.progressStatus === 'resolved'
+              ? 'bg-[#dff2e9] text-[#286b55]'
+              : item.progressStatus === 'still_happening'
+                ? 'bg-[#fff0c7] text-[#805b17]'
+                : 'bg-[#e7eef6] text-[#3e6078]',
+          )}>{progressLabel}</span>
+        )}
+      </div>
+      <h4 className="mt-3 text-sm font-semibold leading-5 text-[var(--navy)]">{item.title}</h4>
+      {item.skill && <p className="mt-1 text-[11px] font-medium text-[var(--teal-dark)]">Skill · {item.skill}</p>}
+
+      {corrections.length ? (
+        <div className="mt-4 space-y-4">
+          {corrections.map((correction, index) => (
+            <div key={`${correction.evidence}-${index}`}>
+              <p className="text-sm font-semibold leading-6 text-[var(--ink)]">
+                “<mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{correction.evidence}</mark>”
+              </p>
+              <p className="mt-1.5 text-sm font-medium leading-6 text-[var(--ink)]">→ {correction.suggestion}</p>
+            </div>
+          ))}
+        </div>
+      ) : item.evidence ? (
+        <p className="mt-4 text-sm font-semibold leading-6 text-[var(--ink)]">“{item.evidence}”</p>
+      ) : null}
+
+      <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{item.explanation}</p>
+    </>
+  );
+}

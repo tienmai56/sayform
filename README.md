@@ -11,7 +11,7 @@ pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The root route opens the Goals page (or the login page when Supabase is enabled and no account is signed in).
+Open [http://localhost:3000](http://localhost:3000). The root route opens the public Sayform landing page. Sign in to open the authenticated Goals dashboard.
 
 Without Supabase credentials, the app runs in demo mode and stores goals and session history in this browser. This keeps the full product flow testable while the backend is being configured.
 
@@ -52,14 +52,15 @@ Restart `pnpm dev` after changing the file. The API key must never use a `NEXT_P
 
 ## Prototype walkthrough
 
-1. Choose one of the three predefined goals—**Communicate with clarity**, **Negotiate effectively**, or **Tell compelling stories**—or create a custom goal.
-2. Enter the practice room. The coach evaluates every skill inside the chosen goal after each answer.
-3. Review the goal’s practice category, optionally add a topic, and select a question beside the camera preview.
-4. Allow camera and microphone access, then use **Start speaking** and **Done speaking**.
-5. Review the real transcript, objective metrics, evidence-linked coaching, full-screen report, and Helpful/Unhelpful controls. With Supabase and OpenRouter configured, the response and ratings are saved to the signed-in account.
-6. Continue to another question or end the session.
-7. Review patterns across the completed answers. Only then is one optional exercise recommended from the saved feedback and its transcript evidence.
-8. Complete or skip that exercise, then open History to revisit the text-only session record.
+1. Your active goal appears at the top of `/goals` with its own Summary, Vocabulary, Grammar, and Fluency dashboard. Use **Change goal** or **Set as active goal** to switch explicitly; Sayform never changes it based on recent practice.
+2. Choose **Practise this goal** for the active goal, or create a custom goal.
+3. Enter the practice room. The coach evaluates every skill inside the chosen goal after each answer.
+4. Review the goal’s practice category, optionally add a topic, and select a question beside the camera preview.
+5. Allow camera and microphone access, then use **Start speaking** and **Done speaking**.
+6. Review the real transcript, objective metrics, evidence-linked coaching, full-screen report, and Helpful/Unhelpful controls. With Supabase and OpenRouter configured, the response and ratings are saved to the signed-in account.
+7. Continue to another question or end the session.
+8. Review patterns across the completed answers. Only then is one optional exercise recommended from the saved feedback and its transcript evidence.
+9. Complete or skip that exercise, then open History to revisit the text-only session record. The active goal dashboard recomputes from the remaining saved transcripts and feedback.
 
 If camera access is unavailable, choose **Use microphone only**. Speech analysis still works without uploading video.
 

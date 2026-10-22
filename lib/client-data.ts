@@ -2,9 +2,10 @@
 
 import { categories as categoryOptions, feedbackItems, sessions as seedSessions, transcript } from '@/lib/mock-data';
 import { createMockAnalysis } from '@/lib/analysis/mock-provider';
+import { fallbackExercisePrompt, getExerciseTemplate } from '@/lib/exercise-library';
 import { createDemoGoals, getGoalDefinition } from '@/lib/goal-catalog';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
-import type { FeedbackDimension, FinishedSession, Goal, PracticeSession, ResponseAnalysis, SessionDetail } from '@/lib/types';
+import type { ExerciseAttemptResult, ExerciseAttemptType, ExerciseCompletionSummary, ExerciseStatus, FeedbackDimension, FeedbackItem, FeedbackProgressStatus, FinishedSession, Goal, GoalDashboard, GoalExercise, PracticeSession, ResponseAnalysis, SessionDetail, SummaryPattern } from '@/lib/types';
 
 const goalStorageKey = 'communication-coach:demo-goals';
 const sessionStorageKey = 'communication-coach:demo-sessions';
@@ -23,6 +24,15 @@ function readLocal<T>(key: string, fallback: T): T {
 
 function writeLocal<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function textValue(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeFeedbackItem<T extends FeedbackItem & { progress_status?: FeedbackProgressStatus }>(item: T): FeedbackItem {
+  const { progress_status: progressStatus, ...feedback } = item;
+  return { ...feedback, progressStatus: item.progressStatus ?? progressStatus ?? 'baseline' };
 }
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -51,7 +61,7 @@ export async function listGoals(): Promise<Goal[]> {
     });
     const custom = stored
       .filter((goal) => goal.isCustom || (!goal.templateKey && goal.id.startsWith('demo-goal-')))
-      .map((goal) => ({ ...goal, templateKey: null, isCustom: true, skills: [], defaultCategory: 'spontaneous' }));
+      .map((goal) => ({ ...goal, templateKey: null, isCustom: true, isActive: goal.isActive ?? false, skills: [], defaultCategory: 'spontaneous' }));
     return [...presets, ...custom];
   }
   const result = await apiRequest<{ goals: Goal[] }>('/api/goals');
@@ -67,6 +77,7 @@ export async function createGoal(input: { title: string; description: string }):
       id: `demo-goal-${crypto.randomUUID()}`,
       templateKey: null,
       isCustom: true,
+      isActive: current.every((item) => !item.isActive),
       title: input.title,
       description: input.description,
       skills: [],
@@ -76,7 +87,7 @@ export async function createGoal(input: { title: string; description: string }):
       sessions: 0,
       recommended: true,
     };
-    writeLocal(goalStorageKey, [...current.filter((item) => item.isCustom), goal]);
+    writeLocal(goalStorageKey, [...current, goal]);
     return goal;
   }
 
@@ -102,6 +113,58 @@ export async function updateGoal(goalId: string, input: Partial<Pick<Goal, 'titl
   return result.goal;
 }
 
+export async function setActiveGoal(goalId: string): Promise<void> {
+  if (!usesPersistentBackend) {
+    const current = await listGoals();
+    const next = current.map((goal) => ({ ...goal, isActive: goal.id === goalId }));
+    writeLocal(goalStorageKey, next);
+    return;
+  }
+
+  await apiRequest(`/api/goals/${goalId}/activate`, { method: 'POST' });
+}
+
+export async function getGoalDashboard(goalId: string): Promise<GoalDashboard> {
+  if (!usesPersistentBackend) {
+    const goal = (await listGoals()).find((item) => item.id === goalId);
+    const framework = getGoalDefinition(goal?.templateKey)?.evaluationFramework;
+    return {
+      goalId,
+      sessionCount: 0,
+      completedAnswerCount: 0,
+      lastPractised: null,
+      totalSpeakingSeconds: 0,
+      speakingActivity: [],
+      overview: { text: null, strength: null, improvement: null, progress: null, supportingSessionIds: [] },
+      storytellingFramework: framework
+        ? {
+            name: framework.name,
+            description: framework.description,
+            criteria: framework.criteria.map((criterion) => ({
+              id: criterion.id,
+              title: criterion.title,
+              description: criterion.description,
+              evaluation: null,
+            })),
+          }
+        : undefined,
+      vocabulary: { totalWords: 0, uniqueWords: 0, newlyObservedWords: null, comparisonLabel: null, repeatedWords: [], strengths: [], improvements: [] },
+      grammar: { strengths: [], improvements: [] },
+      fluency: { averageWpm: 0, fillerCount: 0, fillerRatePer100Words: 0, commonFillers: [], repeatedOpenings: [], feedback: [] },
+      lessons: [],
+    };
+  }
+
+  const result = await apiRequest<{ dashboard: GoalDashboard }>(`/api/goals/${goalId}/dashboard`);
+  return result.dashboard;
+}
+
+export async function listGoalExercises(goalId: string): Promise<GoalExercise[]> {
+  if (!usesPersistentBackend) return [];
+  const result = await apiRequest<{ exercises: GoalExercise[] }>(`/api/goals/${goalId}/exercises`);
+  return result.exercises;
+}
+
 export async function createPracticeSession(input: {
   goalId: string;
   goalTitle: string;
@@ -119,7 +182,7 @@ export async function createPracticeSession(input: {
       categories: input.categories,
       skillFocus: 'all-skills',
       topic: input.topic,
-      title: input.prompt.slice(0, 120),
+      title: input.goalTitle,
     }),
   });
   return result.session;
@@ -131,10 +194,11 @@ export async function saveAndAnalyzeResponse(input: {
   durationSeconds: number;
   sequenceNumber: number;
   audio: Blob;
+  goalTemplateKey?: string | null;
 }) {
   if (!usesPersistentBackend) {
     const responseId = `demo-response-${crypto.randomUUID()}`;
-    const mock = createMockAnalysis(input.durationSeconds);
+    const mock = createMockAnalysis(input.durationSeconds, { goalTemplateKey: input.goalTemplateKey });
     const analysis: ResponseAnalysis = {
       transcript: mock.transcript,
       durationSeconds: input.durationSeconds,
@@ -193,7 +257,9 @@ export async function getResponseAnalysis(responseId: string): Promise<ResponseA
         title: string;
         explanation: string;
         alternatives: string[];
+        corrections?: Array<{ evidence: string; suggestion: string }>;
         positive: boolean;
+        progress_status?: FeedbackProgressStatus;
       }>;
     };
   }>(`/api/responses/${responseId}`);
@@ -211,7 +277,7 @@ export async function getResponseAnalysis(responseId: string): Promise<ResponseA
       fillerCount: metricsRelation.filler_count,
       fillerWords: metricsRelation.filler_words,
     },
-    feedback: result.response.feedback_items,
+    feedback: result.response.feedback_items.map(normalizeFeedbackItem),
   };
 }
 
@@ -238,7 +304,7 @@ export async function finishPracticeSession(input: {
   if (usesPersistentBackend) {
     return apiRequest<FinishedSession>(`/api/sessions/${input.sessionId}/finish`, {
       method: 'POST',
-      body: JSON.stringify({ title: input.prompt.slice(0, 120) }),
+      body: JSON.stringify({ title: input.goal }),
     });
   }
 
@@ -264,7 +330,7 @@ export async function finishPracticeSession(input: {
     answers: input.answerCount,
     averageWpm: 132,
     fillerCount: 3,
-    title: input.prompt.slice(0, 80),
+    title: input.goal,
     takeaway: 'Lead with the decision, then name one consequence and one boundary.',
     hasExercise: false,
   };
@@ -285,6 +351,7 @@ function createDemoFinishedSession(
 ): FinishedSession {
   const definition = getGoalDefinition(goalTemplateKey ?? 'clarity');
   const targetSkill = definition?.skills[0]?.title ?? 'Communicate with intention';
+  const template = getExerciseTemplate(goalTemplateKey === 'negotiation' ? 'E2' : goalTemplateKey === 'storytelling' ? 'E3' : 'E1');
   return {
     session: {
       id: sessionId,
@@ -304,33 +371,120 @@ function createDemoFinishedSession(
     },
     exercise: {
       id: `demo-exercise-${sessionId}`,
-      title: 'Make the consequence concrete',
-      targetSkill,
+      templateId: template.id,
+      skillId: template.skillId,
+      title: template.title,
+      targetSkill: template.targetSkill,
+      targetBehavior: targetSkill,
+      behaviorCode: template.behaviorCode,
       selectionReason: `This session’s feedback showed that ${targetSkill.toLowerCase()} is the most useful skill to reinforce next.`,
-      prompt: `Answer again in 30 seconds. Focus only on ${targetSkill.toLowerCase()} and support your point with one concrete example.`,
+      instructions: template.instructions,
+      estimatedMinutes: template.estimatedMinutes,
+      prompt: template.guidedPrompts[0],
+      guidance: template.levelGuidance[0],
+      difficultyLevel: 1,
       sourceEvidence: 'kind of a big problem',
+      status: 'recommended',
     },
   };
 }
 
-export async function completeExercise(exerciseId: string | null, audio: Blob, durationSeconds: number) {
-  if (!usesPersistentBackend || !exerciseId) {
-    const mock = createMockAnalysis(durationSeconds);
+export async function completeExerciseAttempt(input: {
+  exerciseId: string | null;
+  templateId: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6';
+  audio: Blob;
+  durationSeconds: number;
+  attemptNumber: number;
+  attemptType: ExerciseAttemptType;
+  prompt: string;
+  guidance: string;
+  difficultyLevel: number;
+}): Promise<ExerciseAttemptResult> {
+  if (!usesPersistentBackend || !input.exerciseId) {
+    const mock = createMockAnalysis(input.durationSeconds);
+    const assessment = input.attemptType === 'transfer' || input.attemptNumber >= 2 ? 'pass' : 'partial';
+    const next = input.attemptType === 'transfer'
+      ? { stage: 'summary' as const }
+      : input.attemptNumber >= 2 && assessment === 'pass'
+        ? {
+            stage: 'transfer' as const,
+            attemptNumber: 1,
+            prompt: fallbackExercisePrompt(input.templateId, 1, true),
+            guidance: '',
+            difficultyLevel: 3,
+          }
+        : {
+            stage: 'guided' as const,
+            attemptNumber: input.attemptNumber + 1,
+            prompt: fallbackExercisePrompt(input.templateId, input.attemptNumber + 1),
+            guidance: getExerciseTemplate(input.templateId).levelGuidance[Math.min(2, input.difficultyLevel)],
+            difficultyLevel: Math.min(3, input.difficultyLevel + 1),
+          };
     return {
-      transcript: mock.transcript,
-      durationSeconds,
-      metrics: mock.metrics,
-      feedback: mock.feedback,
-    } satisfies ResponseAnalysis;
+      attempt: {
+        id: `demo-attempt-${crypto.randomUUID()}`,
+        attemptNumber: input.attemptNumber,
+        attemptType: input.attemptType,
+        prompt: input.prompt,
+        difficultyLevel: input.difficultyLevel,
+        guidanceProvided: input.guidance,
+        transcript: mock.transcript,
+        durationSeconds: input.durationSeconds,
+        metrics: mock.metrics,
+        assessment,
+        whatWorked: 'You stated a measurable outcome: “The operations team reduced manual screening by about 80%.”',
+        whatToImprove: 'The opening delays that outcome with background, so the listener has to infer the main result.',
+        supportingEvidence: 'At my last company, I worked on an evaluation framework',
+        nextGuidance: 'I turned expert feedback into an evaluation framework that reduced manual screening by about 80%.',
+        completedAt: new Date().toISOString(),
+      },
+      next,
+    };
   }
   const upload = new FormData();
-  upload.set('durationSeconds', String(Math.max(1, durationSeconds)));
-  upload.set('audio', audio, audio.type.includes('mp4') ? 'exercise.m4a' : 'exercise.webm');
-  const result = await apiRequest<{ analysis: ResponseAnalysis }>(`/api/exercises/${exerciseId}/response`, {
+  upload.set('durationSeconds', String(Math.max(1, input.durationSeconds)));
+  upload.set('attemptNumber', String(input.attemptNumber));
+  upload.set('attemptType', input.attemptType);
+  upload.set('prompt', input.prompt);
+  upload.set('guidance', input.guidance);
+  upload.set('difficultyLevel', String(input.difficultyLevel));
+  upload.set('audio', input.audio, input.audio.type.includes('mp4') ? 'exercise.m4a' : 'exercise.webm');
+  const result = await apiRequest<{ result: ExerciseAttemptResult }>(`/api/exercises/${input.exerciseId}/response`, {
     method: 'POST',
     body: upload,
   });
-  return result.analysis;
+  return result.result;
+}
+
+export async function updateExerciseStatus(exerciseId: string | null, status: Extract<ExerciseStatus, 'in_progress' | 'skipped' | 'abandoned'>) {
+  if (!usesPersistentBackend || !exerciseId) return;
+  await apiRequest(`/api/exercises/${exerciseId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function finishPersonalizedExercise(exerciseId: string | null): Promise<ExerciseCompletionSummary> {
+  if (!usesPersistentBackend || !exerciseId) {
+    return {
+      exerciseId: exerciseId ?? 'demo-exercise',
+      status: 'completed',
+      targetSkill: 'Structuring thoughts',
+      targetBehavior: 'Make the central point explicit before supporting detail.',
+      guidedAttempts: [],
+      transferTest: null,
+      whatImproved: 'You repeated the target behavior with progressively less guidance.',
+      remainingFocus: 'Keep the same structure when the topic is unfamiliar or ambiguous.',
+      recommendedNextPractice: 'Use the target behavior once in your next goal-based practice session.',
+    };
+  }
+  const result = await apiRequest<{ summary: ExerciseCompletionSummary }>(`/api/exercises/${exerciseId}/complete`, { method: 'POST' });
+  return result.summary;
+}
+
+export async function endPersonalizedExercise(exerciseId: string | null) {
+  if (!usesPersistentBackend || !exerciseId) return;
+  await apiRequest(`/api/exercises/${exerciseId}/end`, { method: 'POST' });
 }
 
 export async function listHistory(): Promise<PracticeSession[]> {
@@ -384,14 +538,61 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
       created_at: string;
       completed_at: string | null;
       responses: Array<{
+        id: string;
         prompt: string;
         transcript: string;
-        feedback_items: Array<{ title: string; explanation: string }>;
+        response_metrics: Array<{
+          word_count: number;
+          unique_word_count: number;
+          average_wpm: number;
+          filler_count: number;
+          filler_words: Record<string, number>;
+        }> | {
+          word_count: number;
+          unique_word_count: number;
+          average_wpm: number;
+          filler_count: number;
+          filler_words: Record<string, number>;
+        } | null;
+        feedback_items: Array<{
+          id: string;
+          dimension: FeedbackDimension;
+          skill: string;
+          evidence: string;
+          title: string;
+          explanation: string;
+          alternatives: string[];
+          corrections?: Array<{ evidence: string; suggestion: string }>;
+          positive: boolean;
+          progress_status?: FeedbackProgressStatus;
+        }>;
       }>;
-      session_summaries: Array<{ summary: string }> | { summary: string } | null;
+      session_summaries: Array<{ summary: string; strengths: SummaryPattern[]; opportunities: SummaryPattern[] }> | { summary: string; strengths: SummaryPattern[]; opportunities: SummaryPattern[] } | null;
       exercises:
-        | Array<{ title: string; target_skill: string; selection_reason: string; source_evidence: string; completed_at: string | null }>
-        | { title: string; target_skill: string; selection_reason: string; source_evidence: string; completed_at: string | null }
+        | Array<{
+            title: string;
+            exercise_template_id: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6';
+            target_skill: string;
+            target_behavior: string;
+            instructions: string[];
+            selection_reason: string;
+            source_evidence: string;
+            status: ExerciseStatus;
+            completion_feedback: Record<string, unknown>;
+            exercise_attempts: Array<Record<string, unknown>> | Record<string, unknown> | null;
+          }>
+        | {
+            title: string;
+            exercise_template_id: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6';
+            target_skill: string;
+            target_behavior: string;
+            instructions: string[];
+            selection_reason: string;
+            source_evidence: string;
+            status: ExerciseStatus;
+            completion_feedback: Record<string, unknown>;
+            exercise_attempts: Array<Record<string, unknown>> | Record<string, unknown> | null;
+          }
         | null;
     };
   }>(`/api/sessions/${sessionId}`);
@@ -408,6 +609,46 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
     : session.exercises
       ? [session.exercises]
       : [];
+  const savedExercise = exercises[0];
+  const attemptRows = savedExercise
+    ? (Array.isArray(savedExercise.exercise_attempts)
+        ? savedExercise.exercise_attempts
+        : savedExercise.exercise_attempts ? [savedExercise.exercise_attempts] : [])
+    : [];
+  const exerciseAttempts = attemptRows.map((row) => ({
+    id: String(row.id),
+    attemptNumber: Number(row.attempt_number),
+    attemptType: row.attempt_type as ExerciseAttemptType,
+    prompt: String(row.prompt),
+    difficultyLevel: Number(row.difficulty_level),
+    guidanceProvided: textValue(row.guidance_provided),
+    transcript: textValue(row.transcript),
+    durationSeconds: Number(row.duration_seconds),
+    metrics: row.metrics as ResponseAnalysis['metrics'],
+    assessment: row.assessment as 'pass' | 'partial' | 'fail' | 'not_evaluated',
+    whatWorked: textValue(row.positive_feedback),
+    whatToImprove: textValue(row.improvement_feedback),
+    supportingEvidence: textValue(row.supporting_evidence),
+    nextGuidance: textValue(row.next_guidance),
+    completedAt: textValue(row.completed_at) || textValue(row.created_at),
+  })).sort((left, right) => left.completedAt.localeCompare(right.completedAt));
+  const completionFeedback = savedExercise?.completion_feedback ?? {};
+  const historyResponses = session.responses.map((response) => {
+    const metrics = Array.isArray(response.response_metrics) ? response.response_metrics[0] : response.response_metrics;
+    return {
+      id: response.id,
+      prompt: response.prompt,
+      transcript: response.transcript,
+      metrics: metrics ? {
+        wordCount: metrics.word_count,
+        uniqueWordCount: metrics.unique_word_count,
+        averageWpm: metrics.average_wpm,
+        fillerCount: metrics.filler_count,
+        fillerWords: metrics.filler_words,
+      } : null,
+      feedback: response.feedback_items.map(normalizeFeedbackItem),
+    };
+  });
   return {
     id: session.id,
     date: new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(
@@ -421,17 +662,32 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
     answers: session.responses.length,
     averageWpm: session.average_wpm,
     fillerCount: session.filler_count,
-    title: session.title,
+    title: session.goal_title,
     takeaway: session.takeaway,
-    hasExercise: exercises.some((exercise) => Boolean(exercise.completed_at)),
+    hasExercise: savedExercise?.status === 'completed',
     prompt: firstResponse?.prompt ?? '',
     transcript: firstResponse?.transcript ?? '',
     feedbackTitle: firstFeedback?.title ?? 'Saved coaching',
     feedbackExplanation: firstFeedback?.explanation ?? '',
     summary: summaries[0]?.summary ?? session.takeaway,
-    exerciseTitle: exercises[0]?.title,
-    exerciseTargetSkill: exercises[0]?.target_skill,
-    exerciseReason: exercises[0]?.selection_reason,
-    exerciseEvidence: exercises[0]?.source_evidence,
+    responses: historyResponses,
+    summaryStrengths: summaries[0]?.strengths ?? [],
+    summaryOpportunities: summaries[0]?.opportunities ?? [],
+    exerciseTitle: savedExercise?.title,
+    exerciseTemplateId: savedExercise?.exercise_template_id,
+    exerciseTargetSkill: savedExercise?.target_skill,
+    exerciseTargetBehavior: savedExercise?.target_behavior,
+    exerciseInstructions: Array.isArray(savedExercise?.instructions)
+      ? savedExercise.instructions.filter((instruction): instruction is string => typeof instruction === 'string')
+      : [],
+    exerciseReason: savedExercise?.selection_reason,
+    exerciseEvidence: savedExercise?.source_evidence,
+    exerciseStatus: savedExercise?.status,
+    exerciseAttempts,
+    exerciseCompletion: savedExercise?.status === 'completed' ? {
+      whatImproved: textValue(completionFeedback.whatImproved),
+      remainingFocus: textValue(completionFeedback.remainingFocus),
+      recommendedNextPractice: textValue(completionFeedback.recommendedNextPractice),
+    } : null,
   };
 }

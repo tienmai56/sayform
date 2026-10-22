@@ -10,7 +10,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   const { data, error } = await context.supabase
     .from('sessions')
-    .select('*, responses(*, response_metrics(*), feedback_items(*)), session_summaries(*), exercises(*)')
+    .select('*, responses(*, response_metrics(*), feedback_items(*)), session_summaries(*), exercises(*, exercise_attempts(*))')
     .eq('id', sessionId)
     .eq('user_id', context.userId)
     .maybeSingle();

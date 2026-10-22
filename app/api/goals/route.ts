@@ -21,10 +21,20 @@ export async function GET() {
 
   const { data, error } = await context.supabase
     .from('goals')
-    .select('id, template_key, is_custom, title, description, status, created_at, updated_at')
+    .select('id, template_key, is_custom, is_active_goal, title, description, status, created_at, updated_at')
     .order('created_at', { ascending: true });
 
   if (error) return databaseError(error);
+
+  let goalRows = data ?? [];
+  if (!goalRows.some((goal) => goal.is_active_goal)) {
+    const initialGoal = goalRows.find((goal) => goal.status === 'active');
+    if (initialGoal) {
+      const { error: activeGoalError } = await context.supabase.rpc('set_active_goal', { p_goal_id: initialGoal.id });
+      if (activeGoalError) return databaseError(activeGoalError);
+      goalRows = goalRows.map((goal) => ({ ...goal, is_active_goal: goal.id === initialGoal.id }));
+    }
+  }
 
   const { data: sessions, error: sessionsError } = await context.supabase
     .from('sessions')
@@ -45,10 +55,11 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    goals: (data ?? []).map((goal) => ({
+    goals: goalRows.map((goal) => ({
       id: goal.id,
       templateKey: goal.template_key,
       isCustom: goal.is_custom,
+      isActive: goal.is_active_goal,
       title: goal.title,
       description: goal.description,
       skills: getGoalDefinition(goal.template_key)?.skills ?? [],
@@ -71,7 +82,7 @@ export async function POST(request: Request) {
   const { data, error } = await context.supabase
     .from('goals')
     .insert({ user_id: context.userId, is_custom: true, ...body.data })
-    .select('id, template_key, is_custom, title, description, status')
+    .select('id, template_key, is_custom, is_active_goal, title, description, status')
     .single();
 
   if (error) return databaseError(error);
@@ -80,6 +91,7 @@ export async function POST(request: Request) {
       id: data.id,
       templateKey: data.template_key,
       isCustom: data.is_custom,
+      isActive: data.is_active_goal,
       title: data.title,
       description: data.description,
       skills: [],

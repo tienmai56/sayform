@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   BookOpenText,
   ChevronRight,
+  Dumbbell,
   History,
   Settings,
   LogOut,
@@ -16,6 +17,7 @@ import { useAuth } from '@/components/auth-provider';
 
 const navigation = [
   { label: 'Goals', href: '/goals', icon: Target },
+  { label: 'Exercises', href: '/exercises', icon: Dumbbell },
   { label: 'History', href: '/history', icon: History },
 ];
 

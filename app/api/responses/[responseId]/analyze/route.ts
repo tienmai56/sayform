@@ -3,6 +3,7 @@ import { apiError, databaseError, requireApiUser } from '@/lib/api-response';
 import { generateResponseFeedback, OpenRouterRequestError, transcribeAudio } from '@/lib/analysis/openrouter-provider';
 import { createSpeechMetrics } from '@/lib/analysis/speech-metrics';
 import { getGoalDefinition } from '@/lib/goal-catalog';
+import type { FeedbackCorrection, FeedbackDimension, FeedbackItem, FeedbackProgressStatus, ResponseMetrics } from '@/lib/types';
 import { analyzeResponseSchema } from '@/lib/validation';
 
 type RouteParams = { params: Promise<{ responseId: string }> };
@@ -16,6 +17,49 @@ const allowedAudioTypes = new Set([
   'audio/wav',
   'audio/x-m4a',
 ]);
+
+type PreviousMetricRow = {
+  word_count: number;
+  unique_word_count: number;
+  average_wpm: number;
+  filler_count: number;
+  filler_words: unknown;
+};
+
+type PreviousFeedbackRow = {
+  id: string;
+  dimension: FeedbackDimension;
+  skill: string;
+  evidence: string;
+  title: string;
+  explanation: string;
+  alternatives: unknown;
+  corrections: unknown;
+  positive: boolean;
+  progress_status: FeedbackProgressStatus | null;
+};
+
+type PreviousResponseRow = {
+  transcript: string | null;
+  response_metrics: PreviousMetricRow | PreviousMetricRow[] | null;
+  feedback_items: PreviousFeedbackRow | PreviousFeedbackRow[] | null;
+};
+
+function asArray<T>(value: T | T[] | null | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function feedbackCorrections(value: unknown): FeedbackCorrection[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const candidate = item as { evidence?: unknown; suggestion?: unknown };
+    return typeof candidate.evidence === 'string' && typeof candidate.suggestion === 'string'
+      ? [{ evidence: candidate.evidence, suggestion: candidate.suggestion }]
+      : [];
+  });
+}
 
 function parseUpload(formData: FormData) {
   const body = analyzeResponseSchema.safeParse({ idempotencyKey: formData.get('idempotencyKey') });
@@ -50,7 +94,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   const { data: response, error: responseError } = await context.supabase
     .from('responses')
-    .select('id, session_id, prompt, duration_seconds, status')
+    .select('id, session_id, prompt, duration_seconds, sequence_number, status')
     .eq('id', responseId)
     .eq('user_id', context.userId)
     .maybeSingle();
@@ -119,13 +163,54 @@ export async function POST(request: Request, { params }: RouteParams) {
     await context.supabase.from('analysis_jobs').update({ state: 'analyzing' }).eq('id', jobId).eq('user_id', context.userId);
     await context.supabase.from('responses').update({ transcript, status: 'analyzing' }).eq('id', response.id).eq('user_id', context.userId);
 
+    const { data: previousRows, error: previousError } = await context.supabase
+      .from('responses')
+      .select('transcript, sequence_number, response_metrics(word_count, unique_word_count, average_wpm, filler_count, filler_words), feedback_items(id, dimension, skill, evidence, title, explanation, alternatives, corrections, positive, progress_status)')
+      .eq('session_id', response.session_id)
+      .eq('user_id', context.userId)
+      .eq('prompt', response.prompt)
+      .eq('status', 'completed')
+      .lt('sequence_number', response.sequence_number)
+      .order('sequence_number', { ascending: false })
+      .limit(3);
+    if (previousError) throw new Error(`Could not load earlier attempts: ${previousError.message}`);
+
+    const previousAttempts = ((previousRows ?? []) as unknown as PreviousResponseRow[]).flatMap((previous) => {
+      const previousMetrics = asArray(previous.response_metrics)[0];
+      if (!previous.transcript || !previousMetrics) return [];
+      const normalizedMetrics: ResponseMetrics = {
+        wordCount: previousMetrics.word_count,
+        uniqueWordCount: previousMetrics.unique_word_count,
+        averageWpm: previousMetrics.average_wpm,
+        fillerCount: previousMetrics.filler_count,
+        fillerWords: previousMetrics.filler_words && typeof previousMetrics.filler_words === 'object'
+          ? previousMetrics.filler_words as Record<string, number>
+          : {},
+      };
+      const previousFeedback: FeedbackItem[] = asArray(previous.feedback_items).map((item) => ({
+        id: item.id,
+        dimension: item.dimension,
+        skill: item.skill,
+        evidence: item.evidence,
+        title: item.title,
+        explanation: item.explanation,
+        alternatives: Array.isArray(item.alternatives) ? item.alternatives.filter((value): value is string => typeof value === 'string') : [],
+        corrections: feedbackCorrections(item.corrections),
+        positive: item.positive,
+        progressStatus: item.progress_status ?? 'baseline',
+      }));
+      return [{ transcript: previous.transcript, metrics: normalizedMetrics, feedback: previousFeedback }];
+    });
+
     const feedback = await generateResponseFeedback({
       prompt: response.prompt,
       goalTitle: session.goal_title,
       goalDescription: goalRelation?.description ?? session.topic,
       goalSkills: goalDefinition?.skills ?? [],
+      goalFramework: goalDefinition?.evaluationFramework,
       transcript,
       metrics,
+      previousAttempts,
     });
 
     const { error: metricsError } = await context.supabase.from('response_metrics').upsert({
@@ -158,10 +243,12 @@ export async function POST(request: Request, { params }: RouteParams) {
           title: item.title,
           explanation: item.explanation,
           alternatives: item.alternatives ?? [],
+          corrections: item.corrections ?? [],
           positive: item.positive ?? false,
+          progress_status: item.progressStatus ?? 'baseline',
         })),
       )
-      .select('id, dimension, skill, evidence, title, explanation, alternatives, positive');
+      .select('id, dimension, skill, evidence, title, explanation, alternatives, corrections, positive, progress_status');
     if (feedbackError) throw new Error(`Could not save feedback: ${feedbackError.message}`);
 
     const { error: updateResponseError } = await context.supabase
@@ -186,7 +273,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         transcript,
         durationSeconds: response.duration_seconds,
         metrics,
-        feedback: savedFeedback ?? [],
+        feedback: (savedFeedback ?? []).map(({ progress_status, ...item }) => ({ ...item, progressStatus: progress_status })),
       },
     });
   } catch (error) {

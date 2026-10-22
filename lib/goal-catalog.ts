@@ -7,6 +7,16 @@ export type GoalDefinition = {
   skills: GoalSkill[];
   defaultCategory: string;
   questions: { prompt: string; skillId: string }[];
+  evaluationFramework?: {
+    name: string;
+    description: string;
+    criteria: Array<{
+      id: string;
+      title: string;
+      description: string;
+      feedbackDimension: 'Vocabulary' | 'Sentence structure' | 'Communication effectiveness' | 'Critical thinking';
+    }>;
+  };
 };
 
 export const goalCatalog: GoalDefinition[] = [
@@ -86,19 +96,28 @@ export const goalCatalog: GoalDefinition[] = [
     description: 'Turn experiences into structured stories with a meaningful takeaway.',
     defaultCategory: 'storytelling',
     skills: [
-      { id: 'context', title: 'Establish context efficiently', description: 'Give just enough background to orient the listener.' },
-      { id: 'details', title: 'Choose relevant details', description: 'Use concrete details that move the story forward.' },
-      { id: 'stakes', title: 'Create stakes or tension', description: 'Make clear why the moment mattered.' },
-      { id: 'turning-point', title: 'Land the turning point', description: 'Show the decision, realization, or change.' },
-      { id: 'takeaway', title: 'End with a meaningful takeaway', description: 'Connect the story to what the listener should retain.' },
+      { id: 'five-second-moment', title: 'Build toward a five-second moment', description: 'Land on a specific realization or change in perspective.' },
+      { id: 'start-close-to-action', title: 'Start close to the action', description: 'Begin near the consequential moment instead of overexplaining background.' },
+      { id: 'stakes', title: 'Establish meaningful stakes', description: 'Make clear what could be gained, lost, or changed and why it mattered.' },
+      { id: 'beginning-ending-contrast', title: 'Create beginning-to-ending contrast', description: 'Show how the storyteller’s understanding or situation changed.' },
     ],
+    evaluationFramework: {
+      name: "Matthew Dicks’ Storyworthy framework",
+      description: 'A compelling story builds toward a five-second moment—a realization or change in perspective—while beginning close to the action, establishing meaningful stakes, and showing a clear contrast between the beginning and ending.',
+      criteria: [
+        { id: 'five-second-moment', title: 'Five-second moment', description: 'Does the story build toward a specific realization or change in perspective?', feedbackDimension: 'Communication effectiveness' },
+        { id: 'start-close-to-action', title: 'Start close to the action', description: 'Does the opening begin near the consequential moment with only necessary context?', feedbackDimension: 'Sentence structure' },
+        { id: 'stakes', title: 'Meaningful stakes', description: 'Does the listener understand what could be gained, lost, or changed and why it matters?', feedbackDimension: 'Critical thinking' },
+        { id: 'beginning-ending-contrast', title: 'Beginning-to-ending contrast', description: 'Does the language make the difference between the storyteller at the beginning and ending concrete?', feedbackDimension: 'Vocabulary' },
+      ],
+    },
     questions: [
       {
-        skillId: 'context',
+        skillId: 'start-close-to-action',
         prompt: 'Tell a story about a project that started with an unclear problem. Set the scene without overexplaining it.',
       },
       {
-        skillId: 'details',
+        skillId: 'five-second-moment',
         prompt: 'Describe a moment when one small detail changed how you understood a situation.',
       },
       {
@@ -106,11 +125,11 @@ export const goalCatalog: GoalDefinition[] = [
         prompt: 'Tell a story about a decision where the consequences mattered to other people, not only to you.',
       },
       {
-        skillId: 'turning-point',
+        skillId: 'five-second-moment',
         prompt: 'Describe a decision you changed after receiving new information. What changed your mind?',
       },
       {
-        skillId: 'takeaway',
+        skillId: 'beginning-ending-contrast',
         prompt: 'Tell a story about a mistake that changed how you work today, and finish with the lesson you carried forward.',
       },
     ],
@@ -138,6 +157,7 @@ export function createDemoGoals(): Goal[] {
     id: `demo-goal-${goal.key}`,
     templateKey: goal.key,
     isCustom: false,
+    isActive: goal.key === 'clarity',
     title: goal.title,
     description: goal.description,
     skills: goal.skills,

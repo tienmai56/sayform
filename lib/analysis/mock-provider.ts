@@ -1,4 +1,5 @@
 import { getGoalDefinition } from '@/lib/goal-catalog';
+import { getExerciseTemplate } from '@/lib/exercise-library';
 import { feedbackItems, transcript } from '@/lib/mock-data';
 import type { FeedbackDimension, SummaryPattern } from '@/lib/types';
 
@@ -24,11 +25,11 @@ const skillByDimension: Record<string, Record<FeedbackDimension, string>> = {
     'What worked': 'Surface interests and constraints',
   },
   storytelling: {
-    Vocabulary: 'Choose relevant details',
-    'Sentence structure': 'Land the turning point',
-    'Communication effectiveness': 'End with a meaningful takeaway',
-    'Critical thinking': 'Create stakes or tension',
-    'What worked': 'Establish context efficiently',
+    Vocabulary: 'Beginning-to-ending contrast',
+    'Sentence structure': 'Start close to the action',
+    'Communication effectiveness': 'Five-second moment',
+    'Critical thinking': 'Meaningful stakes',
+    'What worked': 'Five-second moment',
   },
 };
 
@@ -53,6 +54,7 @@ export function createMockAnalysis(durationSeconds: number, context: AnalysisCon
     feedback: feedbackItems.map((item) => ({
       ...item,
       skill: dimensionMap[item.dimension],
+      progressStatus: 'baseline' as const,
     })),
   };
 }
@@ -94,20 +96,21 @@ function patternFrom(items: SavedFeedback[], fallback: SummaryPattern): SummaryP
 }
 
 function exerciseCopy(templateKey: string | null | undefined, targetSkill: string, evidence: string) {
+  const exerciseTemplate = getExerciseTemplate(templateKey === 'negotiation' ? 'E2' : templateKey === 'storytelling' ? 'E3' : 'E1');
   if (templateKey === 'negotiation') {
     return {
-      title: 'Turn the position into a workable proposal',
+      template: exerciseTemplate,
       prompt: `Respond again in three parts: state the desired outcome, name one tradeoff, and propose a next step. Improve this evidence without changing its meaning: “${evidence}”`,
     };
   }
   if (templateKey === 'storytelling') {
     return {
-      title: 'Shape the moment into a clear story beat',
+      template: exerciseTemplate,
       prompt: `Retell this idea with brief context, one turning point, and a useful takeaway. Keep the meaning of: “${evidence}”`,
     };
   }
   return {
-    title: 'Make the message concrete',
+    template: exerciseTemplate,
     prompt: `Restate this idea in two direct sentences. Lead with the point and replace broad language with a specific consequence: “${evidence}”`,
   };
 }
@@ -138,12 +141,22 @@ export function createMockSessionSummary(input: SessionSummaryInput) {
     opportunities: [opportunity],
     takeaway: `In your next response, focus on ${targetSkill.toLowerCase()} and make the change visible in one specific sentence.`,
     exercise: {
-      ...exercise,
-      targetSkill,
+      templateId: exercise.template.id,
+      skillId: exercise.template.skillId,
+      title: exercise.template.title,
+      targetSkill: exercise.template.targetSkill,
+      targetBehavior: targetSkill,
+      behaviorCode: exercise.template.behaviorCode,
       sourceEvidence,
       sourceFeedbackItemId: opportunityItems[0]?.id ?? null,
       sourceResponseId: opportunityItems[0]?.responseId ?? null,
       selectionReason: `${targetSkill} was selected because the related pattern appeared in ${occurrenceCount} saved feedback ${occurrenceCount === 1 ? 'item' : 'items'} from this session.`,
+      instructions: exercise.template.instructions,
+      estimatedMinutes: exercise.template.estimatedMinutes,
+      prompt: exercise.prompt,
+      guidance: exercise.template.levelGuidance[0],
+      difficultyLevel: 1,
+      diagnosisSupported: Boolean(opportunityItems[0]),
     },
   };
 }
@@ -154,8 +167,19 @@ export const mockSessionSummary = {
   opportunities: [{ title: 'Name the consequence instead of its size', detail: 'Replace broad phrases with the actual cost, risk, or behavior.' }],
   takeaway: 'Lead with the decision, then name one consequence and one boundary.',
   exercise: {
-    title: 'Make the consequence concrete',
+    templateId: 'E1',
+    skillId: 'S1',
+    title: 'Answer First',
+    targetSkill: 'Structuring thoughts',
+    targetBehavior: 'State the main point before background detail.',
+    behaviorCode: 'state_main_point_first',
+    selectionReason: 'The direct answer arrived after background detail.',
+    instructions: ['State the answer first.', 'Add up to two supporting points.'],
+    estimatedMinutes: 4,
     prompt: 'Rephrase this idea in one clear sentence using a specific consequence.',
+    guidance: 'Use: answer first, then reason one and reason two.',
+    difficultyLevel: 1,
     sourceEvidence: 'kind of a big problem',
+    status: 'recommended',
   },
 };

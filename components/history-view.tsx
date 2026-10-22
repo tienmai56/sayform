@@ -134,7 +134,7 @@ export function HistoryView() {
                 <button onClick={() => router.push(`/history/${session.id}`)} className="min-w-0 text-left">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-[var(--mint-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--teal-dark)]">{session.goal}</span>
-                    {session.hasExercise && <span className="rounded-full bg-[var(--amber-soft)] px-2.5 py-1 text-[10px] font-semibold text-[#805d1c]">Exercise completed</span>}
+                    {session.exerciseStatus && <span className="rounded-full bg-[var(--amber-soft)] px-2.5 py-1 text-[10px] font-semibold text-[#805d1c]">Exercise {session.exerciseStatus.replace('_', ' ')}</span>}
                   </div>
                   <h2 className="mt-3 truncate text-base font-semibold text-[var(--navy)]">{session.title}</h2>
                   <p className="mt-1 truncate text-sm text-[var(--muted-ink)]">{session.takeaway}</p>

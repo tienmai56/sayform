@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { usePractice } from '@/components/practice-context';
 import { getPracticeQuestions } from '@/lib/goal-catalog';
 import { categories as categoryOptions } from '@/lib/mock-data';
-import { completeExercise, createPracticeSession, saveAndAnalyzeResponse } from '@/lib/client-data';
+import { completeExerciseAttempt as submitExerciseAttempt, createPracticeSession, saveAndAnalyzeResponse, updateExerciseStatus } from '@/lib/client-data';
 
 type PracticeStatus = 'permission' | 'requesting' | 'ready' | 'recording' | 'processing' | 'error';
 
@@ -48,17 +48,22 @@ export function CameraPractice() {
   const {
     activeExercise,
     activeSessionId,
+    answerNotes,
     answerCount,
     beginSession,
     categories,
     completeResponse,
     customTopic,
     goalId,
-    goalSkills,
     goalTemplateKey,
     goalTitle,
     prompt,
-    setCurrentAnalysis,
+    redoFeedback,
+    exerciseAttemptNumber,
+    exerciseDifficultyLevel,
+    exerciseStage,
+    completeExerciseAttempt,
+    resetSession,
     setRecordingUrl,
     clearRecording,
     updateSetup,
@@ -71,7 +76,7 @@ export function CameraPractice() {
   const audioChunksRef = useRef<Blob[]>([]);
   const retryAudioRef = useRef<Blob | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const automaticCameraRequestRef = useRef(false);
+  const automaticMediaRequestRef = useRef(false);
   const [status, setStatus] = useState<PracticeStatus>('permission');
   const [elapsed, setElapsed] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
@@ -79,7 +84,11 @@ export function CameraPractice() {
   const [errorKind, setErrorKind] = useState<'media' | 'save'>('media');
   const [starting, setStarting] = useState(false);
   const [setupError, setSetupError] = useState('');
+  const [exerciseCustomPrompt, setExerciseCustomPrompt] = useState('');
   const practiceCategories = categories.length > 0 ? categories : ['spontaneous'];
+  const displayedPrompt = activeExercise && exerciseCustomPrompt.trim()
+    ? exerciseCustomPrompt.trim()
+    : !activeExercise && customTopic.trim() ? customTopic.trim() : prompt;
   const categoryTitle = activeExercise
     ? activeExercise.targetSkill
     : categoryOptions.find((category) => category.id === practiceCategories[0])?.title ?? 'Spontaneous thinking';
@@ -126,14 +135,9 @@ export function CameraPractice() {
     }
   }, [releaseCamera]);
 
-  useEffect(() => {
-    if (!activeExercise || status !== 'permission' || automaticCameraRequestRef.current) return;
-    automaticCameraRequestRef.current = true;
-    void enableCamera();
-  }, [activeExercise, enableCamera, status]);
-
-  async function enableAudioOnly() {
+  const enableAudioOnly = useCallback(async () => {
     setErrorMessage('');
+    setErrorKind('media');
     setStatus('requesting');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
@@ -141,23 +145,41 @@ export function CameraPractice() {
       setDemoMode(true);
       setStatus('ready');
     } catch {
+      releaseCamera();
       setErrorMessage('Microphone access was not granted. Speech analysis requires an audio recording.');
       setStatus('error');
     }
-  }
+  }, [releaseCamera]);
+
+  useEffect(() => {
+    if (!activeExercise || status !== 'permission' || automaticMediaRequestRef.current) return;
+    automaticMediaRequestRef.current = true;
+    void enableAudioOnly();
+  }, [activeExercise, enableAudioOnly, status]);
 
   async function startSpeaking() {
     setStarting(true);
     setSetupError('');
+    if (customTopic.trim() && customTopic.trim().length < 3) {
+      setSetupError('Your personal prompt needs at least 3 characters.');
+      setStarting(false);
+      return;
+    }
+    if (activeExercise && exerciseCustomPrompt.trim() && exerciseCustomPrompt.trim().length < 3) {
+      setSetupError('Your exercise prompt needs at least 3 characters.');
+      setStarting(false);
+      return;
+    }
     try {
       if (!activeExercise && !activeSessionId) {
         if (categories.length === 0) updateSetup({ categories: practiceCategories });
+        if (customTopic.trim()) updateSetup({ prompt: displayedPrompt });
         const session = await createPracticeSession({
           goalId,
           goalTitle,
           categories: practiceCategories,
           topic: customTopic,
-          prompt,
+          prompt: displayedPrompt,
         });
         beginSession(session.id);
       }
@@ -211,17 +233,28 @@ export function CameraPractice() {
   async function persistResponse(audio: Blob | null) {
     if (!audio) throw new Error('A microphone recording is required for speech analysis.');
     if (activeExercise) {
-      const analysis = await completeExercise(activeExercise.id, audio, elapsed);
-      setCurrentAnalysis(analysis);
+      const result = await submitExerciseAttempt({
+        exerciseId: activeExercise.id,
+        templateId: activeExercise.templateId,
+        audio,
+        durationSeconds: elapsed,
+        attemptNumber: exerciseAttemptNumber,
+        attemptType: exerciseStage,
+        prompt: displayedPrompt,
+        guidance: '',
+        difficultyLevel: exerciseDifficultyLevel,
+      });
+      completeExerciseAttempt(result);
       return;
     }
     if (!activeSessionId) return;
     const result = await saveAndAnalyzeResponse({
       sessionId: activeSessionId,
-      prompt,
+      prompt: displayedPrompt,
       durationSeconds: elapsed,
       sequenceNumber: answerCount + 1,
       audio,
+      goalTemplateKey,
     });
     completeResponse(result.responseId, result.feedbackIds, result.analysis);
   }
@@ -235,7 +268,8 @@ export function CameraPractice() {
         stopRecorder(audioRecorderRef.current, audioChunksRef.current),
       ]);
       retryAudioRef.current = audioBlob;
-      if (previewBlob) setRecordingUrl(URL.createObjectURL(previewBlob));
+      if (activeExercise && audioBlob) setRecordingUrl(URL.createObjectURL(audioBlob));
+      else if (previewBlob) setRecordingUrl(URL.createObjectURL(previewBlob));
       releaseCamera();
       await Promise.all([
         persistResponse(audioBlob),
@@ -264,7 +298,15 @@ export function CameraPractice() {
   async function tryAnotherQuestion() {
     const questions = getPracticeQuestions(goalTemplateKey);
     const index = questions.indexOf(prompt);
-    updateSetup({ prompt: questions[(index + 1) % questions.length] });
+    updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: questions[(index + 1) % questions.length] });
+  }
+
+  async function leaveExercise() {
+    if (!activeExercise) return;
+    await updateExerciseStatus(activeExercise.id, 'abandoned');
+    clearRecording();
+    resetSession();
+    router.push('/history');
   }
 
   return (
@@ -282,20 +324,20 @@ export function CameraPractice() {
       <div className="grid h-[calc(100vh-72px)] grid-cols-[minmax(0,1fr)_390px]">
         <section className="relative flex min-h-0 items-center justify-center overflow-hidden bg-[#0a1921] p-8">
           <div className="relative aspect-video w-full max-w-[1120px] overflow-hidden rounded-[28px] border border-white/10 bg-[#152c37] shadow-2xl">
-            <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />
+            {!activeExercise && <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />}
 
             {(status === 'permission' || status === 'requesting' || status === 'error' || demoMode) && (
               <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#244858_0%,#152c37_42%,#10242e_100%)]">
                 <div className="max-w-md text-center">
                   <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-white/10 text-[var(--mint)] ring-1 ring-white/10">
-                    {status === 'error' ? <CameraOff className="size-7" /> : <Camera className="size-7" />}
+                    {activeExercise ? <Mic className="size-7" /> : status === 'error' ? <CameraOff className="size-7" /> : <Camera className="size-7" />}
                   </div>
                   {(status === 'permission' || status === 'requesting') && (
                     <>
-                      <h1 className="mt-6 font-display text-2xl font-semibold tracking-[-0.03em]">{status === 'requesting' ? 'Starting your camera…' : 'Set up your camera'}</h1>
-                      <p className="mt-2 text-sm leading-6 text-white/60">{status === 'requesting' ? 'Allow camera and microphone access if your browser asks.' : 'Video stays in this browser. A temporary audio-only track is sent securely for transcription and coaching.'}</p>
-                      <Button onClick={enableCamera} disabled={status === 'requesting'} className="mt-6 h-11 rounded-xl bg-white px-5 text-[var(--navy)] hover:bg-[var(--mint-soft)]">
-                        <Camera className="size-4" /> {status === 'requesting' ? 'Preparing camera…' : 'Enable camera & microphone'}
+                      <h1 className="mt-6 font-display text-2xl font-semibold tracking-[-0.03em]">{status === 'requesting' ? (activeExercise ? 'Starting your microphone…' : 'Starting your camera…') : (activeExercise ? 'Set up your microphone' : 'Set up your camera')}</h1>
+                      <p className="mt-2 text-sm leading-6 text-white/60">{status === 'requesting' ? `Allow ${activeExercise ? 'microphone' : 'camera and microphone'} access if your browser asks.` : activeExercise ? 'Exercises use audio recording only. Your temporary recording is analyzed for targeted coaching.' : 'Video stays in this browser. A temporary audio-only track is sent securely for transcription and coaching.'}</p>
+                      <Button onClick={activeExercise ? () => void enableAudioOnly() : enableCamera} disabled={status === 'requesting'} className="mt-6 h-11 rounded-xl bg-white px-5 text-[var(--navy)] hover:bg-[var(--mint-soft)]">
+                        {activeExercise ? <Mic className="size-4" /> : <Camera className="size-4" />} {status === 'requesting' ? (activeExercise ? 'Preparing microphone…' : 'Preparing camera…') : (activeExercise ? 'Enable microphone' : 'Enable camera & microphone')}
                       </Button>
                     </>
                   )}
@@ -304,8 +346,8 @@ export function CameraPractice() {
                       <h1 className="mt-6 font-display text-2xl font-semibold">Permission needed</h1>
                       <p className="mt-2 text-sm leading-6 text-white/60">{errorMessage}</p>
                       <div className="mt-6 flex justify-center gap-3">
-                        <Button onClick={enableCamera} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">Try again</Button>
-                        <Button onClick={() => void enableAudioOnly()} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Use microphone only</Button>
+                        <Button onClick={activeExercise ? () => void enableAudioOnly() : enableCamera} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">Try again</Button>
+                        {!activeExercise && <Button onClick={() => void enableAudioOnly()} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Use microphone only</Button>}
                       </div>
                     </>
                   )}
@@ -321,8 +363,8 @@ export function CameraPractice() {
                   )}
                   {demoMode && status !== 'recording' && (
                     <>
-                      <h1 className="mt-6 font-display text-2xl font-semibold">Prototype camera</h1>
-                      <p className="mt-2 text-sm text-white/60">Camera preview is off. Your microphone will still provide real transcription and coaching.</p>
+                      <h1 className="mt-6 font-display text-2xl font-semibold">{activeExercise ? 'Microphone ready' : 'Prototype camera'}</h1>
+                      <p className="mt-2 text-sm text-white/60">{activeExercise ? 'No camera is used for exercises. Start when you are ready to record your response.' : 'Camera preview is off. Your microphone will still provide real transcription and coaching.'}</p>
                     </>
                   )}
                 </div>
@@ -337,7 +379,7 @@ export function CameraPractice() {
 
             <div className="absolute inset-x-0 top-0 flex items-center justify-between p-5">
               <span className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium backdrop-blur">
-                {activeExercise ? 'Targeted exercise' : `Question ${answerCount + 1}`}
+                {activeExercise ? (exerciseStage === 'transfer' ? 'Independent test' : `Guided attempt ${exerciseAttemptNumber}`) : `Question ${answerCount + 1}`}
               </span>
               <span className="flex items-center gap-2 rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium backdrop-blur">
                 {status === 'recording' ? <><span className="size-2 animate-pulse rounded-full bg-[#ff7668]" />Recording · {formatTime(elapsed)}</> : <><span className="size-2 rounded-full bg-white/45" />Recording off</>}
@@ -353,7 +395,7 @@ export function CameraPractice() {
                   </button>
                 )}
               </div>
-              <p className="mt-2 max-w-4xl font-display text-lg font-medium leading-7">{prompt}</p>
+              <p className="mt-2 max-w-4xl font-display text-lg font-medium leading-7">{displayedPrompt}</p>
             </div>
           </div>
 
@@ -369,14 +411,31 @@ export function CameraPractice() {
               </div>
             </div>
           )}
+
+          <div className="absolute bottom-7 left-1/2 z-10 w-full max-w-sm -translate-x-1/2 px-6">
+            {setupError && <p role="alert" className="mb-2 rounded-xl bg-[#8f4336]/90 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc] shadow-lg backdrop-blur">{setupError}</p>}
+            {status === 'ready' && (
+              <Button onClick={() => void startSpeaking()} disabled={starting} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[#f4f0e4] px-7 text-[var(--navy)] shadow-xl hover:bg-white">
+                <Mic className="size-4" /> {starting ? 'Preparing session…' : 'Start speaking'}
+              </Button>
+            )}
+            {status === 'recording' && (
+              <Button onClick={doneSpeaking} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[#e16d5d] px-7 text-white shadow-xl hover:bg-[#c95d50]">
+                <Square className="size-4 fill-current" /> Done speaking
+              </Button>
+            )}
+            {(status === 'permission' || status === 'requesting' || status === 'error') && (
+              <Button disabled size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-white/10 px-7 text-white/45 shadow-xl backdrop-blur">{status === 'requesting' ? (activeExercise ? 'Preparing microphone…' : 'Preparing camera…') : 'Start speaking'}</Button>
+            )}
+          </div>
         </section>
 
         <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#102630] p-7">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{activeExercise ? 'Personalized exercise' : 'Practice category'}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{activeExercise ? (exerciseStage === 'transfer' ? 'Independent transfer test' : `Personalized exercise · Attempt ${exerciseAttemptNumber}`) : 'Practice category'}</p>
             <p className="mt-2 text-sm font-semibold text-white/80">{categoryTitle}</p>
-            <h2 className="mt-4 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise ? activeExercise.title : 'Review your setup, then speak'}</h2>
-            <p className="mt-3 text-sm leading-6 text-white/55">The timer starts only when you choose <strong className="font-medium text-white/75">Start speaking</strong>.</p>
+            <h2 className="mt-4 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise ? activeExercise.title : redoFeedback.length ? 'Redo your answer' : 'Review your setup, then speak'}</h2>
+            <p className="mt-3 text-sm leading-6 text-white/55">{redoFeedback.length ? 'Use the feedback below to strengthen this attempt.' : <>The timer starts only when you choose <strong className="font-medium text-white/75">Start speaking</strong>.</>}</p>
           </div>
 
           <div className="my-7 h-px bg-white/10" />
@@ -387,70 +446,85 @@ export function CameraPractice() {
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--mint)]">Target skill</p>
                   <p className="mt-2 text-sm font-semibold text-white/90">{activeExercise.targetSkill}</p>
-                  <p className="mt-2 text-xs leading-5 text-white/55">{activeExercise.selectionReason}</p>
+                  <p className="mt-2 text-xs leading-5 text-white/55">{activeExercise.targetBehavior}</p>
                 </div>
-                <div className="rounded-2xl border-l-2 border-[var(--mint)] bg-white/5 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-white/45">Evidence from your session</p>
-                  <p className="mt-2 text-xs italic leading-5 text-white/70">“{activeExercise.sourceEvidence}”</p>
+                <div>
+                  <label htmlFor="exercise-prompt" className="text-xs font-semibold text-white/75">Your exercise prompt <span className="font-normal text-white/40">(optional)</span></label>
+                  <Textarea
+                    id="exercise-prompt"
+                    value={exerciseCustomPrompt}
+                    onChange={(event) => setExerciseCustomPrompt(event.target.value)}
+                    disabled={status === 'recording' || status === 'processing'}
+                    maxLength={1000}
+                    placeholder="Type the question or situation you want to practise"
+                    className="mt-2 min-h-28 resize-y border-white/10 bg-white/5 text-xs leading-5 text-white placeholder:text-white/30 disabled:opacity-50"
+                  />
+                  <p className="mt-2 text-[11px] leading-4 text-white/40">Your prompt replaces the generated exercise prompt shown on screen.</p>
+                  <p className="mt-2 text-[10px] text-white/35">Difficulty level {exerciseDifficultyLevel} of 3</p>
                 </div>
+                {exerciseStage === 'transfer' && (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-white/45">No coaching hints</p>
+                    <p className="mt-2 text-xs leading-5 text-white/65">Apply the skill independently to this unfamiliar question.</p>
+                  </div>
+                )}
               </>
             ) : (
               <>
-                <div className="rounded-2xl border border-[var(--mint)]/35 bg-[var(--mint)]/10 p-4">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-white/85">
-                    <Sparkles className="size-3.5 text-[var(--mint)]" /> Full skill review
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-white/55">
-                    {goalSkills.length
-                      ? 'The coach evaluates every skill in this goal after each answer.'
-                      : 'The coach evaluates vocabulary, structure, effectiveness, and reasoning after each answer.'}
-                  </p>
-                  {goalSkills.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {goalSkills.map((skill) => (
-                        <span key={skill.id} className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-medium text-white/65">
-                          {skill.title}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {!activeSessionId && (
                   <div>
-                    <label htmlFor="practice-topic" className="text-xs font-semibold text-white/75">Optional topic</label>
+                    <label htmlFor="practice-topic" className="text-xs font-semibold text-white/75">Personal prompt <span className="font-normal text-white/40">(optional)</span></label>
                     <Textarea
                       id="practice-topic"
                       value={customTopic}
                       onChange={(event) => updateSetup({ customTopic: event.target.value })}
-                      placeholder="A situation you want to practise"
-                      className="mt-2 min-h-16 resize-none border-white/10 bg-white/5 text-xs text-white placeholder:text-white/30"
+                      maxLength={500}
+                      placeholder="Type the question or situation you want to practise"
+                      className="mt-2 min-h-24 resize-none border-white/10 bg-white/5 text-xs text-white placeholder:text-white/30"
                     />
+                    <p className="mt-2 text-[11px] leading-4 text-white/40">Your prompt replaces the suggested question above.</p>
                   </div>
                 )}
+
+                {redoFeedback.length > 0 && (
+                  <div className="rounded-2xl border border-[#d9aa45]/30 bg-[#d9aa45]/10 p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#f1ca72]">Feedback to apply</p>
+                    <ul className="mt-3 space-y-3">
+                      {redoFeedback.map((item) => {
+                        const suggestion = item.corrections?.[0]?.suggestion ?? item.alternatives?.[0];
+                        return (
+                          <li key={item.id} className="flex items-start gap-2.5 text-xs leading-5 text-white/75">
+                            <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[#f1ca72]" />
+                            <span><strong className="font-semibold text-white/90">{item.title}</strong>{suggestion ? <span className="mt-0.5 block text-white/55">Try: {suggestion}</span> : null}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="answer-notes" className="text-xs font-semibold text-white/75">Plan your answer <span className="font-normal text-white/40">(optional)</span></label>
+                  <Textarea
+                    id="answer-notes"
+                    value={answerNotes}
+                    onChange={(event) => updateSetup({ answerNotes: event.target.value })}
+                    maxLength={1000}
+                    placeholder={'Main point\n• First reason\n• Supporting example\n• Closing thought'}
+                    className="mt-2 min-h-32 resize-y border-white/10 bg-white/5 text-xs leading-5 text-white placeholder:text-white/30"
+                  />
+                  <p className="mt-2 text-[11px] leading-4 text-white/40">Private notes for this answer. They aren’t saved or included in your coaching.</p>
+                </div>
               </>
             )}
 
             <div className="space-y-2">
-              <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><ShieldCheck className="size-4 text-[var(--mint)]" />Video stays local; temporary audio is not saved</div>
+              <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><ShieldCheck className="size-4 text-[var(--mint)]" />{activeExercise ? 'Audio only; the recording and detailed results are removed when you end the exercise' : 'Video stays local; temporary audio is not saved'}</div>
             </div>
           </div>
 
           <div className="mt-auto space-y-3">
-            {status === 'ready' && (
-              <Button onClick={() => void startSpeaking()} disabled={starting} size="lg" className="h-12 w-full rounded-xl bg-[#f4f0e4] text-[var(--navy)] hover:bg-white">
-                <Mic className="size-4" /> {starting ? 'Preparing session…' : 'Start speaking'}
-              </Button>
-            )}
-            {status === 'recording' && (
-              <Button onClick={doneSpeaking} size="lg" className="h-12 w-full rounded-xl bg-[#e16d5d] text-white hover:bg-[#c95d50]">
-                <Square className="size-4 fill-current" /> Done speaking
-              </Button>
-            )}
-            {(status === 'permission' || status === 'requesting' || status === 'error') && (
-              <Button disabled size="lg" className="h-12 w-full rounded-xl bg-white/10 text-white/45">{status === 'requesting' ? 'Preparing camera…' : 'Start speaking'}</Button>
-            )}
-            {setupError && <p role="alert" className="rounded-xl bg-[#8f4336]/20 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc]">{setupError}</p>}
+            {activeExercise && <button onClick={() => void leaveExercise()} disabled={status === 'recording' || status === 'processing'} className="w-full py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">Stop exercise</button>}
             {!activeExercise && activeSessionId && answerCount > 0 && <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">End session <ChevronRight className="size-3.5" /></button>}
           </div>
         </aside>

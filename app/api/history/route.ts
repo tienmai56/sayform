@@ -7,7 +7,7 @@ export async function GET() {
 
   const { data, error } = await context.supabase
     .from('sessions')
-    .select('id, goal_title, title, categories, duration_seconds, average_wpm, filler_count, takeaway, created_at, completed_at, responses(id), exercises(id, completed_at)')
+    .select('id, goal_title, title, categories, duration_seconds, average_wpm, filler_count, takeaway, created_at, completed_at, responses(id), exercises(id, status)')
     .eq('user_id', context.userId)
     .eq('status', 'completed')
     .order('completed_at', { ascending: false });
@@ -32,9 +32,10 @@ export async function GET() {
         answers: session.responses?.length ?? 0,
         averageWpm: session.average_wpm,
         fillerCount: session.filler_count,
-        title: session.title,
+        title: session.goal_title,
         takeaway: session.takeaway,
-        hasExercise: exercises.some((exercise) => Boolean(exercise.completed_at)),
+        hasExercise: exercises.some((exercise) => exercise.status === 'completed'),
+        exerciseStatus: exercises[0]?.status,
       };
     }),
   });
