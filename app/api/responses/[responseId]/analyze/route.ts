@@ -75,7 +75,7 @@ function parseUpload(formData: FormData) {
   if (audio.size > maximumAudioBytes) {
     return { error: apiError(413, 'audio_too_large', 'Keep each answer under the 15 MB recording limit.') } as const;
   }
-  return { data: { idempotencyKey: body.data.idempotencyKey, audio } } as const;
+  return { data: { idempotencyKey: body.data.idempotencyKey, audio, generateFollowUp: formData.get('generateFollowUp') === 'true' } } as const;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
@@ -202,16 +202,19 @@ export async function POST(request: Request, { params }: RouteParams) {
       return [{ transcript: previous.transcript, metrics: normalizedMetrics, feedback: previousFeedback }];
     });
 
-    const feedback = await generateResponseFeedback({
+    const generatedFeedback = await generateResponseFeedback({
       prompt: response.prompt,
       goalTitle: session.goal_title,
       goalDescription: goalRelation?.description ?? session.topic,
       goalSkills: goalDefinition?.skills ?? [],
       goalFramework: goalDefinition?.evaluationFramework,
+      coachInstructions: goalDefinition?.coachInstructions,
+      generateFollowUp: goalRelation?.template_key === 'clarity' && upload.data.generateFollowUp,
       transcript,
       metrics,
       previousAttempts,
     });
+    const feedback = generatedFeedback.feedback;
 
     const { error: metricsError } = await context.supabase.from('response_metrics').upsert({
       response_id: response.id,
@@ -274,6 +277,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         durationSeconds: response.duration_seconds,
         metrics,
         feedback: (savedFeedback ?? []).map(({ progress_status, ...item }) => ({ ...item, progressStatus: progress_status })),
+        followUpQuestion: generatedFeedback.followUpQuestion,
       },
     });
   } catch (error) {

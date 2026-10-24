@@ -61,6 +61,7 @@ export type ResponseAnalysis = {
   durationSeconds: number;
   metrics: ResponseMetrics;
   feedback: FeedbackItem[];
+  followUpQuestion?: string;
 };
 
 export type SummaryPattern = {
@@ -68,6 +69,14 @@ export type SummaryPattern = {
   detail: string;
   evidence?: string;
   responseIds?: string[];
+};
+
+export type InterviewCheck = {
+  id: 'answer-relevance' | 'reasoning-clarity' | 'clear-conclusion';
+  question: string;
+  passed: boolean;
+  detail: string;
+  evidence?: string;
 };
 
 export type ExerciseTemplateId = 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E6';
@@ -165,6 +174,7 @@ export type FinishedSession = {
     strengths: SummaryPattern[];
     opportunities: SummaryPattern[];
     takeaway: string;
+    interviewChecks?: InterviewCheck[];
   };
   exercise: ExerciseRecommendation | null;
 };

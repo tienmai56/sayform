@@ -3,7 +3,7 @@ import { apiError, databaseError, parseBody, requireApiUser } from '@/lib/api-re
 import { generateSessionSummary } from '@/lib/analysis/openrouter-provider';
 import { getGoalDefinition } from '@/lib/goal-catalog';
 import { finishSessionSchema } from '@/lib/validation';
-import type { FeedbackDimension } from '@/lib/types';
+import type { FeedbackDimension, InterviewCheck } from '@/lib/types';
 
 type RouteParams = { params: Promise<{ sessionId: string }> };
 
@@ -27,6 +27,46 @@ type FeedbackRow = {
 function asArray<T>(value: T | T[] | null | undefined): T[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function buildInterviewChecks(feedback: FeedbackRow[]): InterviewCheck[] {
+  const definitions: Array<{
+    id: InterviewCheck['id'];
+    question: string;
+    dimension: FeedbackDimension;
+    fallback: string;
+  }> = [
+    {
+      id: 'answer-relevance',
+      question: 'Did you answer the actual question?',
+      dimension: 'Communication effectiveness',
+      fallback: 'The coach could not verify answer relevance from this session.',
+    },
+    {
+      id: 'reasoning-clarity',
+      question: 'Was your reasoning easy to follow?',
+      dimension: 'Critical thinking',
+      fallback: 'The coach could not verify the reasoning structure from this session.',
+    },
+    {
+      id: 'clear-conclusion',
+      question: 'Did you provide a clear conclusion?',
+      dimension: 'Sentence structure',
+      fallback: 'The coach could not verify a clear conclusion from this session.',
+    },
+  ];
+
+  return definitions.map((definition) => {
+    const relevant = feedback.filter((item) => !item.dismissed && item.dimension === definition.dimension);
+    const representative = [...relevant].reverse().find((item) => !item.positive) ?? relevant.at(-1);
+    return {
+      id: definition.id,
+      question: definition.question,
+      passed: relevant.length > 0 && relevant.every((item) => item.positive),
+      detail: representative?.explanation ?? definition.fallback,
+      evidence: representative?.evidence || undefined,
+    };
+  });
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
@@ -70,6 +110,11 @@ export async function POST(request: Request, { params }: RouteParams) {
       responseId: response.id,
     })),
   );
+  const goalRelation = Array.isArray(session.goals) ? session.goals[0] : session.goals;
+  const goalDefinition = getGoalDefinition(goalRelation?.template_key);
+  const interviewChecks = goalRelation?.template_key === 'clarity'
+    ? buildInterviewChecks(feedback)
+    : undefined;
 
   if (session.status === 'completed') {
     const [{ data: savedSummary }, { data: savedExercise }] = await Promise.all([
@@ -106,6 +151,7 @@ export async function POST(request: Request, { params }: RouteParams) {
           strengths,
           opportunities,
           takeaway: session.takeaway,
+          interviewChecks,
         },
         exercise: {
           id: savedExercise.id,
@@ -128,8 +174,6 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
   }
 
-  const goalRelation = Array.isArray(session.goals) ? session.goals[0] : session.goals;
-  const goalDefinition = getGoalDefinition(goalRelation?.template_key);
   const completedAt = new Date().toISOString();
 
   // Persist the completed-session metrics before the slower AI summary step. This
@@ -217,6 +261,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       goalTitle: session.goal_title,
       goalSkills: goalDefinition?.skills ?? [],
       goalFramework: goalDefinition?.evaluationFramework,
+      coachInstructions: goalDefinition?.coachInstructions,
       responses: completedResponses.map((response) => ({
         id: response.id,
         prompt: response.prompt,
@@ -294,6 +339,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       strengths: summary.strengths,
       opportunities: summary.opportunities,
       takeaway: summary.takeaway,
+      interviewChecks,
     },
     exercise: {
       id: exercise.id,

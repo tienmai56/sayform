@@ -52,10 +52,10 @@ Restart `pnpm dev` after changing the file. The API key must never use a `NEXT_P
 
 ## Prototype walkthrough
 
-1. Your active goal appears at the top of `/goals` with its own Summary, Vocabulary, Grammar, and Fluency dashboard. Use **Change goal** or **Set as active goal** to switch explicitly; Sayform never changes it based on recent practice.
+1. Your active goal appears at the top of `/goals` with its own Summary and Lesson insights dashboard. Use **Change goal** or **Set as active goal** to switch explicitly; Sayform never changes it based on recent practice.
 2. Choose **Practise this goal** for the active goal, or create a custom goal.
 3. Enter the practice room. The coach evaluates every skill inside the chosen goal after each answer.
-4. Review the goal’s practice category, optionally add a topic, and select a question beside the camera preview.
+4. For the Interview goal, paste the interview question you want to practise. An experienced-manager coach evaluates the answer and generates one grounded follow-up question from your prompt and response.
 5. Allow camera and microphone access, then use **Start speaking** and **Done speaking**.
 6. Review the real transcript, objective metrics, evidence-linked coaching, full-screen report, and Helpful/Unhelpful controls. With Supabase and OpenRouter configured, the response and ratings are saved to the signed-in account.
 7. Continue to another question or end the session.

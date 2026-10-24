@@ -1,10 +1,5 @@
 import { z } from 'zod';
 
-export const goalCreateSchema = z.object({
-  title: z.string().trim().min(3).max(120),
-  description: z.string().trim().max(500).default(''),
-});
-
 export const goalUpdateSchema = z
   .object({
     title: z.string().trim().min(3).max(120).optional(),

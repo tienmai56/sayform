@@ -7,6 +7,8 @@ export type GoalDefinition = {
   skills: GoalSkill[];
   defaultCategory: string;
   questions: { prompt: string; skillId: string }[];
+  requiresPersonalPrompt?: boolean;
+  coachInstructions?: string;
   evaluationFramework?: {
     name: string;
     description: string;
@@ -22,38 +24,19 @@ export type GoalDefinition = {
 export const goalCatalog: GoalDefinition[] = [
   {
     key: 'clarity',
-    title: 'Communicate with clarity',
-    description: 'Make complex ideas easy to understand, concise, and direct.',
+    title: 'Interview',
+    description: 'Practise interview answers with an experienced manager and build the skills to land your next job.',
     defaultCategory: 'professional',
+    requiresPersonalPrompt: true,
+    coachInstructions: 'You are an experienced hiring manager and interview coach helping the candidate improve their interviewing skills and land their next job. Always make three interview checks explicit: Did the candidate answer the actual question? Was the reasoning easy to follow? Did the candidate provide a clear conclusion? Also evaluate specific evidence, personal actions and impact, judgment, self-awareness, vocabulary, sentence quality, concision, and conversational fluency. Be candid, supportive, and practical. Do not invent job requirements or facts that the candidate did not provide.',
     skills: [
-      { id: 'main-point', title: 'Lead with the main point', description: 'Give listeners the frame before the detail.' },
-      { id: 'complex-ideas', title: 'Explain complex ideas clearly', description: 'Translate complexity without losing the meaning.' },
-      { id: 'concise', title: 'Be concise and direct', description: 'Remove repetition, hedging, and detours.' },
-      { id: 'logical-flow', title: 'Build a logical flow', description: 'Connect ideas with an order listeners can follow.' },
-      { id: 'precise-language', title: 'Use precise language', description: 'Replace broad wording with concrete meaning.' },
+      { id: 'direct-answer', title: 'Answer the question directly', description: 'Lead with a clear answer before adding context.' },
+      { id: 'structured-example', title: 'Structure a compelling example', description: 'Organize the situation, actions, and result so the story is easy to follow.' },
+      { id: 'specific-impact', title: 'Show impact with evidence', description: 'Use concrete outcomes, scope, and examples instead of broad claims.' },
+      { id: 'judgment', title: 'Demonstrate judgment and self-awareness', description: 'Explain decisions, tradeoffs, learning, and personal ownership.' },
+      { id: 'concise-delivery', title: 'Be concise and conversational', description: 'Remove repetition and filler while sounding natural and credible.' },
     ],
-    questions: [
-      {
-        skillId: 'complex-ideas',
-        prompt: 'Explain a technical or complex idea from your work to a colleague who has no background in it.',
-      },
-      {
-        skillId: 'concise',
-        prompt: 'Give a one-minute update on a project that is behind schedule. What matters most right now?',
-      },
-      {
-        skillId: 'main-point',
-        prompt: 'Your team can invest in speed or reliability this quarter, but not both. Which would you choose, and why?',
-      },
-      {
-        skillId: 'logical-flow',
-        prompt: 'Describe a difficult decision you made and walk your listener through the reasoning in a clear order.',
-      },
-      {
-        skillId: 'precise-language',
-        prompt: 'Describe one process at work that should improve, including the specific consequence of leaving it unchanged.',
-      },
-    ],
+    questions: [],
   },
   {
     key: 'negotiation',

@@ -43,12 +43,13 @@ export function Brand({ inverted = false }: { inverted?: boolean }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const useWhiteCanvas = pathname.startsWith('/goals');
   const { configured, user, signOut } = useAuth();
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Tien';
   const initials = String(displayName).split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
+    <div className={cn('min-h-screen text-[var(--ink)]', useWhiteCanvas ? 'bg-white' : 'bg-[var(--canvas)]')}>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] border-r border-[var(--line)] bg-[var(--paper)] px-5 py-6 lg:flex lg:flex-col">
         <Brand />
         <nav className="mt-11 space-y-1" aria-label="Primary navigation">
@@ -103,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
       </header>
 
-      <main className="min-h-screen lg:pl-[248px]">{children}</main>
+      <main className={cn('min-h-screen lg:pl-[248px]', useWhiteCanvas && 'bg-white')}>{children}</main>
     </div>
   );
 }

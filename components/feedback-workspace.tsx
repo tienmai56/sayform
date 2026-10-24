@@ -3,7 +3,9 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  AlertCircle,
   ArrowRight,
+  CheckCircle2,
   Maximize2,
   Minimize2,
   Play,
@@ -22,11 +24,50 @@ import { usePractice } from '@/components/practice-context';
 import { rateFeedback } from '@/lib/client-data';
 import { ExerciseAttemptFeedback } from '@/components/exercise-attempt-feedback';
 import { FeedbackCoachingContent } from '@/components/feedback-coaching-content';
+import type { FeedbackDimension, FeedbackItem } from '@/lib/types';
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return minutes ? `${minutes} min ${seconds} sec` : `${seconds} sec`;
+}
+
+const interviewCheckDefinitions: Array<{
+  question: string;
+  dimension: FeedbackDimension;
+}> = [
+  { question: 'Did you answer the actual question?', dimension: 'Communication effectiveness' },
+  { question: 'Was your reasoning easy to follow?', dimension: 'Critical thinking' },
+  { question: 'Did you provide a clear conclusion?', dimension: 'Sentence structure' },
+];
+
+function InterviewAnswerCheck({ feedback }: { feedback: FeedbackItem[] }) {
+  return (
+    <section className="mb-6" aria-labelledby="interview-answer-check-title">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Interview answer check</p>
+      <h3 id="interview-answer-check-title" className="mt-1 font-display text-lg font-semibold text-[var(--navy)]">The three questions your coach always checks</h3>
+      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3">
+        {interviewCheckDefinitions.map((definition) => {
+          const item = feedback.find((candidate) => candidate.dimension === definition.dimension);
+          const passed = Boolean(item?.positive);
+          return (
+            <article key={definition.dimension} className="rounded-2xl border border-[var(--line)] bg-white p-4">
+              <div className="flex items-start gap-2.5">
+                <span className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-full ${passed ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--amber-soft)] text-[#8a621c]'}`}>
+                  {passed ? <CheckCircle2 className="size-3.5" /> : <AlertCircle className="size-3.5" />}
+                </span>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">{passed ? 'Yes' : 'Needs focus'}</p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-[var(--navy)]">{definition.question}</p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-[var(--ink)]">{item?.explanation ?? 'This check could not be evaluated from the transcript.'}</p>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 export function FeedbackWorkspace() {
@@ -39,6 +80,7 @@ function StandardFeedbackWorkspace() {
   const router = useRouter();
   const {
     activeExercise,
+    answerCount,
     clearRecording,
     currentAnalysis,
     feedbackIds,
@@ -57,6 +99,9 @@ function StandardFeedbackWorkspace() {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const feedback = useMemo(() => currentAnalysis?.feedback ?? [], [currentAnalysis]);
+  const isInterview = goalTemplateKey === 'clarity';
+  const interviewFollowUp = currentAnalysis?.followUpQuestion?.trim() ?? '';
+  const canAnswerNextQuestion = !isInterview || (answerCount === 1 && Boolean(interviewFollowUp));
 
   const activeFeedback = useMemo(
     () => feedback.filter((item) => !dismissed.includes(item.id)),
@@ -92,6 +137,12 @@ function StandardFeedbackWorkspace() {
 
   function nextQuestion() {
     clearRecording();
+    if (isInterview) {
+      if (!interviewFollowUp) return;
+      updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: interviewFollowUp, interviewQuestionType: 'follow-up' });
+      router.push('/practice/session');
+      return;
+    }
     const questions = getPracticeQuestions(goalTemplateKey);
     const index = questions.indexOf(prompt);
     updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: questions[(index + 1) % questions.length] });
@@ -165,6 +216,7 @@ function StandardFeedbackWorkspace() {
               </div>
             </div>
           )}
+          {!activeExercise && isInterview && <InterviewAnswerCheck feedback={activeFeedback} />}
           <div className="grid grid-cols-4 gap-3">
             <MetricCard label="Average pace" value={currentAnalysis ? `${currentAnalysis.metrics.averageWpm} WPM` : '—'} detail="Calculated from this recording" />
             <MetricCard
@@ -235,6 +287,14 @@ function StandardFeedbackWorkspace() {
                   <RotateCcw className="size-3.5" /> Restore dismissed suggestions
                 </button>
               )}
+
+              {isInterview && answerCount === 1 && interviewFollowUp && (
+                <div className="rounded-2xl border border-[#bdd8cf] bg-[var(--mint-soft)] p-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Your manager’s follow-up</p>
+                  <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{interviewFollowUp}</p>
+                  <p className="mt-2 text-xs leading-5 text-[#516b6b]">This question was generated from your interview question and answer.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -247,7 +307,7 @@ function StandardFeedbackWorkspace() {
               <button onClick={endSession} className="text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">End session</button>
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={redoQuestion} className="h-10 rounded-xl border-[var(--line)] bg-white px-4">Redo question <RotateCcw className="ml-1 size-4" /></Button>
-                <Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">Next question <ArrowRight className="ml-1 size-4" /></Button>
+                {canAnswerNextQuestion && <Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">{isInterview ? 'Answer follow-up' : 'Next question'} <ArrowRight className="ml-1 size-4" /></Button>}
               </div>
             </>
           )}

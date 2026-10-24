@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation';
 import {
   Camera,
   CameraOff,
+  Check,
   ChevronRight,
   Mic,
-  RefreshCw,
-  ShieldCheck,
   Sparkles,
   Square,
 } from 'lucide-react';
@@ -16,7 +15,7 @@ import { Brand } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { usePractice } from '@/components/practice-context';
-import { getPracticeQuestions } from '@/lib/goal-catalog';
+import { getGoalDefinition } from '@/lib/goal-catalog';
 import { categories as categoryOptions } from '@/lib/mock-data';
 import { completeExerciseAttempt as submitExerciseAttempt, createPracticeSession, saveAndAnalyzeResponse, updateExerciseStatus } from '@/lib/client-data';
 
@@ -57,6 +56,7 @@ export function CameraPractice() {
     goalId,
     goalTemplateKey,
     goalTitle,
+    interviewQuestionType,
     prompt,
     redoFeedback,
     exerciseAttemptNumber,
@@ -84,14 +84,30 @@ export function CameraPractice() {
   const [errorKind, setErrorKind] = useState<'media' | 'save'>('media');
   const [starting, setStarting] = useState(false);
   const [setupError, setSetupError] = useState('');
-  const [exerciseCustomPrompt, setExerciseCustomPrompt] = useState('');
+  const [promptDraft, setPromptDraft] = useState(customTopic.trim() || prompt);
+  const [promptSaved, setPromptSaved] = useState(Boolean(customTopic.trim() || prompt.trim()));
   const practiceCategories = categories.length > 0 ? categories : ['spontaneous'];
-  const displayedPrompt = activeExercise && exerciseCustomPrompt.trim()
-    ? exerciseCustomPrompt.trim()
-    : !activeExercise && customTopic.trim() ? customTopic.trim() : prompt;
+  const goalDefinition = getGoalDefinition(goalTemplateKey);
+  const requiresPersonalPrompt = !activeExercise && goalDefinition?.requiresPersonalPrompt === true;
+  const displayedPrompt = !activeExercise && customTopic.trim() ? customTopic.trim() : prompt;
+  const visiblePrompt = displayedPrompt || (requiresPersonalPrompt ? 'Enter and save the interview question above.' : 'Choose a question to begin.');
   const categoryTitle = activeExercise
     ? activeExercise.targetSkill
-    : categoryOptions.find((category) => category.id === practiceCategories[0])?.title ?? 'Spontaneous thinking';
+    : requiresPersonalPrompt
+      ? 'Experienced manager coaching'
+      : categoryOptions.find((category) => category.id === practiceCategories[0])?.title ?? 'Spontaneous thinking';
+
+  function savePrompt() {
+    const nextPrompt = promptDraft.trim();
+    if (nextPrompt.length < 3) {
+      setPromptSaved(false);
+      setSetupError('Your prompt needs at least 3 characters.');
+      return;
+    }
+    updateSetup({ customTopic: nextPrompt, prompt: nextPrompt });
+    setPromptSaved(true);
+    setSetupError('');
+  }
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -160,13 +176,13 @@ export function CameraPractice() {
   async function startSpeaking() {
     setStarting(true);
     setSetupError('');
-    if (customTopic.trim() && customTopic.trim().length < 3) {
-      setSetupError('Your personal prompt needs at least 3 characters.');
+    if (requiresPersonalPrompt && !activeSessionId && customTopic.trim().length < 3) {
+      setSetupError(promptDraft.trim().length >= 3 ? 'Save your interview question before starting.' : 'Enter the interview question you want to practise before starting.');
       setStarting(false);
       return;
     }
-    if (activeExercise && exerciseCustomPrompt.trim() && exerciseCustomPrompt.trim().length < 3) {
-      setSetupError('Your exercise prompt needs at least 3 characters.');
+    if (!activeExercise && customTopic.trim() && customTopic.trim().length < 3) {
+      setSetupError('Your personal prompt needs at least 3 characters.');
       setStarting(false);
       return;
     }
@@ -255,6 +271,7 @@ export function CameraPractice() {
       sequenceNumber: answerCount + 1,
       audio,
       goalTemplateKey,
+      generateInterviewFollowUp: goalTemplateKey === 'clarity' && interviewQuestionType === 'primary',
     });
     completeResponse(result.responseId, result.feedbackIds, result.analysis);
   }
@@ -295,12 +312,6 @@ export function CameraPractice() {
     }
   }
 
-  async function tryAnotherQuestion() {
-    const questions = getPracticeQuestions(goalTemplateKey);
-    const index = questions.indexOf(prompt);
-    updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: questions[(index + 1) % questions.length] });
-  }
-
   async function leaveExercise() {
     if (!activeExercise) return;
     await updateExerciseStatus(activeExercise.id, 'abandoned');
@@ -321,9 +332,42 @@ export function CameraPractice() {
         </div>
       </header>
 
-      <div className="grid h-[calc(100vh-72px)] grid-cols-[minmax(0,1fr)_390px]">
-        <section className="relative flex min-h-0 items-center justify-center overflow-hidden bg-[#0a1921] p-8">
-          <div className="relative aspect-video w-full max-w-[1120px] overflow-hidden rounded-[28px] border border-white/10 bg-[#152c37] shadow-2xl">
+      <div className="grid h-[calc(100vh-72px)] grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
+        <section className="relative flex min-h-0 items-center justify-center overflow-hidden bg-[#0a1921] px-8 pb-20 pt-4">
+          <div className="w-full max-w-[1120px]">
+            {!activeExercise && (
+              <section className="mb-3 rounded-2xl border border-white/10 bg-[#102630] p-3.5 shadow-xl" aria-labelledby="prompt-editor-title">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <label id="prompt-editor-title" htmlFor="practice-prompt" className="text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--mint)]">Input your prompt</label>
+                    <p className="mt-0.5 text-[11px] text-white/45">Paste the interview question you want to practise, then save it before recording.</p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={savePrompt}
+                    disabled={status === 'recording' || status === 'processing' || promptDraft.trim().length < 3}
+                    className="h-10 shrink-0 rounded-xl bg-white px-4 text-[var(--navy)] hover:bg-[var(--mint-soft)] disabled:bg-white/10 disabled:text-white/35"
+                  >
+                    {promptSaved ? <Check className="size-4" /> : null}
+                    {promptSaved ? 'Saved' : 'Save prompt'}
+                  </Button>
+                </div>
+                <Textarea
+                  id="practice-prompt"
+                  value={promptDraft}
+                  onChange={(event) => {
+                    setPromptDraft(event.target.value);
+                    setPromptSaved(false);
+                  }}
+                  disabled={status === 'recording' || status === 'processing'}
+                  maxLength={500}
+                  placeholder="Paste the interview question you want to practise"
+                  className="mt-2 min-h-14 resize-y border-white/10 bg-white/5 text-sm leading-6 text-white placeholder:text-white/30 disabled:opacity-50"
+                />
+              </section>
+            )}
+
+            <div className="relative aspect-video w-full overflow-hidden rounded-[28px] border border-white/10 bg-[#152c37] shadow-2xl">
             {!activeExercise && <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />}
 
             {(status === 'permission' || status === 'requesting' || status === 'error' || demoMode) && (
@@ -386,16 +430,10 @@ export function CameraPractice() {
               </span>
             </div>
 
-            <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/10 bg-[#07161d]/80 p-5 backdrop-blur-md">
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--mint)]">{activeExercise ? 'Exercise prompt' : 'Your prompt'}</p>
-                {!activeExercise && (
-                  <button onClick={() => void tryAnotherQuestion()} disabled={status === 'recording' || status === 'processing'} className="flex items-center gap-1.5 text-xs font-medium text-white/55 hover:text-white disabled:opacity-40">
-                    <RefreshCw className="size-3.5" /> Try another question
-                  </button>
-                )}
-              </div>
-              <p className="mt-2 max-w-4xl font-display text-lg font-medium leading-7">{displayedPrompt}</p>
+            {activeExercise && <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/10 bg-[#07161d]/80 p-5 backdrop-blur-md">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--mint)]">Exercise prompt</p>
+              <p className="mt-2 max-w-4xl font-display text-lg font-medium leading-7">{visiblePrompt}</p>
+            </div>}
             </div>
           </div>
 
@@ -431,16 +469,18 @@ export function CameraPractice() {
         </section>
 
         <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#102630] p-7">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{activeExercise ? (exerciseStage === 'transfer' ? 'Independent transfer test' : `Personalized exercise · Attempt ${exerciseAttemptNumber}`) : 'Practice category'}</p>
-            <p className="mt-2 text-sm font-semibold text-white/80">{categoryTitle}</p>
-            <h2 className="mt-4 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise ? activeExercise.title : redoFeedback.length ? 'Redo your answer' : 'Review your setup, then speak'}</h2>
-            <p className="mt-3 text-sm leading-6 text-white/55">{redoFeedback.length ? 'Use the feedback below to strengthen this attempt.' : <>The timer starts only when you choose <strong className="font-medium text-white/75">Start speaking</strong>.</>}</p>
-          </div>
+          {activeExercise && (
+            <>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{exerciseStage === 'transfer' ? 'Independent transfer test' : `Personalized exercise · Attempt ${exerciseAttemptNumber}`}</p>
+                <p className="mt-2 text-sm font-semibold text-white/80">{categoryTitle}</p>
+                <h2 className="mt-4 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise.title}</h2>
+              </div>
+              <div className="my-7 h-px bg-white/10" />
+            </>
+          )}
 
-          <div className="my-7 h-px bg-white/10" />
-
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pr-1">
             {activeExercise ? (
               <>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -449,17 +489,18 @@ export function CameraPractice() {
                   <p className="mt-2 text-xs leading-5 text-white/55">{activeExercise.targetBehavior}</p>
                 </div>
                 <div>
-                  <label htmlFor="exercise-prompt" className="text-xs font-semibold text-white/75">Your exercise prompt <span className="font-normal text-white/40">(optional)</span></label>
+                  <label htmlFor="exercise-reasoning" className="text-xs font-semibold text-white/75">Your reasoning</label>
+                  <p className="mt-2 text-[11px] leading-4 text-white/40">Outline the answer, evidence, and conclusion you want to communicate.</p>
                   <Textarea
-                    id="exercise-prompt"
-                    value={exerciseCustomPrompt}
-                    onChange={(event) => setExerciseCustomPrompt(event.target.value)}
+                    id="exercise-reasoning"
+                    value={answerNotes}
+                    onChange={(event) => updateSetup({ answerNotes: event.target.value })}
                     disabled={status === 'recording' || status === 'processing'}
-                    maxLength={1000}
-                    placeholder="Type the question or situation you want to practise"
+                    maxLength={2000}
+                    placeholder={'Direct answer\n\n• Supporting reason\n• Evidence or example\n\nClear conclusion'}
                     className="mt-2 min-h-28 resize-y border-white/10 bg-white/5 text-xs leading-5 text-white placeholder:text-white/30 disabled:opacity-50"
                   />
-                  <p className="mt-2 text-[11px] leading-4 text-white/40">Your prompt replaces the generated exercise prompt shown on screen.</p>
+                  <p className="mt-2 text-[11px] leading-4 text-white/40">Private planning notes. They do not change the exercise prompt or appear in your coaching.</p>
                   <p className="mt-2 text-[10px] text-white/35">Difficulty level {exerciseDifficultyLevel} of 3</p>
                 </div>
                 {exerciseStage === 'transfer' && (
@@ -470,24 +511,9 @@ export function CameraPractice() {
                 )}
               </>
             ) : (
-              <>
-                {!activeSessionId && (
-                  <div>
-                    <label htmlFor="practice-topic" className="text-xs font-semibold text-white/75">Personal prompt <span className="font-normal text-white/40">(optional)</span></label>
-                    <Textarea
-                      id="practice-topic"
-                      value={customTopic}
-                      onChange={(event) => updateSetup({ customTopic: event.target.value })}
-                      maxLength={500}
-                      placeholder="Type the question or situation you want to practise"
-                      className="mt-2 min-h-24 resize-none border-white/10 bg-white/5 text-xs text-white placeholder:text-white/30"
-                    />
-                    <p className="mt-2 text-[11px] leading-4 text-white/40">Your prompt replaces the suggested question above.</p>
-                  </div>
-                )}
-
+              <div className="flex min-h-0 flex-1 flex-col">
                 {redoFeedback.length > 0 && (
-                  <div className="rounded-2xl border border-[#d9aa45]/30 bg-[#d9aa45]/10 p-4">
+                  <div className="mb-5 rounded-2xl border border-[#d9aa45]/30 bg-[#d9aa45]/10 p-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#f1ca72]">Feedback to apply</p>
                     <ul className="mt-3 space-y-3">
                       {redoFeedback.map((item) => {
@@ -503,24 +529,21 @@ export function CameraPractice() {
                   </div>
                 )}
 
-                <div>
-                  <label htmlFor="answer-notes" className="text-xs font-semibold text-white/75">Plan your answer <span className="font-normal text-white/40">(optional)</span></label>
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <label htmlFor="answer-notes" className="font-display text-2xl font-semibold tracking-[-0.03em] text-white">Plan your reasoning</label>
+                  <p className="mt-2 text-xs leading-5 text-white/45">Map the direct answer, supporting logic, evidence, and conclusion you want the interviewer to hear.</p>
                   <Textarea
                     id="answer-notes"
                     value={answerNotes}
                     onChange={(event) => updateSetup({ answerNotes: event.target.value })}
-                    maxLength={1000}
-                    placeholder={'Main point\n• First reason\n• Supporting example\n• Closing thought'}
-                    className="mt-2 min-h-32 resize-y border-white/10 bg-white/5 text-xs leading-5 text-white placeholder:text-white/30"
+                    maxLength={2000}
+                    placeholder={'Direct answer\n\n• First reason\n• Second reason\n• Evidence or example\n\nClear conclusion'}
+                    className="mt-4 min-h-[360px] flex-1 resize-none border-white/10 bg-white/5 p-4 text-sm leading-6 text-white placeholder:text-white/30"
                   />
                   <p className="mt-2 text-[11px] leading-4 text-white/40">Private notes for this answer. They aren’t saved or included in your coaching.</p>
                 </div>
-              </>
+              </div>
             )}
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 text-xs text-white/65"><ShieldCheck className="size-4 text-[var(--mint)]" />{activeExercise ? 'Audio only; the recording and detailed results are removed when you end the exercise' : 'Video stays local; temporary audio is not saved'}</div>
-            </div>
           </div>
 
           <div className="mt-auto space-y-3">

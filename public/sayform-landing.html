@@ -255,7 +255,7 @@
 <section class="section goals-section" id="goals"><div class="container">
 <div class="goal-intro" data-reveal=""><div class="section-heading"><h2>What would you like to practice?</h2></div></div>
 <div aria-label="Select your speaking goal" class="goal-grid" role="group">
-<button aria-pressed="true" class="goal-card" data-goal="clarity" data-reveal="" type="button"><span class="tick">✓</span><span class="goal-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M20 11.4c0 4.4-3.7 7.6-8.4 7.6-1.1 0-2.2-.2-3.1-.5L4 20l1.2-4.1A7.1 7.1 0 0 1 3.6 11C3.6 7.1 7.1 4 11.7 4S20 7.3 20 11.4Z"></path></svg></span><span class="goal-copy"><span class="goal-title">Communicate<br/>with clarity</span><span class="goal-desc">Express complex ideas clearly, directly, and with confidence.</span></span></button>
+<button aria-pressed="true" class="goal-card" data-goal="clarity" data-reveal="" type="button"><span class="tick">✓</span><span class="goal-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M20 11.4c0 4.4-3.7 7.6-8.4 7.6-1.1 0-2.2-.2-3.1-.5L4 20l1.2-4.1A7.1 7.1 0 0 1 3.6 11C3.6 7.1 7.1 4 11.7 4S20 7.3 20 11.4Z"></path></svg></span><span class="goal-copy"><span class="goal-title">Interview</span><span class="goal-desc">Practise answers with an experienced manager and prepare to land your next job.</span></span></button>
 <button aria-pressed="false" class="goal-card" data-goal="negotiation" data-reveal="" type="button"><span class="tick">✓</span><span class="goal-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="m2 9 5-4 5 3 3-2 7 4-6 9-4-2-3 2-7-7Z"></path><path d="m8 13 4 3m1-8-3 3 5 4"></path></svg></span><span class="goal-copy"><span class="goal-title">Negotiate<br/>effectively</span><span class="goal-desc">Make your point, navigate tradeoffs and find common ground</span></span></button>
 <button aria-pressed="false" class="goal-card" data-goal="storytelling" data-reveal="" type="button"><span class="tick">✓</span><span class="goal-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M12 6c-3-2-6-2-9-1v14c4-1 7-.7 9 1 2-1.7 5-2 9-1V5c-3-1-6-1-9 1Zm0 0v14"></path></svg></span><span class="goal-copy"><span class="goal-title">Tell compelling<br/>stories</span><span class="goal-desc">Turn experiences into stories people remember.</span></span></button>
 <button aria-pressed="false" class="goal-card" data-goal="custom" data-reveal="" type="button"><span class="tick">✓</span><span class="goal-icon"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M12 4v16M4 12h16"></path></svg></span><span class="goal-copy"><span class="goal-title">Create your<br/>own goal</span><span class="goal-desc">Build a speaking goal around what matters most to you.</span></span></button>
@@ -286,7 +286,7 @@
 <div aria-live="polite" class="toast" id="toast" role="status"></div>
 <script>
 (() => {
-  const titles = { clarity: 'Communicate with clarity', negotiation: 'Negotiate effectively', storytelling: 'Tell compelling stories' };
+  const titles = { clarity: 'Interview', negotiation: 'Negotiate effectively', storytelling: 'Tell compelling stories' };
   let selected = 'clarity'; let customTitle = '';
   const cards = [...document.querySelectorAll('.goal-card')];
   const dialog = document.getElementById('custom-dialog');

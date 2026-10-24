@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { databaseError, parseBody, requireApiUser } from '@/lib/api-response';
+import { databaseError, requireApiUser } from '@/lib/api-response';
 import { getGoalDefinition, goalCatalog } from '@/lib/goal-catalog';
-import { goalCreateSchema } from '@/lib/validation';
 
 export async function GET() {
   const context = await requireApiUser();
@@ -70,36 +69,4 @@ export async function GET() {
       recommended: (activity.get(goal.id)?.sessions ?? 0) === 0,
     })),
   });
-}
-
-export async function POST(request: Request) {
-  const context = await requireApiUser();
-  if ('error' in context) return context.error;
-
-  const body = await parseBody(request, goalCreateSchema);
-  if ('error' in body) return body.error;
-
-  const { data, error } = await context.supabase
-    .from('goals')
-    .insert({ user_id: context.userId, is_custom: true, ...body.data })
-    .select('id, template_key, is_custom, is_active_goal, title, description, status')
-    .single();
-
-  if (error) return databaseError(error);
-  return NextResponse.json({
-    goal: {
-      id: data.id,
-      templateKey: data.template_key,
-      isCustom: data.is_custom,
-      isActive: data.is_active_goal,
-      title: data.title,
-      description: data.description,
-      skills: [],
-      defaultCategory: 'spontaneous',
-      status: data.status,
-      lastPractised: null,
-      sessions: 0,
-      recommended: true,
-    },
-  }, { status: 201 });
 }

@@ -14,6 +14,7 @@ type PracticeState = {
   answerNotes: string;
   redoFeedback: FeedbackItem[];
   prompt: string;
+  interviewQuestionType: 'primary' | 'follow-up';
   recordingUrl: string | null;
   activeSessionId: string | null;
   activeResponseId: string | null;
@@ -34,7 +35,7 @@ type PracticeState = {
 type PracticeContextValue = PracticeState & {
   updateSetup: (
     next: Partial<
-      Pick<PracticeState, 'goalId' | 'goalTitle' | 'goalTemplateKey' | 'goalSkills' | 'categories' | 'customTopic' | 'answerNotes' | 'redoFeedback' | 'prompt'>
+      Pick<PracticeState, 'goalId' | 'goalTitle' | 'goalTemplateKey' | 'goalSkills' | 'categories' | 'customTopic' | 'answerNotes' | 'redoFeedback' | 'prompt' | 'interviewQuestionType'>
     >,
   ) => void;
   setRecordingUrl: (url: string | null) => void;
@@ -54,14 +55,15 @@ const initialGoal = getGoalDefinition('clarity');
 
 const initialState: PracticeState = {
   goalId: 'demo-goal-clarity',
-  goalTitle: initialGoal?.title ?? 'Communicate with clarity',
+  goalTitle: initialGoal?.title ?? 'Interview',
   goalTemplateKey: 'clarity',
   goalSkills: initialGoal?.skills ?? [],
   categories: ['professional'],
   customTopic: '',
   answerNotes: '',
   redoFeedback: [],
-  prompt: getPracticeQuestions('clarity')[0],
+  prompt: getPracticeQuestions('clarity')[0] ?? '',
+  interviewQuestionType: 'primary',
   recordingUrl: null,
   activeSessionId: null,
   activeResponseId: null,
@@ -92,6 +94,11 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         const restored = JSON.parse(saved) as Partial<PracticeState> & { skillFocus?: string };
         delete restored.skillFocus;
+        if (restored.goalTemplateKey === 'clarity') {
+          const interviewGoal = getGoalDefinition('clarity');
+          restored.goalTitle = interviewGoal?.title ?? 'Interview';
+          restored.goalSkills = interviewGoal?.skills ?? [];
+        }
         setState((current) => ({ ...current, ...restored, recordingUrl: null }));
       }
     } finally {
@@ -166,6 +173,7 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           currentAnalysis: null,
           answerNotes: '',
           redoFeedback: [],
+          interviewQuestionType: 'primary',
           activeExercise: null,
           exerciseStage: 'guided',
           exerciseAttemptNumber: 1,

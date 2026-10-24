@@ -68,36 +68,6 @@ export async function listGoals(): Promise<Goal[]> {
   return result.goals;
 }
 
-export async function createGoal(input: { title: string; description: string }): Promise<Goal> {
-  if (!usesPersistentBackend) {
-    const current = await listGoals();
-    const duplicate = current.find((goal) => goal.title.toLowerCase() === input.title.toLowerCase());
-    if (duplicate) return duplicate;
-    const goal: Goal = {
-      id: `demo-goal-${crypto.randomUUID()}`,
-      templateKey: null,
-      isCustom: true,
-      isActive: current.every((item) => !item.isActive),
-      title: input.title,
-      description: input.description,
-      skills: [],
-      defaultCategory: 'spontaneous',
-      status: 'active',
-      lastPractised: null,
-      sessions: 0,
-      recommended: true,
-    };
-    writeLocal(goalStorageKey, [...current, goal]);
-    return goal;
-  }
-
-  const result = await apiRequest<{ goal: Goal }>('/api/goals', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-  return result.goal;
-}
-
 export async function updateGoal(goalId: string, input: Partial<Pick<Goal, 'title' | 'description' | 'status'>>) {
   if (!usesPersistentBackend) {
     const current = await listGoals();
@@ -195,6 +165,7 @@ export async function saveAndAnalyzeResponse(input: {
   sequenceNumber: number;
   audio: Blob;
   goalTemplateKey?: string | null;
+  generateInterviewFollowUp?: boolean;
 }) {
   if (!usesPersistentBackend) {
     const responseId = `demo-response-${crypto.randomUUID()}`;
@@ -204,6 +175,9 @@ export async function saveAndAnalyzeResponse(input: {
       durationSeconds: input.durationSeconds,
       metrics: mock.metrics,
       feedback: mock.feedback,
+      followUpQuestion: input.goalTemplateKey === 'clarity'
+        ? 'What was the most difficult decision you personally made in that situation, and what did you learn from it?'
+        : undefined,
     };
     return { responseId, feedbackIds: {} as Record<string, string>, analysis };
   }
@@ -219,6 +193,7 @@ export async function saveAndAnalyzeResponse(input: {
   const idempotencyKey = `${input.sessionId}:${input.sequenceNumber}:openrouter-v1`;
   const upload = new FormData();
   upload.set('idempotencyKey', idempotencyKey);
+  upload.set('generateFollowUp', input.generateInterviewFollowUp ? 'true' : 'false');
   upload.set('audio', input.audio, input.audio.type.includes('mp4') ? 'answer.m4a' : 'answer.webm');
   const analyzed = await apiRequest<{ analysis?: ResponseAnalysis }>(`/api/responses/${created.response.id}/analyze`, {
     method: 'POST',
@@ -368,6 +343,29 @@ function createDemoFinishedSession(
       strengths: [{ title: targetSkill, detail: 'Your strongest moments gave listeners a clear frame for what followed.' }],
       opportunities: [{ title: `Strengthen ${targetSkill.toLowerCase()}`, detail: 'Make the intended skill visible in every answer, especially under time pressure.', evidence: 'kind of a big problem' }],
       takeaway: `Use your next answer to practise ${targetSkill.toLowerCase()} with one concrete example.`,
+      interviewChecks: goalTemplateKey === 'clarity' ? [
+        {
+          id: 'answer-relevance',
+          question: 'Did you answer the actual question?',
+          passed: true,
+          detail: 'Your response stated a clear position that addressed the decision in the question.',
+          evidence: 'I would choose reliability first',
+        },
+        {
+          id: 'reasoning-clarity',
+          question: 'Was your reasoning easy to follow?',
+          passed: true,
+          detail: 'The answer connected customer trust and team confidence to the recommendation.',
+          evidence: 'reliability protects customer trust',
+        },
+        {
+          id: 'clear-conclusion',
+          question: 'Did you provide a clear conclusion?',
+          passed: true,
+          detail: 'The ending restated the path forward and made the recommendation feel complete.',
+          evidence: 'return to faster experiments with a clearer baseline',
+        },
+      ] : undefined,
     },
     exercise: {
       id: `demo-exercise-${sessionId}`,

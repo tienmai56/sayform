@@ -11,11 +11,11 @@ type AnalysisContext = {
 
 const skillByDimension: Record<string, Record<FeedbackDimension, string>> = {
   clarity: {
-    Vocabulary: 'Use precise language',
-    'Sentence structure': 'Be concise and direct',
-    'Communication effectiveness': 'Lead with the main point',
-    'Critical thinking': 'Build a logical flow',
-    'What worked': 'Explain complex ideas clearly',
+    Vocabulary: 'Show impact with evidence',
+    'Sentence structure': 'Provide a clear conclusion',
+    'Communication effectiveness': 'Answer the actual question',
+    'Critical thinking': 'Make the reasoning easy to follow',
+    'What worked': 'Structure a compelling example',
   },
   negotiation: {
     Vocabulary: 'Frame tradeoffs and concessions',

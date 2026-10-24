@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, BookOpenCheck, CheckCircle2, Clock3, Dumbbell, Lightbulb, Sparkles, Target } from 'lucide-react';
+import { AlertCircle, ArrowRight, BookOpenCheck, CheckCircle2, Clock3, Dumbbell, Lightbulb, Sparkles, Target } from 'lucide-react';
 import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { usePractice } from '@/components/practice-context';
 import { finishPracticeSession, updateExerciseStatus, usesPersistentBackend } from '@/lib/client-data';
-import type { FinishedSession, SummaryPattern } from '@/lib/types';
+import type { FinishedSession, InterviewCheck, SummaryPattern } from '@/lib/types';
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -30,6 +30,28 @@ function PatternCard({ pattern, kind }: { pattern: SummaryPattern; kind: 'streng
           {pattern.evidence && <blockquote className="mt-3 border-l-2 border-[var(--mint)] pl-3 text-xs italic leading-5 text-[#52666d]">“{pattern.evidence}”</blockquote>}
         </div>
       </div>
+    </article>
+  );
+}
+
+function InterviewCheckCard({ check }: { check: InterviewCheck }) {
+  return (
+    <article className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
+      <div className="flex items-start gap-3">
+        <span className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-full ${check.passed ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--amber-soft)] text-[#8a621c]'}`}>
+          {check.passed ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
+        </span>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">{check.passed ? 'Yes' : 'Needs focus'}</p>
+          <h3 className="mt-1 text-sm font-semibold leading-5 text-[var(--navy)]">{check.question}</h3>
+        </div>
+      </div>
+      <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{check.detail}</p>
+      {check.evidence && (
+        <p className="mt-3 text-xs font-semibold leading-5 text-[var(--ink)]">
+          “{check.passed ? check.evidence : <mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{check.evidence}</mark>}”
+        </p>
+      )}
     </article>
   );
 }
@@ -106,6 +128,18 @@ export function SessionSummaryView() {
             </div>
           </div>
         </div>
+
+        {summary?.interviewChecks?.length ? (
+          <section className="mt-6" aria-labelledby="interview-check-title">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.11em] text-[var(--teal-dark)]">Interview answer check</p>
+              <h2 id="interview-check-title" className="mt-1 font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">Three questions your coach always checks</h2>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {summary.interviewChecks.map((check) => <InterviewCheckCard key={check.id} check={check} />)}
+            </div>
+          </section>
+        ) : null}
 
         <div className="mt-6 grid grid-cols-4 gap-4">
           <MetricCard label="Session pace" value={metrics ? `${metrics.averageWpm} WPM` : '—'} detail={metrics ? `${metrics.wordCount} words ÷ ${formatDuration(metrics.durationSeconds)}` : 'Calculating from all completed answers'} />
