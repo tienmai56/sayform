@@ -76,7 +76,6 @@ const interviewEvaluationDefinitions = [
 ] as const;
 
 function InterviewEvaluationCard({ question, item }: { question: string; item?: DashboardFeedbackItem }) {
-  const status = !item ? 'Not evaluated' : item.positive ? 'Yes' : 'Needs focus';
   return (
     <article className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
       <div className="flex items-start gap-3">
@@ -86,10 +85,7 @@ function InterviewEvaluationCard({ question, item }: { question: string; item?: 
         )}>
           {item?.positive ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
         </span>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">{status}</p>
-          <h3 className="mt-1 text-sm font-semibold leading-5 text-[var(--navy)]">{question}</h3>
-        </div>
+        <h3 className="pt-1 text-sm font-semibold leading-5 text-[var(--navy)]">{question}</h3>
       </div>
       {item ? (
         <>

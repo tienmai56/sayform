@@ -56,10 +56,7 @@ function InterviewAnswerCheck({ feedback }: { feedback: FeedbackItem[] }) {
                 <span className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-full ${passed ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--amber-soft)] text-[#8a621c]'}`}>
                   {passed ? <CheckCircle2 className="size-3.5" /> : <AlertCircle className="size-3.5" />}
                 </span>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">{passed ? 'Yes' : 'Needs focus'}</p>
-                  <p className="mt-1 text-xs font-semibold leading-5 text-[var(--navy)]">{definition.question}</p>
-                </div>
+                <p className="pt-1 text-xs font-semibold leading-5 text-[var(--navy)]">{definition.question}</p>
               </div>
               <p className="mt-3 text-xs leading-5 text-[var(--ink)]">{item?.explanation ?? 'This check could not be evaluated from the transcript.'}</p>
             </article>

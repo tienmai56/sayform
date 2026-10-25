@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Camera,
@@ -10,8 +11,8 @@ import {
   Mic,
   Sparkles,
   Square,
+  X,
 } from 'lucide-react';
-import { Brand } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { usePractice } from '@/components/practice-context';
@@ -84,11 +85,14 @@ export function CameraPractice() {
   const [errorKind, setErrorKind] = useState<'media' | 'save'>('media');
   const [starting, setStarting] = useState(false);
   const [setupError, setSetupError] = useState('');
-  const [promptDraft, setPromptDraft] = useState(customTopic.trim() || prompt);
-  const [promptSaved, setPromptSaved] = useState(Boolean(customTopic.trim() || prompt.trim()));
   const practiceCategories = categories.length > 0 ? categories : ['spontaneous'];
   const goalDefinition = getGoalDefinition(goalTemplateKey);
   const requiresPersonalPrompt = !activeExercise && goalDefinition?.requiresPersonalPrompt === true;
+  const savedCustomPrompt = customTopic.trim();
+  const savedFollowUpPrompt = interviewQuestionType === 'follow-up' ? prompt.trim() : '';
+  const [promptDraft, setPromptDraft] = useState(savedCustomPrompt || savedFollowUpPrompt);
+  const [promptSaved, setPromptSaved] = useState(Boolean(savedCustomPrompt || savedFollowUpPrompt));
+  const promptReady = !requiresPersonalPrompt || (promptSaved && promptDraft.trim().length >= 3);
   const displayedPrompt = !activeExercise && customTopic.trim() ? customTopic.trim() : prompt;
   const visiblePrompt = displayedPrompt || (requiresPersonalPrompt ? 'Enter and save the interview question above.' : 'Choose a question to begin.');
   const categoryTitle = activeExercise
@@ -176,7 +180,7 @@ export function CameraPractice() {
   async function startSpeaking() {
     setStarting(true);
     setSetupError('');
-    if (requiresPersonalPrompt && !activeSessionId && customTopic.trim().length < 3) {
+    if (!promptReady) {
       setSetupError(promptDraft.trim().length >= 3 ? 'Save your interview question before starting.' : 'Enter the interview question you want to practise before starting.');
       setStarting(false);
       return;
@@ -322,31 +326,23 @@ export function CameraPractice() {
 
   return (
     <main className="min-h-screen bg-[#0e222d] text-white">
-      <header className="flex h-[72px] items-center justify-between border-b border-white/10 px-7">
-        <div>
-          <Brand inverted />
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65">Goal · {goalTitle}</span>
-          {!activeExercise && activeSessionId && answerCount > 0 && <Button variant="ghost" onClick={() => router.push('/session/summary')} className="text-white/65 hover:bg-white/10 hover:text-white">End session</Button>}
-        </div>
-      </header>
-
-      <div className="grid h-[calc(100vh-72px)] grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-        <section className="relative flex min-h-0 items-center justify-center overflow-hidden bg-[#0a1921] px-8 pb-20 pt-4">
+      <div className="grid h-screen grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
+        <section className="relative flex min-h-0 items-start justify-center overflow-hidden bg-[#0a1921] px-8 pb-20 pt-7">
           <div className="w-full max-w-[1120px]">
             {!activeExercise && (
-              <section className="mb-3 rounded-2xl border border-white/10 bg-[#102630] p-3.5 shadow-xl" aria-labelledby="prompt-editor-title">
-                <div className="flex items-center justify-between gap-4">
+              <section className="mb-4 border-b border-white/10 pb-4" aria-labelledby="prompt-editor-title">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <label id="prompt-editor-title" htmlFor="practice-prompt" className="text-[11px] font-semibold uppercase tracking-[0.11em] text-[var(--mint)]">Input your prompt</label>
-                    <p className="mt-0.5 text-[11px] text-white/45">Paste the interview question you want to practise, then save it before recording.</p>
+                    <label id="prompt-editor-title" htmlFor="practice-prompt" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--mint)]">Input your prompt</label>
                   </div>
                   <Button
                     type="button"
                     onClick={savePrompt}
                     disabled={status === 'recording' || status === 'processing' || promptDraft.trim().length < 3}
-                    className="h-10 shrink-0 rounded-xl bg-white px-4 text-[var(--navy)] hover:bg-[var(--mint-soft)] disabled:bg-white/10 disabled:text-white/35"
+                    variant={promptSaved ? 'ghost' : 'default'}
+                    className={promptSaved
+                      ? 'h-9 shrink-0 px-2 text-[var(--mint)] hover:bg-white/5 hover:text-[var(--mint)] disabled:text-white/35'
+                      : 'h-9 shrink-0 rounded-lg bg-white px-4 text-[var(--navy)] hover:bg-[var(--mint-soft)] disabled:bg-white/10 disabled:text-white/35'}
                   >
                     {promptSaved ? <Check className="size-4" /> : null}
                     {promptSaved ? 'Saved' : 'Save prompt'}
@@ -362,12 +358,12 @@ export function CameraPractice() {
                   disabled={status === 'recording' || status === 'processing'}
                   maxLength={500}
                   placeholder="Paste the interview question you want to practise"
-                  className="mt-2 min-h-14 resize-y border-white/10 bg-white/5 text-sm leading-6 text-white placeholder:text-white/30 disabled:opacity-50"
+                  className="mt-2 min-h-14 resize-y rounded-none border-0 bg-transparent px-0 py-2 text-sm leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:border-0 focus-visible:ring-0 disabled:opacity-50"
                 />
               </section>
             )}
 
-            <div className="relative aspect-video w-full overflow-hidden rounded-[28px] border border-white/10 bg-[#152c37] shadow-2xl">
+            <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-[#152c37] ring-1 ring-white/10">
             {!activeExercise && <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />}
 
             {(status === 'permission' || status === 'requesting' || status === 'error' || demoMode) && (
@@ -377,13 +373,9 @@ export function CameraPractice() {
                     {activeExercise ? <Mic className="size-7" /> : status === 'error' ? <CameraOff className="size-7" /> : <Camera className="size-7" />}
                   </div>
                   {(status === 'permission' || status === 'requesting') && (
-                    <>
-                      <h1 className="mt-6 font-display text-2xl font-semibold tracking-[-0.03em]">{status === 'requesting' ? (activeExercise ? 'Starting your microphone…' : 'Starting your camera…') : (activeExercise ? 'Set up your microphone' : 'Set up your camera')}</h1>
-                      <p className="mt-2 text-sm leading-6 text-white/60">{status === 'requesting' ? `Allow ${activeExercise ? 'microphone' : 'camera and microphone'} access if your browser asks.` : activeExercise ? 'Exercises use audio recording only. Your temporary recording is analyzed for targeted coaching.' : 'Video stays in this browser. A temporary audio-only track is sent securely for transcription and coaching.'}</p>
-                      <Button onClick={activeExercise ? () => void enableAudioOnly() : enableCamera} disabled={status === 'requesting'} className="mt-6 h-11 rounded-xl bg-white px-5 text-[var(--navy)] hover:bg-[var(--mint-soft)]">
-                        {activeExercise ? <Mic className="size-4" /> : <Camera className="size-4" />} {status === 'requesting' ? (activeExercise ? 'Preparing microphone…' : 'Preparing camera…') : (activeExercise ? 'Enable microphone' : 'Enable camera & microphone')}
-                      </Button>
-                    </>
+                    <Button onClick={activeExercise ? () => void enableAudioOnly() : enableCamera} disabled={status === 'requesting'} className="mt-6 h-11 rounded-xl bg-white px-5 text-[var(--navy)] hover:bg-[var(--mint-soft)]">
+                      {activeExercise ? <Mic className="size-4" /> : <Camera className="size-4" />} {status === 'requesting' ? (activeExercise ? 'Preparing microphone…' : 'Preparing camera…') : (activeExercise ? 'Enable microphone' : 'Enable camera & microphone')}
+                    </Button>
                   )}
                   {status === 'error' && errorKind === 'media' && (
                     <>
@@ -405,12 +397,6 @@ export function CameraPractice() {
                       </div>
                     </>
                   )}
-                  {demoMode && status !== 'recording' && (
-                    <>
-                      <h1 className="mt-6 font-display text-2xl font-semibold">{activeExercise ? 'Microphone ready' : 'Prototype camera'}</h1>
-                      <p className="mt-2 text-sm text-white/60">{activeExercise ? 'No camera is used for exercises. Start when you are ready to record your response.' : 'Camera preview is off. Your microphone will still provide real transcription and coaching.'}</p>
-                    </>
-                  )}
                 </div>
               </div>
             )}
@@ -430,7 +416,7 @@ export function CameraPractice() {
               </span>
             </div>
 
-            {activeExercise && <div className="absolute inset-x-5 bottom-5 rounded-2xl border border-white/10 bg-[#07161d]/80 p-5 backdrop-blur-md">
+            {activeExercise && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#07161d] via-[#07161d]/85 to-transparent px-6 pb-6 pt-16">
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--mint)]">Exercise prompt</p>
               <p className="mt-2 max-w-4xl font-display text-lg font-medium leading-7">{visiblePrompt}</p>
             </div>}
@@ -453,7 +439,7 @@ export function CameraPractice() {
           <div className="absolute bottom-7 left-1/2 z-10 w-full max-w-sm -translate-x-1/2 px-6">
             {setupError && <p role="alert" className="mb-2 rounded-xl bg-[#8f4336]/90 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc] shadow-lg backdrop-blur">{setupError}</p>}
             {status === 'ready' && (
-              <Button onClick={() => void startSpeaking()} disabled={starting} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[#f4f0e4] px-7 text-[var(--navy)] shadow-xl hover:bg-white">
+              <Button onClick={() => void startSpeaking()} disabled={starting || !promptReady} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[#f4f0e4] px-7 text-[var(--navy)] shadow-xl hover:bg-white disabled:bg-white/10 disabled:text-white/35">
                 <Mic className="size-4" /> {starting ? 'Preparing session…' : 'Start speaking'}
               </Button>
             )}
@@ -483,7 +469,7 @@ export function CameraPractice() {
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pr-1">
             {activeExercise ? (
               <>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="border-b border-white/10 pb-5">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--mint)]">Target skill</p>
                   <p className="mt-2 text-sm font-semibold text-white/90">{activeExercise.targetSkill}</p>
                   <p className="mt-2 text-xs leading-5 text-white/55">{activeExercise.targetBehavior}</p>
@@ -498,13 +484,13 @@ export function CameraPractice() {
                     disabled={status === 'recording' || status === 'processing'}
                     maxLength={2000}
                     placeholder={'Direct answer\n\n• Supporting reason\n• Evidence or example\n\nClear conclusion'}
-                    className="mt-2 min-h-28 resize-y border-white/10 bg-white/5 text-xs leading-5 text-white placeholder:text-white/30 disabled:opacity-50"
+                    className="mt-4 min-h-40 resize-y rounded-none border-0 bg-transparent px-0 py-1 text-xs leading-5 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0 disabled:opacity-50"
                   />
                   <p className="mt-2 text-[11px] leading-4 text-white/40">Private planning notes. They do not change the exercise prompt or appear in your coaching.</p>
                   <p className="mt-2 text-[10px] text-white/35">Difficulty level {exerciseDifficultyLevel} of 3</p>
                 </div>
                 {exerciseStage === 'transfer' && (
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="border-t border-white/10 pt-5">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-white/45">No coaching hints</p>
                     <p className="mt-2 text-xs leading-5 text-white/65">Apply the skill independently to this unfamiliar question.</p>
                   </div>
@@ -513,7 +499,7 @@ export function CameraPractice() {
             ) : (
               <div className="flex min-h-0 flex-1 flex-col">
                 {redoFeedback.length > 0 && (
-                  <div className="mb-5 rounded-2xl border border-[#d9aa45]/30 bg-[#d9aa45]/10 p-4">
+                  <div className="mb-6 border-l-2 border-[#d9aa45]/70 pl-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#f1ca72]">Feedback to apply</p>
                     <ul className="mt-3 space-y-3">
                       {redoFeedback.map((item) => {
@@ -538,7 +524,7 @@ export function CameraPractice() {
                     onChange={(event) => updateSetup({ answerNotes: event.target.value })}
                     maxLength={2000}
                     placeholder={'Direct answer\n\n• First reason\n• Second reason\n• Evidence or example\n\nClear conclusion'}
-                    className="mt-4 min-h-[360px] flex-1 resize-none border-white/10 bg-white/5 p-4 text-sm leading-6 text-white placeholder:text-white/30"
+                    className="mt-5 min-h-[360px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 py-1 text-sm leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0"
                   />
                   <p className="mt-2 text-[11px] leading-4 text-white/40">Private notes for this answer. They aren’t saved or included in your coaching.</p>
                 </div>
@@ -546,9 +532,14 @@ export function CameraPractice() {
             )}
           </div>
 
-          <div className="mt-auto space-y-3">
+          <div className="mt-5 flex items-center justify-end gap-3">
             {activeExercise && <button onClick={() => void leaveExercise()} disabled={status === 'recording' || status === 'processing'} className="w-full py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">Stop exercise</button>}
             {!activeExercise && activeSessionId && answerCount > 0 && <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">End session <ChevronRight className="size-3.5" /></button>}
+            {!activeExercise && (
+              <Link href="/goals" className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/15 px-4 text-xs font-semibold text-white/70 transition-colors hover:border-white/30 hover:bg-white/5 hover:text-white">
+                <X className="size-3.5" /> Exit interview
+              </Link>
+            )}
           </div>
         </aside>
       </div>

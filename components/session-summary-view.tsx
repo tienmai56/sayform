@@ -41,10 +41,7 @@ function InterviewCheckCard({ check }: { check: InterviewCheck }) {
         <span className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-full ${check.passed ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--amber-soft)] text-[#8a621c]'}`}>
           {check.passed ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
         </span>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">{check.passed ? 'Yes' : 'Needs focus'}</p>
-          <h3 className="mt-1 text-sm font-semibold leading-5 text-[var(--navy)]">{check.question}</h3>
-        </div>
+        <h3 className="pt-1 text-sm font-semibold leading-5 text-[var(--navy)]">{check.question}</h3>
       </div>
       <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{check.detail}</p>
       {check.evidence && (

@@ -4,7 +4,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  BookOpenText,
   ChevronRight,
   Dumbbell,
   History,
@@ -74,16 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-4">
-          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.11em] text-[var(--teal-dark)]">
-            <BookOpenText className="size-4" />
-            Today’s focus
-          </div>
-          <p className="text-sm font-medium leading-5 text-[var(--ink)]">Lead with your main point</p>
-          <p className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">One decision, one reason, one example.</p>
-        </div>
-
-        <div className="mt-5 flex items-center gap-3 border-t border-[var(--line)] pt-5">
+        <div className="mt-auto flex items-center gap-3 border-t border-[var(--line)] pt-5">
           <span className="grid size-9 place-items-center rounded-full bg-[var(--sand)] text-sm font-semibold text-[var(--navy)]">{initials || 'CC'}</span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{displayName}</p>
