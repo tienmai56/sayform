@@ -88,11 +88,13 @@ export async function updateSession(request: NextRequest) {
     !hasApprovedAccess &&
     (isProtectedPath(pathname) || pathname === '/signin')
   ) {
-    const requestAccessUrl = request.nextUrl.clone();
-    requestAccessUrl.pathname = '/login';
-    requestAccessUrl.search = '';
-    requestAccessUrl.searchParams.set('state', 'pending');
-    return copyAuthState(response, NextResponse.redirect(requestAccessUrl));
+    await supabase.auth.signOut({ scope: 'local' });
+    const signInUrl = request.nextUrl.clone();
+    signInUrl.pathname = '/signin';
+    signInUrl.search = '';
+    signInUrl.searchParams.set('next', `${pathname}${request.nextUrl.search}`);
+    signInUrl.searchParams.set('error', 'Please request access first');
+    return copyAuthState(response, NextResponse.redirect(signInUrl));
   }
 
   if (
