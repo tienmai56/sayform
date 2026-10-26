@@ -132,7 +132,7 @@ export function LoginView({
           <h1 className="mt-5 font-display text-3xl font-semibold tracking-[-0.04em] text-[var(--navy)]">
             Backend setup is ready
           </h1>
-          <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">
+          <p className="mt-3 text-base leading-7 text-[var(--muted-ink)]">
             Add your Supabase project details to enable accounts and cloud
             persistence. Until then, Sayform runs in a private demo mode in this
             browser.
@@ -177,7 +177,7 @@ export function LoginView({
         <h2 className="mt-3 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">
           {mode === 'sign-in' ? 'Sign in to practise' : 'Create your account'}
         </h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">
+        <p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">
           {mode === 'sign-in'
             ? 'Continue with your interview practice and session history.'
             : 'Create an account and start practicing interview answers.'}

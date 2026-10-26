@@ -99,7 +99,7 @@ export function PageHeader({
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--teal-dark)]">{eyebrow}</p>
         )}
         <h1 className="font-display text-3xl font-semibold tracking-[-0.035em] text-[var(--navy)] md:text-[38px]">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-[15px] leading-6 text-[var(--muted-ink)]">{description}</p>}
+        {description && <p className="mt-2 max-w-2xl text-base leading-7 text-[var(--muted-ink)]">{description}</p>}
       </div>
       {action}
     </div>
@@ -132,7 +132,7 @@ export function MetricCard({ label, value, detail }: { label: string; value: str
     <div className="rounded-2xl border border-[var(--line)] bg-white p-4 shadow-[var(--shadow-sm)]">
       <p className="text-xs font-medium text-[var(--muted-ink)]">{label}</p>
       <p className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{value}</p>
-      <p className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">{detail}</p>
+      <p className="mt-1 text-sm leading-6 text-[var(--muted-ink)]">{detail}</p>
     </div>
   );
 }

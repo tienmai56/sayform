@@ -21,6 +21,7 @@ import { getGoalDefinition } from '@/lib/goal-catalog';
 import { categories as categoryOptions } from '@/lib/mock-data';
 import { completeExerciseAttempt as submitExerciseAttempt, createPracticeSession, startResponseAnalysis, updateExerciseStatus } from '@/lib/client-data';
 import type { FeedbackDimension, FeedbackItem } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 type PracticeStatus = 'permission' | 'requesting' | 'ready' | 'recording' | 'processing' | 'error';
 
@@ -385,20 +386,20 @@ export function CameraPractice() {
   }
 
   return (
-    <div className="min-h-screen bg-[#2e1065] text-white">
+    <div className="min-h-screen bg-white text-[var(--ink)]">
       <div className="grid h-screen grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-        <section className="relative flex min-h-0 items-start justify-center overflow-hidden bg-[#180a2e] px-8 pb-20 pt-7">
+        <section className="relative flex min-h-0 items-start justify-center overflow-hidden bg-white px-8 pb-20 pt-7">
           <div className="w-full max-w-[1120px]">
             {activeExercise ? (
-              <section className="mb-4 border-b border-white/10 pb-4" aria-labelledby="exercise-prompt-title">
-                <p id="exercise-prompt-title" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--mint)]">Exercise prompt</p>
-                <p className="mt-2 max-w-5xl text-sm font-medium leading-6 text-white">{visiblePrompt}</p>
+              <section className="mb-4 border-b border-[var(--line)] pb-4" aria-labelledby="exercise-prompt-title">
+                <p id="exercise-prompt-title" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Exercise prompt</p>
+                <p className="mt-2 max-w-5xl text-sm font-medium leading-6 text-[var(--ink)]">{visiblePrompt}</p>
               </section>
             ) : (
-              <section className="mb-4 border-b border-white/10 pb-4" aria-labelledby="prompt-editor-title">
+              <section className="mb-4 border-b border-[var(--line)] pb-4" aria-labelledby="prompt-editor-title">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <label id="prompt-editor-title" htmlFor="practice-prompt" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--mint)]">Input your prompt</label>
+                    <label id="prompt-editor-title" htmlFor="practice-prompt" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Input your prompt</label>
                   </div>
                   <Button
                     type="button"
@@ -406,8 +407,8 @@ export function CameraPractice() {
                     disabled={status === 'recording' || status === 'processing' || promptDraft.trim().length < 3}
                     variant={promptSaved ? 'ghost' : 'default'}
                     className={promptSaved
-                      ? 'h-9 shrink-0 px-2 text-[var(--mint)] hover:bg-white/5 hover:text-[var(--mint)] disabled:text-white/35'
-                      : 'h-9 shrink-0 rounded-lg bg-white px-4 text-[var(--navy)] hover:bg-[var(--mint-soft)] disabled:bg-white/10 disabled:text-white/35'}
+                      ? 'h-9 shrink-0 px-2 text-[var(--teal-dark)] hover:bg-[var(--mint-soft)] hover:text-[var(--teal-dark)] disabled:text-[var(--muted-ink)]/50'
+                      : 'h-9 shrink-0 rounded-lg bg-[var(--navy)] px-4 text-white hover:bg-[#4c1d95] disabled:bg-[var(--line)] disabled:text-[var(--muted-ink)]'}
                   >
                     {promptSaved ? <Check className="size-4" /> : null}
                     {promptSaved ? 'Saved' : 'Save prompt'}
@@ -423,42 +424,42 @@ export function CameraPractice() {
                   disabled={status === 'recording' || status === 'processing'}
                   maxLength={500}
                   placeholder="Paste the interview question you want to practise"
-                  className="mt-2 min-h-14 resize-y rounded-none border-0 bg-transparent px-0 py-2 text-sm leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:border-0 focus-visible:ring-0 disabled:opacity-50"
+                  className="mt-2 min-h-14 resize-y rounded-none border-0 bg-transparent px-0 py-2 text-sm leading-6 text-[var(--ink)] shadow-none placeholder:text-[var(--muted-ink)]/65 focus-visible:border-0 focus-visible:ring-0 disabled:opacity-50"
                 />
               </section>
             )}
 
-            <div className="relative h-[calc(100vh-230px)] min-h-[420px] max-h-[700px] w-full overflow-hidden rounded-[20px] bg-[#301851] ring-1 ring-white/10">
+            <div className="relative h-[calc(100vh-230px)] min-h-[420px] max-h-[700px] w-full overflow-hidden rounded-[20px] bg-[#f7f4fc] ring-1 ring-[var(--line)]">
             {!activeExercise && <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />}
 
             {(status === 'permission' || status === 'requesting' || status === 'error' || demoMode) && (
-              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#6d28d9_0%,#301851_42%,#24123d_100%)]">
+              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#ede9fe_0%,#f7f4fc_42%,#ffffff_100%)]">
                 <div className="max-w-md text-center">
-                  <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-white/10 text-[var(--mint)] ring-1 ring-white/10">
+                  <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-white text-[var(--teal-dark)] shadow-sm ring-1 ring-[var(--line)]">
                     {activeExercise ? <Mic className="size-7" /> : status === 'error' ? <CameraOff className="size-7" /> : <Camera className="size-7" />}
                   </div>
                   {(status === 'permission' || status === 'requesting') && (
-                    <Button onClick={activeExercise ? () => void enableAudioOnly() : enableCamera} disabled={status === 'requesting'} className="mt-6 h-11 rounded-xl bg-white px-5 text-[var(--navy)] hover:bg-[var(--mint-soft)]">
+                    <Button onClick={activeExercise ? () => void enableAudioOnly() : enableCamera} disabled={status === 'requesting'} className="mt-6 h-11 rounded-xl bg-[var(--navy)] px-5 text-white hover:bg-[#4c1d95]">
                       {activeExercise ? <Mic className="size-4" /> : <Camera className="size-4" />} {status === 'requesting' ? (activeExercise ? 'Preparing microphone…' : 'Preparing camera…') : (activeExercise ? 'Enable microphone' : 'Enable camera & microphone')}
                     </Button>
                   )}
                   {status === 'error' && errorKind === 'media' && (
                     <>
                       <h1 className="mt-6 font-display text-2xl font-semibold">Permission needed</h1>
-                      <p className="mt-2 text-sm leading-6 text-white/60">{errorMessage}</p>
+                      <p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">{errorMessage}</p>
                       <div className="mt-6 flex justify-center gap-3">
-                        <Button onClick={activeExercise ? () => void enableAudioOnly() : enableCamera} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">Try again</Button>
-                        {!activeExercise && <Button onClick={() => void enableAudioOnly()} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Use microphone only</Button>}
+                        <Button onClick={activeExercise ? () => void enableAudioOnly() : enableCamera} className="bg-[var(--navy)] text-white hover:bg-[#4c1d95]">Try again</Button>
+                        {!activeExercise && <Button onClick={() => void enableAudioOnly()} variant="outline" className="border-[var(--line)] bg-white text-[var(--ink)] hover:bg-[var(--mint-soft)]">Use microphone only</Button>}
                       </div>
                     </>
                   )}
                   {status === 'error' && errorKind === 'save' && (
                     <>
                       <h1 className="mt-6 font-display text-2xl font-semibold">Couldn’t save this response</h1>
-                      <p className="mt-2 text-sm leading-6 text-white/60">{errorMessage}</p>
+                      <p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">{errorMessage}</p>
                       <div className="mt-6 flex justify-center gap-3">
-                        <Button onClick={hasRetryAudio ? () => void retrySave() : () => void enableAudioOnly()} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">{hasRetryAudio ? 'Try saving again' : 'Record again'}</Button>
-                        {!activeExercise && <Button onClick={() => router.push('/practice/feedback')} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Continue without saving</Button>}
+                        <Button onClick={hasRetryAudio ? () => void retrySave() : () => void enableAudioOnly()} className="bg-[var(--navy)] text-white hover:bg-[#4c1d95]">{hasRetryAudio ? 'Try saving again' : 'Record again'}</Button>
+                        {!activeExercise && <Button onClick={() => router.push('/practice/feedback')} variant="outline" className="border-[var(--line)] bg-white text-[var(--ink)] hover:bg-[var(--mint-soft)]">Continue without saving</Button>}
                       </div>
                     </>
                   )}
@@ -467,16 +468,16 @@ export function CameraPractice() {
             )}
 
             {status === 'recording' && demoMode && (
-              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#6d28d9_0%,#301851_42%,#24123d_100%)]">
-                <div className="text-center"><Mic className="mx-auto size-10 text-[var(--mint)]" /><p className="mt-4 text-sm text-white/65">Microphone recording in progress</p></div>
+              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#ede9fe_0%,#f7f4fc_42%,#ffffff_100%)]">
+                <div className="text-center"><Mic className="mx-auto size-10 text-[var(--teal-dark)]" /><p className="mt-4 text-sm text-[var(--muted-ink)]">Microphone recording in progress</p></div>
               </div>
             )}
 
             <div className="absolute inset-x-0 top-0 flex items-center justify-between p-5">
-              <span className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium backdrop-blur">
+              <span className="rounded-full bg-black/45 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
                 {activeExercise ? (exerciseStage === 'transfer' ? 'Independent test' : `Guided attempt ${exerciseAttemptNumber}`) : `Question ${answerCount + 1}`}
               </span>
-              <span className="flex items-center gap-2 rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium backdrop-blur">
+              <span className="flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
                 {status === 'recording' ? <><span className="size-2 animate-pulse rounded-full bg-[#ff7668]" />Recording · {formatTime(elapsed)}</> : <><span className="size-2 rounded-full bg-white/45" />Recording off</>}
               </span>
             </div>
@@ -485,14 +486,14 @@ export function CameraPractice() {
           </div>
 
           {status === 'processing' && (
-            <div className="absolute inset-0 z-20 grid place-items-center bg-[#180a2e]/85 backdrop-blur-sm">
-              <div className="w-[420px] rounded-3xl border border-white/10 bg-[#2b1745] p-8 text-center shadow-2xl">
+            <div className="absolute inset-0 z-20 grid place-items-center bg-white/85 backdrop-blur-sm">
+              <div className="w-[420px] rounded-3xl border border-[var(--line)] bg-white p-8 text-center shadow-2xl">
                 <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]">
                   <Sparkles className="size-6 animate-pulse" />
                 </div>
                 <h2 className="mt-5 font-display text-2xl font-semibold">Preparing your feedback</h2>
-                <p className="mt-2 text-sm leading-6 text-white/55">Reviewing your transcript, speaking pace, vocabulary, structure, and reasoning.</p>
-                <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full w-3/4 animate-pulse rounded-full bg-[var(--mint)]" /></div>
+                <p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">Reviewing your transcript, speaking pace, vocabulary, structure, and reasoning.</p>
+                <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[var(--line)]"><div className="h-full w-3/4 animate-pulse rounded-full bg-[var(--teal)]" /></div>
               </div>
             </div>
           )}
@@ -500,7 +501,7 @@ export function CameraPractice() {
           <div className="absolute bottom-7 left-1/2 z-10 w-full max-w-sm -translate-x-1/2 px-6">
             {setupError && <p role="alert" className="mb-2 rounded-xl bg-[#8f4336]/90 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc] shadow-lg backdrop-blur">{setupError}</p>}
             {status === 'ready' && (
-              <Button onClick={() => void startSpeaking()} disabled={starting || !promptReady} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[#f4f0e4] px-7 text-[var(--navy)] shadow-xl hover:bg-white disabled:bg-white/10 disabled:text-white/35">
+              <Button onClick={() => void startSpeaking()} disabled={starting || !promptReady} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[var(--navy)] px-7 text-white shadow-xl hover:bg-[#4c1d95] disabled:bg-[var(--line)] disabled:text-[var(--muted-ink)]">
                 <Mic className="size-4" /> {starting ? 'Preparing session…' : 'Start speaking'}
               </Button>
             )}
@@ -510,20 +511,20 @@ export function CameraPractice() {
               </Button>
             )}
             {(status === 'permission' || status === 'requesting' || status === 'error') && (
-              <Button disabled size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-white/10 px-7 text-white/45 shadow-xl backdrop-blur">{status === 'requesting' ? (activeExercise ? 'Preparing microphone…' : 'Preparing camera…') : 'Start speaking'}</Button>
+              <Button disabled size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[var(--line)] px-7 text-[var(--muted-ink)] shadow-sm">{status === 'requesting' ? (activeExercise ? 'Preparing microphone…' : 'Preparing camera…') : 'Start speaking'}</Button>
             )}
           </div>
         </section>
 
-        <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#24123d] p-7">
+        <aside className="flex min-h-0 flex-col border-l border-[var(--line)] bg-white p-7">
           {activeExercise && (
             <>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{exerciseStage === 'transfer' ? 'Independent transfer test' : `Personalized exercise · Attempt ${exerciseAttemptNumber}`}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--teal-dark)]">{exerciseStage === 'transfer' ? 'Independent transfer test' : `Personalized exercise · Attempt ${exerciseAttemptNumber}`}</p>
                 <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise.title}</h2>
-                <p className="mt-2 text-xs leading-5 text-white/55"><span className="font-semibold text-white/80">{categoryTitle}:</span> {activeExercise.targetBehavior}</p>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]"><span className="font-semibold text-[var(--ink)]">{categoryTitle}:</span> {activeExercise.targetBehavior}</p>
               </div>
-              <div className="my-7 h-px bg-white/10" />
+              <div className="my-7 h-px bg-[var(--line)]" />
             </>
           )}
 
@@ -531,8 +532,8 @@ export function CameraPractice() {
             {activeExercise ? (
               <>
                 <div className="flex min-h-0 flex-1 flex-col">
-                  <label htmlFor="exercise-reasoning" className="font-display text-2xl font-semibold tracking-[-0.03em] text-white">Plan your reasoning</label>
-                  <p className="mt-2 text-xs leading-5 text-white/45">Map the direct answer, supporting logic, evidence, and conclusion you want to communicate.</p>
+                  <label htmlFor="exercise-reasoning" className="font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--ink)]">Plan your reasoning</label>
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Map the direct answer, supporting logic, evidence, and conclusion you want to communicate.</p>
                   <Textarea
                     id="exercise-reasoning"
                     value={answerNotes}
@@ -540,70 +541,88 @@ export function CameraPractice() {
                     disabled={status === 'recording' || status === 'processing'}
                     maxLength={2000}
                     placeholder={'Direct answer\n\n• First reason\n• Second reason\n• Evidence or example\n\nClear conclusion'}
-                    className="mt-5 min-h-[360px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 py-1 text-sm leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0 disabled:opacity-50"
+                    className="mt-5 min-h-[360px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 py-1 text-sm leading-6 text-[var(--ink)] shadow-none placeholder:text-[var(--muted-ink)]/60 focus-visible:ring-0 disabled:opacity-50"
                   />
-                  <div className="mt-2 flex items-center justify-between gap-4 text-[11px] leading-4 text-white/40">
+                  <div className="mt-2 flex items-center justify-between gap-4 text-[11px] leading-4 text-[var(--muted-ink)]">
                     <p>Private notes for this attempt. They aren’t saved or included in your coaching.</p>
                     <p className="shrink-0">Difficulty {exerciseDifficultyLevel} of 3</p>
                   </div>
                 </div>
                 {exerciseStage === 'transfer' && (
-                  <div className="border-t border-white/10 pt-5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-white/45">No coaching hints</p>
-                    <p className="mt-2 text-xs leading-5 text-white/65">Apply the skill independently to this unfamiliar question.</p>
+                  <div className="border-t border-[var(--line)] pt-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--muted-ink)]">No coaching hints</p>
+                    <p className="mt-2 text-xs leading-5 text-[var(--ink)]">Apply the skill independently to this unfamiliar question.</p>
                   </div>
                 )}
               </>
             ) : (
               <div className="flex min-h-0 flex-1 flex-col">
                 {redoFeedback.length > 0 && (
-                  <div className="mb-6 border-l-2 border-[#d9aa45]/70 pl-4">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#f1ca72]">Feedback to apply</p>
-                    <ol className="mt-3 space-y-4">
+                  <section className="mb-7 rounded-2xl bg-[#faf8ff] p-5" aria-labelledby="feedback-to-apply-title">
+                    <div className="flex items-center justify-between gap-4">
+                      <p id="feedback-to-apply-title" className="text-xs font-semibold uppercase tracking-[0.11em] text-[var(--teal-dark)]">Feedback to apply</p>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-[var(--muted-ink)] shadow-sm">{feedbackToApply.length} cues</span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Keep these priorities in mind as you answer again.</p>
+                    <ol className="mt-5 space-y-5">
                       {feedbackToApply.map((item, index) => {
                         const corrections = getFeedbackCorrections(item);
                         return (
-                          <li key={item.id} className="flex items-start gap-2.5 text-xs leading-5 text-white/75">
-                            <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[#f1ca72]/15 text-[10px] font-semibold text-[#f1ca72]">{index + 1}</span>
-                            <span className="min-w-0">
-                              <strong className="block font-semibold text-[#f1ca72]">{feedbackSteps[item.dimension]}</strong>
-                              <span className="mt-0.5 block font-medium text-white/90">{item.title}</span>
-                              {corrections.map((correction, correctionIndex) => (
-                                <span key={`${correction.evidence}-${correctionIndex}`} className="mt-1.5 block border-l border-white/15 pl-2.5">
-                                  <span className="block text-white/45"><span className="font-semibold text-white/65">Avoid:</span> “{correction.evidence}”</span>
-                                  <span className="mt-0.5 block text-white/70"><span className="font-semibold text-white/90">{item.dimension === 'Vocabulary' ? 'Use:' : 'Try:'}</span> {correction.suggestion}</span>
-                                </span>
-                              ))}
-                            </span>
+                          <li key={item.id} className="flex items-start gap-3 text-sm leading-6 text-[var(--ink)]">
+                            <span className={cn(
+                              'mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-[10px] font-semibold',
+                              item.positive ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--amber-soft)] text-[#805d1c]',
+                            )}>{item.positive ? <Check className="size-3.5" /> : index + 1}</span>
+                            <div className="min-w-0">
+                              <strong className={cn('block font-semibold', item.positive ? 'text-[var(--teal-dark)]' : 'text-[#805d1c]')}>{feedbackSteps[item.dimension]}</strong>
+                              <p className="mt-0.5 text-[var(--ink)]">{item.title}</p>
+                              {corrections.length > 0 && (
+                                <div className="mt-2 space-y-2 text-[var(--muted-ink)]">
+                                  {corrections.map((correction, correctionIndex) => (
+                                    <p key={`${correction.suggestion}-${correctionIndex}`}><span className="font-semibold text-[var(--ink)]">{item.dimension === 'Vocabulary' ? 'Use:' : 'Try:'}</span> {correction.suggestion}</p>
+                                  ))}
+                                </div>
+                              )}
+                              {corrections.length > 0 && (
+                                <details className="mt-2 text-xs text-[var(--muted-ink)]">
+                                  <summary className="w-fit cursor-pointer font-medium hover:text-[var(--ink)]">See original wording</summary>
+                                  <div className="mt-2 space-y-1.5 rounded-xl bg-white px-3 py-2.5">
+                                    {corrections.map((correction, correctionIndex) => (
+                                      <p key={`${correction.evidence}-${correctionIndex}`}>“{correction.evidence}”</p>
+                                    ))}
+                                  </div>
+                                </details>
+                              )}
+                            </div>
                           </li>
                         );
                       })}
                     </ol>
-                  </div>
+                  </section>
                 )}
 
                 <div className="flex min-h-0 flex-1 flex-col">
-                  <label htmlFor="answer-notes" className="font-display text-2xl font-semibold tracking-[-0.03em] text-white">Plan your reasoning</label>
-                  <p className="mt-2 text-xs leading-5 text-white/45">Map the direct answer, supporting logic, evidence, and conclusion you want the interviewer to hear.</p>
+                  <label htmlFor="answer-notes" className="font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--ink)]">Plan your reasoning</label>
+                  <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Map the direct answer, supporting logic, evidence, and conclusion you want the interviewer to hear.</p>
                   <Textarea
                     id="answer-notes"
                     value={answerNotes}
                     onChange={(event) => updateSetup({ answerNotes: event.target.value })}
                     maxLength={2000}
                     placeholder={'Direct answer\n\n• First reason\n• Second reason\n• Evidence or example\n\nClear conclusion'}
-                    className="mt-5 min-h-[360px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 py-1 text-sm leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0"
+                    className="mt-5 min-h-[360px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 py-1 text-sm leading-6 text-[var(--ink)] shadow-none placeholder:text-[var(--muted-ink)]/60 focus-visible:ring-0"
                   />
-                  <p className="mt-2 text-[11px] leading-4 text-white/40">Private notes for this answer. They aren’t saved or included in your coaching.</p>
+                  <p className="mt-2 text-[11px] leading-4 text-[var(--muted-ink)]">Private notes for this answer. They aren’t saved or included in your coaching.</p>
                 </div>
               </div>
             )}
           </div>
 
           <div className="mt-5 flex items-center justify-end gap-3">
-            {activeExercise && <button onClick={() => void leaveExercise()} disabled={status === 'recording' || status === 'processing'} className="w-full py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">Stop exercise</button>}
-            {!activeExercise && activeSessionId && answerCount > 0 && <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-white/45 hover:text-white disabled:opacity-40">End session <ChevronRight className="size-3.5" /></button>}
+            {activeExercise && <button onClick={() => void leaveExercise()} disabled={status === 'recording' || status === 'processing'} className="w-full py-2 text-xs font-medium text-[var(--muted-ink)] hover:text-[var(--ink)] disabled:opacity-40">Stop exercise</button>}
+            {!activeExercise && activeSessionId && answerCount > 0 && <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-[var(--muted-ink)] hover:text-[var(--ink)] disabled:opacity-40">End session <ChevronRight className="size-3.5" /></button>}
             {!activeExercise && (
-              <Link href="/goals" className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/15 px-4 text-xs font-semibold text-white/70 transition-colors hover:border-white/30 hover:bg-white/5 hover:text-white">
+              <Link href="/goals" className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-[var(--line)] px-4 text-xs font-semibold text-[var(--ink)] transition-colors hover:border-[#b9a6df] hover:bg-[var(--mint-soft)]">
                 <X className="size-3.5" /> Exit interview
               </Link>
             )}

@@ -62,7 +62,7 @@ export function AccessRequestView() {
             <h1 className="mt-6 font-display text-4xl font-semibold tracking-[-0.045em] text-[var(--navy)]">
               Request received
             </h1>
-            <p className="mt-4 text-[15px] leading-7 text-[var(--muted-ink)]">
+            <p className="mt-4 text-base leading-7 text-[var(--muted-ink)]">
               Thanks for your interest in Sayform. I’ll review your request and
               email you if access is approved.
             </p>
@@ -84,7 +84,7 @@ export function AccessRequestView() {
             <h1 className="mt-3 font-display text-4xl font-semibold tracking-[-0.045em] text-[var(--navy)]">
               Request access to Sayform
             </h1>
-            <p className="mt-4 text-[15px] leading-7 text-[var(--muted-ink)]">
+            <p className="mt-4 text-base leading-7 text-[var(--muted-ink)]">
               Sayform is currently available to a small group of interview
               candidates. Share your email and I’ll reach out if your request is
               approved.
@@ -150,7 +150,7 @@ export function AccessRequestView() {
               </Button>
             </form>
 
-            <p className="mt-5 text-center text-xs leading-5 text-[var(--muted-ink)]">
+            <p className="mt-5 text-center text-sm leading-6 text-[var(--muted-ink)]">
               Your information is used only to review and respond to your
               request.
             </p>

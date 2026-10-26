@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarDays, ChevronRight, Filter, History as HistoryIcon, Search, Trash2, VideoOff } from 'lucide-react';
 import { AppShell, PageHeader, Screen } from '@/components/app-shell';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
@@ -74,9 +73,6 @@ export function HistoryView() {
           eyebrow="History"
           title="Your practice sessions"
           description="Revisit questions, transcripts, coaching, and exercises. Recordings are never stored in History."
-          action={
-            <Button onClick={() => router.push('/goals')} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#4c1d95]">Start a new session</Button>
-          }
         />
 
         {deletedTitle && (

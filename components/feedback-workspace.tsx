@@ -6,7 +6,7 @@ import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
-  ChevronDown,
+  FileText,
   Maximize2,
   Minimize2,
   Play,
@@ -16,7 +16,7 @@ import {
   ThumbsUp,
   VideoOff,
 } from 'lucide-react';
-import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
+import { AppShell, Breadcrumbs, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { getPracticeQuestions } from '@/lib/goal-catalog';
@@ -41,6 +41,48 @@ function speakingPaceComment(wordsPerMinute: number) {
   return 'Above the 100–165 WPM clarity reference. Slow down slightly so your key points have time to land.';
 }
 
+const PACE_MIN = 60;
+const PACE_MAX = 220;
+const PACE_RANGE_START = 100;
+const PACE_RANGE_END = 165;
+
+function paceGaugePoint(wordsPerMinute: number, radius = 62) {
+  const clampedPace = Math.min(PACE_MAX, Math.max(PACE_MIN, wordsPerMinute));
+  const angle = Math.PI - ((clampedPace - PACE_MIN) / (PACE_MAX - PACE_MIN)) * Math.PI;
+  return {
+    x: 82 + radius * Math.cos(angle),
+    y: 72 - radius * Math.sin(angle),
+  };
+}
+
+function paceGaugeArc(start: number, end: number) {
+  const startPoint = paceGaugePoint(start);
+  const endPoint = paceGaugePoint(end);
+  return `M ${startPoint.x} ${startPoint.y} A 62 62 0 0 1 ${endPoint.x} ${endPoint.y}`;
+}
+
+function SpeakingPaceIllustration({ wordsPerMinute }: { wordsPerMinute: number }) {
+  const marker = paceGaugePoint(wordsPerMinute);
+
+  return (
+    <figure className="w-44 shrink-0" aria-label={`Average speaking pace: ${wordsPerMinute} words per minute`}>
+      <svg viewBox="0 0 164 96" className="block h-auto w-full" aria-labelledby="pace-illustration-title">
+        <title id="pace-illustration-title">Speaking pace compared with the 100 to 165 words per minute clarity reference</title>
+        <path d={paceGaugeArc(PACE_MIN, 96)} fill="none" stroke="#e8e3f2" strokeLinecap="round" strokeWidth="14" />
+        <path d={paceGaugeArc(PACE_RANGE_START, PACE_RANGE_END)} fill="none" stroke="#8b5cf6" strokeLinecap="round" strokeWidth="14" />
+        <path d={paceGaugeArc(169, PACE_MAX)} fill="none" stroke="#e8e3f2" strokeLinecap="round" strokeWidth="14" />
+        <circle cx={marker.x} cy={marker.y} r="6" fill="#2b1745" stroke="white" strokeWidth="3" />
+        <text x="82" y="62" textAnchor="middle" fill="#6d5b7f" fontFamily="var(--font-sans-ui)" fontSize="7" fontWeight="700" letterSpacing="0.08em">CLARITY RANGE</text>
+        <text x="82" y="76" textAnchor="middle" fill="#2b1745" fontFamily="var(--font-display-ui)" fontSize="12" fontWeight="600">100–165</text>
+      </svg>
+      <figcaption className="-mt-1 flex justify-between text-[10px] font-semibold text-[var(--muted-ink)]">
+        <span>Slower</span>
+        <span>Faster</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 const interviewCheckDefinitions: Array<{
   question: string;
   dimension: FeedbackDimension;
@@ -52,32 +94,35 @@ const interviewCheckDefinitions: Array<{
 
 function InterviewAnswerCheck({ feedback }: { feedback: FeedbackItem[] }) {
   return (
-    <section className="mb-6" aria-labelledby="interview-answer-check-title">
+    <section className="mb-7" aria-labelledby="interview-answer-check-title">
       <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Interview answer check</p>
-      <h3 id="interview-answer-check-title" className="mt-1 font-display text-lg font-semibold text-[var(--navy)]">The three questions your coach always checks</h3>
-      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3">
+      <h3 id="interview-answer-check-title" className="mt-1 font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">The three questions your coach always checks</h3>
+      <div className="mt-5 grid grid-cols-1 border-y border-[var(--line)] xl:grid-cols-3 xl:divide-x xl:divide-[var(--line)]">
         {interviewCheckDefinitions.map((definition) => {
           const item = feedback.find((candidate) => candidate.dimension === definition.dimension);
           const evaluation = item ? getInterviewEvaluation(item) : null;
           return (
-            <article key={definition.dimension} className="rounded-2xl border border-[var(--line)] bg-white p-4">
-              <div className="flex items-start gap-2.5">
+            <article key={definition.dimension} className="border-b border-[var(--line)] py-5 last:border-b-0 xl:border-b-0 xl:px-5 xl:first:pl-0 xl:last:pr-0">
+              <div className="flex items-start gap-3">
                 <span className={cn(
-                  'mt-0.5 grid size-7 shrink-0 place-items-center rounded-full',
+                  'grid size-8 shrink-0 place-items-center rounded-full',
                   evaluation?.verdict === 'yes'
                     ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]'
                     : evaluation?.verdict === 'partially'
                       ? 'bg-[var(--amber-soft)] text-[#8a621c]'
                       : 'bg-[var(--rose-soft)] text-[#914435]',
                 )}>
-                  {evaluation?.verdict === 'yes' ? <CheckCircle2 className="size-3.5" /> : <AlertCircle className="size-3.5" />}
+                  {evaluation?.verdict === 'yes' ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
                 </span>
-                <p className="pt-1 text-xs font-semibold leading-5 text-[var(--navy)]">{definition.question}</p>
+                <div>
+                  <p className="text-base font-semibold leading-6 text-[var(--navy)]">{definition.question}</p>
+                  {evaluation && <p className="mt-1 text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted-ink)]">{evaluation.label}</p>}
+                </div>
               </div>
               {evaluation ? (
-                <p className="mt-3 text-xs leading-5 text-[var(--ink)]"><span className="font-bold">{evaluation.label}.</span> {evaluation.reason}</p>
+                <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{evaluation.reason}</p>
               ) : (
-                <p className="mt-3 text-xs leading-5 text-[var(--muted-ink)]">This check could not be evaluated from the transcript.</p>
+                <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">This check could not be evaluated from the transcript.</p>
               )}
             </article>
           );
@@ -263,6 +308,18 @@ function StandardFeedbackWorkspace() {
                 {recordingOpen ? 'Hide recording' : 'View recording'}
               </Button>
             )}
+            {currentAnalysis && (
+              <Button
+                variant="outline"
+                aria-expanded={transcriptOpen}
+                aria-controls="answer-transcript"
+                onClick={() => setTranscriptOpen((current) => !current)}
+                className="rounded-xl bg-white"
+              >
+                <FileText className="size-4" />
+                {transcriptOpen ? 'Hide transcript' : 'View transcript'}
+              </Button>
+            )}
             <Button
               variant="outline"
               onClick={() => setFullScreen((current) => !current)}
@@ -275,6 +332,15 @@ function StandardFeedbackWorkspace() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          {transcriptOpen && currentAnalysis && (
+            <section id="answer-transcript" className="mb-7 border-b border-[var(--line)] bg-[#faf8ff] px-5 pb-6 pt-5" aria-labelledby="answer-transcript-title">
+              <div className="flex items-center justify-between gap-4">
+                <h3 id="answer-transcript-title" className="font-display text-lg font-semibold text-[var(--navy)]">Your transcript</h3>
+                <span className="text-xs text-[var(--muted-ink)]">{currentAnalysis.metrics.wordCount} words · {formatDuration(currentAnalysis.durationSeconds)}</span>
+              </div>
+              <p className="mt-3 whitespace-pre-wrap text-base leading-8 text-[#5f4f72]">{currentAnalysis.transcript}</p>
+            </section>
+          )}
           {!activeExercise && !currentAnalysis && (
             <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center py-8">
               {analysisStatus === 'failed' ? (
@@ -330,40 +396,40 @@ function StandardFeedbackWorkspace() {
             </div>
           )}
           {!activeExercise && isInterview && <InterviewAnswerCheck feedback={activeFeedback} />}
-          <div className="grid grid-cols-4 gap-3">
-            <MetricCard label="Average pace" value={currentAnalysis ? `${currentAnalysis.metrics.averageWpm} WPM` : '—'} detail={currentAnalysis ? speakingPaceComment(currentAnalysis.metrics.averageWpm) : 'Calculated from this recording'} />
-            <MetricCard
-              label="Fillers"
-              value={currentAnalysis ? String(currentAnalysis.metrics.fillerCount) : '—'}
-              detail={currentAnalysis && currentAnalysis.metrics.wordCount
-                ? `${((currentAnalysis.metrics.fillerCount / currentAnalysis.metrics.wordCount) * 100).toFixed(1)} per 100 transcribed words`
-                : 'From the transcript'}
-            />
-            <MetricCard label="Total words" value={currentAnalysis ? String(currentAnalysis.metrics.wordCount) : '—'} detail={currentAnalysis ? `Across ${formatDuration(currentAnalysis.durationSeconds)}` : 'From the transcript'} />
-            <MetricCard label="Distinct words" value={currentAnalysis ? String(currentAnalysis.metrics.uniqueWordCount) : '—'} detail="Case-normalized word count" />
-          </div>
+          <section className="border-y border-[var(--line)] py-6" aria-labelledby="response-metrics-title">
+            <h3 id="response-metrics-title" className="sr-only">Response metrics</h3>
+            <div className="grid items-center gap-7 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,1fr)]">
+              <div className="flex min-w-0 items-center gap-6 xl:border-r xl:border-[var(--line)] xl:pr-8">
+                {currentAnalysis ? <SpeakingPaceIllustration wordsPerMinute={currentAnalysis.metrics.averageWpm} /> : <div className="h-28 w-44 shrink-0 rounded-2xl bg-[var(--canvas)]" />}
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Average speaking pace</p>
+                  <p className="mt-2 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.averageWpm : '—'} <span className="text-base tracking-normal text-[var(--muted-ink)]">WPM</span></p>
+                  <p className="mt-2 max-w-lg text-sm leading-6 text-[var(--muted-ink)]">{currentAnalysis ? speakingPaceComment(currentAnalysis.metrics.averageWpm) : 'Calculated from this recording'}</p>
+                </div>
+              </div>
+              <dl className="grid grid-cols-3 divide-x divide-[var(--line)]">
+                <div className="px-5 first:pl-0">
+                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Fillers</dt>
+                  <dd className="mt-2 font-display text-3xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.fillerCount : '—'}</dd>
+                  <p className="mt-2 text-xs leading-5 text-[var(--muted-ink)]">{currentAnalysis && currentAnalysis.metrics.wordCount ? `${((currentAnalysis.metrics.fillerCount / currentAnalysis.metrics.wordCount) * 100).toFixed(1)} per 100 words` : 'From the transcript'}</p>
+                </div>
+                <div className="px-5">
+                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Total words</dt>
+                  <dd className="mt-2 font-display text-3xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.wordCount : '—'}</dd>
+                  <p className="mt-2 text-xs leading-5 text-[var(--muted-ink)]">{currentAnalysis ? formatDuration(currentAnalysis.durationSeconds) : 'From the transcript'}</p>
+                </div>
+                <div className="px-5 last:pr-0">
+                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Distinct words</dt>
+                  <dd className="mt-2 font-display text-3xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.uniqueWordCount : '—'}</dd>
+                  <p className="mt-2 text-xs leading-5 text-[var(--muted-ink)]">Case-normalized</p>
+                </div>
+              </dl>
+            </div>
+          </section>
 
           <div className="mt-7 space-y-5">
-            <section className="rounded-2xl border border-[var(--line)] bg-white px-5 py-4">
-              <button
-                type="button"
-                aria-expanded={transcriptOpen}
-                aria-controls="answer-transcript"
-                onClick={() => setTranscriptOpen((current) => !current)}
-                className="flex w-full items-center justify-between text-sm font-semibold text-[var(--navy)]"
-              >
-                {transcriptOpen ? 'Hide transcript' : 'View transcript'}
-                <ChevronDown className={cn('size-4 text-[var(--muted-ink)] transition-transform', transcriptOpen && 'rotate-180')} />
-              </button>
-              {transcriptOpen && (
-                <p id="answer-transcript" className="mt-4 border-t border-[var(--line)] pt-4 text-[15px] leading-8 text-[#5f4f72]">
-                  {currentAnalysis?.transcript ?? 'Your transcript is unavailable.'}
-                </p>
-              )}
-            </section>
-
             {hasComparison && (
-              <div className="rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-4">
+              <div className="border-b border-[var(--line)] pb-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Compared with your last answer</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {resolvedCount > 0 && <span className="rounded-full bg-[#ede9fe] px-2.5 py-1 text-[11px] font-semibold text-[#5b21b6]">{resolvedCount} resolved</span>}
@@ -381,7 +447,7 @@ function StandardFeedbackWorkspace() {
                   return (
                     <article
                       key={item.id}
-                      className="mb-4 inline-block w-full break-inside-avoid rounded-2xl border border-[var(--line)] bg-white p-5 align-top"
+                      className="mb-2 inline-block w-full break-inside-avoid border-t border-[var(--line)] px-1 py-5 align-top"
                     >
                       <div className="text-left">
                         <FeedbackCoachingContent item={item} />

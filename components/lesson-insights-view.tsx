@@ -111,7 +111,7 @@ function FeedbackColumns({ strengths, improvements, emptyMessage }: { strengths:
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]"><p className="text-xs font-semibold text-[var(--muted-ink)]">{label}</p><p className="mt-3 font-display text-3xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{value}</p><p className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">{detail}</p></div>;
+  return <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]"><p className="text-xs font-semibold text-[var(--muted-ink)]">{label}</p><p className="mt-3 font-display text-3xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{value}</p><p className="mt-1 text-sm leading-6 text-[var(--muted-ink)]">{detail}</p></div>;
 }
 
 const interviewEvaluationDefinitions = [
@@ -160,7 +160,7 @@ function InterviewEvaluationCard({ question, item }: { question: string; item?: 
           )}
         </>
       ) : (
-        <p className="mt-4 text-sm leading-6 text-[var(--muted-ink)]">This evaluation was not available for the saved lesson.</p>
+        <p className="mt-4 text-base leading-7 text-[var(--muted-ink)]">This evaluation was not available for the saved lesson.</p>
       )}
     </article>
   );
@@ -242,7 +242,7 @@ function VocabularySizeCard({ vocabulary }: { vocabulary: GoalLessonInsight['voc
       <div className="min-w-0">
         <h3 id="vocabulary-size-title" className="text-sm font-semibold text-[var(--navy)]">Vocabulary size</h3>
         <p className="mt-2 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">+{vocabulary.vocabularySize.toLocaleString()}</p>
-        <p className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">Unique words used since your first session</p>
+        <p className="mt-1 text-sm leading-6 text-[var(--muted-ink)]">Unique words used since your first session</p>
       </div>
       <div className="w-48 shrink-0">
         <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full" aria-hidden="true">
@@ -270,7 +270,7 @@ function SpeakingSpeedInsights({ lesson }: { lesson: GoalLessonInsight }) {
       <section className="rounded-2xl border border-[var(--line)] bg-white p-6 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2"><Gauge className="size-5 text-[#6842d8]" /><h3 className="font-display text-lg font-semibold text-[var(--navy)]">How to read your pace</h3></div>
         <p className="mt-3 text-sm font-semibold leading-6 text-[var(--navy)]">{speakingSpeedSummary(fluency.averageWpm)}</p>
-        <p className="mt-1 text-sm leading-6 text-[var(--muted-ink)]">The 100–165 WPM band is a practical clarity reference for professional speech. It is guidance, not a score, and the best pace may vary with the complexity of your answer.</p>
+        <p className="mt-1 text-base leading-7 text-[var(--muted-ink)]">The 100–165 WPM band is a practical clarity reference for professional speech. It is guidance, not a score, and the best pace may vary with the complexity of your answer.</p>
         <div className="relative mt-6 h-3 rounded-full bg-[var(--warm)]"><div className="absolute bottom-0 top-0 rounded-full bg-[#d9d0f5]" style={{ left: '25%', width: '40.6%' }} />{fluency.averageWpm > 0 && <span className="absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#6842d8] shadow" style={{ left: `${pacePosition}%` }} />}</div>
         <div className="mt-2 flex justify-between text-[10px] text-[var(--muted-ink)]"><span>60 WPM</span><span>Clarity reference: 100–165 WPM</span><span>220 WPM</span></div>
       </section>

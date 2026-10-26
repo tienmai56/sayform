@@ -26,7 +26,7 @@ function PatternCard({ pattern, kind }: { pattern: SummaryPattern; kind: 'streng
         <div>
           <p className={`text-xs font-semibold uppercase tracking-[0.1em] ${strength ? 'text-[var(--teal-dark)]' : 'text-[#87601d]'}`}>{strength ? 'Recurring strength' : 'Primary opportunity'}</p>
           <h3 className="mt-1.5 text-base font-semibold text-[var(--navy)]">{pattern.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">{pattern.detail}</p>
+          <p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">{pattern.detail}</p>
           {pattern.evidence && <blockquote className="mt-3 border-l-2 border-[var(--mint)] pl-3 text-xs italic leading-5 text-[#6d5b7f]">“{pattern.evidence}”</blockquote>}
         </div>
       </div>
@@ -155,7 +155,7 @@ export function SessionSummaryView() {
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]"><CheckCircle2 className="size-4" /> Session complete</div>
               <h1 className="mt-4 font-display text-[38px] font-semibold tracking-[-0.045em]">{summary?.headline ?? 'Building your session summary…'}</h1>
-              <p className="mt-3 max-w-3xl text-[15px] leading-7 text-white/65">{summary?.summary ?? 'Combining your completed answers, metrics, and feedback patterns.'}</p>
+              <p className="mt-3 max-w-3xl text-base leading-7 text-white/65">{summary?.summary ?? 'Combining your completed answers, metrics, and feedback patterns.'}</p>
             </div>
             <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-right">
               <p className="text-[11px] uppercase tracking-[0.1em] text-white/45">Primary goal</p>
@@ -190,7 +190,7 @@ export function SessionSummaryView() {
               <div className="mt-6 space-y-4">
                 {summary.strengths.map((pattern) => <PatternCard key={`strength-${pattern.title}`} pattern={pattern} kind="strength" />)}
                 {summary.opportunities.map((pattern) => <PatternCard key={`opportunity-${pattern.title}`} pattern={pattern} kind="opportunity" />)}
-                <div className="rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-5"><p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Takeaway for your next session</p><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">{summary.takeaway}</p></div>
+                <div className="rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-5"><p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Takeaway for your next session</p><p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">{summary.takeaway}</p></div>
               </div>
             ) : (
               <div className="mt-6 grid min-h-64 place-items-center rounded-2xl border border-dashed border-[var(--line)] text-sm text-[var(--muted-ink)]">{saveState === 'error' ? 'The summary could not be completed. Reload this page to try again.' : 'Reviewing saved feedback patterns…'}</div>
@@ -209,11 +209,11 @@ export function SessionSummaryView() {
               {exercise ? (
                 <>
                   <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Why this exercise</p>
-                  <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">{exercise.selectionReason}</p>
+                  <p className="mt-3 text-base leading-7 text-[var(--muted-ink)]">{exercise.selectionReason}</p>
                   <div className="mt-4 rounded-xl bg-[var(--canvas)] p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Evidence from your session</p><p className="mt-2 text-sm font-medium leading-6 text-[var(--ink)]">“{exercise.sourceEvidence}”</p></div>
-                  <div className="mt-4 rounded-xl border border-[var(--line)] p-4"><p className="flex items-center gap-2 text-xs font-semibold text-[var(--navy)]"><Target className="size-4 text-[var(--teal)]" />What you’ll practise</p><p className="mt-2 text-sm leading-6 text-[#6d5b7f]">{exercise.targetBehavior}</p><ul className="mt-3 space-y-1.5">{exercise.instructions.map((instruction) => <li key={instruction} className="flex gap-2 text-xs leading-5 text-[var(--muted-ink)]"><span className="text-[var(--teal)]">•</span>{instruction}</li>)}</ul></div>
+                  <div className="mt-4 rounded-xl border border-[var(--line)] p-4"><p className="flex items-center gap-2 text-xs font-semibold text-[var(--navy)]"><Target className="size-4 text-[var(--teal)]" />What you’ll practise</p><p className="mt-2 text-base leading-7 text-[#6d5b7f]">{exercise.targetBehavior}</p><ul className="mt-3 space-y-1.5">{exercise.instructions.map((instruction) => <li key={instruction} className="flex gap-2 text-xs leading-5 text-[var(--muted-ink)]"><span className="text-[var(--teal)]">•</span>{instruction}</li>)}</ul></div>
                 </>
-              ) : <div className="grid min-h-48 place-items-center text-center text-sm leading-6 text-[var(--muted-ink)]">Finish saving the session to reveal its evidence-linked exercise.</div>}
+              ) : <div className="grid min-h-48 place-items-center text-center text-base leading-7 text-[var(--muted-ink)]">Finish saving the session to reveal its evidence-linked exercise.</div>}
 
               <Button disabled={!exercise || saveState !== 'saved'} onClick={() => void startExercise()} className="mt-5 h-11 w-full rounded-xl bg-[var(--navy)] hover:bg-[#4c1d95]">Practice this skill <ArrowRight className="ml-1 size-4" /></Button>
               <button onClick={() => void finishSession()} className="mt-3 w-full py-2 text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">Finish session</button>

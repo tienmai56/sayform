@@ -195,33 +195,163 @@ function buildSpeakingChartData(activity: GoalDashboard['speakingActivity'], mod
   return buckets;
 }
 
-function summarizeFeedback(items: DashboardFeedbackItem[], fallback: string) {
-  const newestFirst = [...items].sort((first, second) => second.createdAt.localeCompare(first.createdAt));
-  const latestByDimension = new Map<DashboardFeedbackItem['dimension'], DashboardFeedbackItem>();
-  for (const item of newestFirst) {
-    if (!latestByDimension.has(item.dimension)) latestByDimension.set(item.dimension, item);
+type CoachingPattern = {
+  id: string;
+  kind: 'focus' | 'strength';
+  title: string;
+  detail: string;
+  meta: string;
+  priority: number;
+};
+
+function cleanPatternCopy(value: string) {
+  const cleaned = value
+    .replace(/^\s*(?:yes|partially|no)\s*[—–:-]\s*/i, '')
+    .replace(/\bthe candidate\b/gi, 'you')
+    .replace(/\bthe speaker\b/gi, 'you')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned ? `${cleaned[0].toLocaleUpperCase()}${cleaned.slice(1)}` : '';
+}
+
+function feedbackPatternTitle(item: DashboardFeedbackItem) {
+  const skill = item.skill?.trim().toLocaleLowerCase() ?? '';
+  if (skill === 'answer the actual question') return item.positive ? 'You answer the question directly' : 'Answers do not always address the full question';
+  if (skill === 'make the reasoning easy to follow') return item.positive ? 'Your reasoning is easy to follow' : 'Reasoning is not always easy to follow';
+  if (skill === 'provide a clear conclusion') return item.positive ? 'You close with a clear conclusion' : 'Conclusions are not consistently clear';
+  if (item.dimension === 'Vocabulary') return item.positive ? 'Your word choice is precise and credible' : 'Terminology is not always precise or consistent';
+  if (item.dimension === 'Sentence structure') return item.positive ? 'Your sentence structure supports clarity' : 'Sentence structure sometimes obscures the main point';
+  if (item.dimension === 'Critical thinking') return item.positive ? 'Your reasoning is well supported' : 'Reasoning needs a more explicit step-by-step structure';
+  if (item.dimension === 'Communication effectiveness') return item.positive ? 'Your answers communicate the main point clearly' : 'The main answer is not always stated early enough';
+  return item.positive ? 'A communication strength is emerging' : 'A communication pattern needs more consistency';
+}
+
+function feedbackPatternDetail(item: DashboardFeedbackItem, supportCount: number) {
+  const skill = item.skill?.trim().toLocaleLowerCase() ?? '';
+  if (skill === 'answer the actual question') return 'Recent coaching asks for a direct opening that covers every part of the prompt before adding supporting detail.';
+  if (skill === 'make the reasoning easy to follow') return 'The ideas are relevant, but the path from claim to evidence to conclusion is not always explicit.';
+  if (skill === 'provide a clear conclusion') return 'Answers need a firmer final verdict that connects the recommendation back to the evidence.';
+  if (item.dimension === 'Vocabulary') return 'Recent coaching flags vague or inconsistent terms. Define key language once and use it consistently throughout the answer.';
+  if (item.dimension === 'Sentence structure') return 'Shorter, more deliberate sentences would make the main claim and supporting evidence easier to separate.';
+  if (supportCount >= 2) {
+    const skillLabel = item.skill?.trim().toLocaleLowerCase() || item.dimension.toLocaleLowerCase();
+    return item.positive
+      ? `Recent coaching recognizes ${skillLabel} across multiple answers. Keep applying it consistently.`
+      : `Recent coaching flags ${skillLabel} across multiple answers. Make it a deliberate checkpoint in your next response.`;
   }
-  const current = [...latestByDimension.values()];
-  const earlierState = (item: DashboardFeedbackItem, positive: boolean) => {
-    const currentIndex = newestFirst.indexOf(item);
-    return newestFirst.slice(currentIndex + 1).find((candidate) => (
-      candidate.dimension === item.dimension && Boolean(candidate.positive) === positive
-    ));
-  };
-  const improvedStrength = current.find((item) => item.positive && earlierState(item, false));
-  const strength = improvedStrength ?? current.find((item) => item.positive);
-  const newFocus = current.find((item) => (
-    !item.positive
-    && (item.progressStatus === 'new' || Boolean(earlierState(item, true)))
-  ));
-  const improvement = newFocus ?? current.find((item) => !item.positive);
-  return {
-    strength: strength ? strength.explanation || strength.title : null,
-    strengthLabel: improvedStrength ? 'Improved' : 'Strength',
-    focus: improvement ? improvement.explanation || improvement.title : null,
-    focusLabel: newFocus ? 'New focus' : 'Focus',
-    fallback: strength || improvement ? null : fallback,
-  };
+  return cleanPatternCopy(item.explanation || item.title);
+}
+
+function buildCoachingPatterns(dashboard: GoalDashboard) {
+  const feedbackById = new Map<string, DashboardFeedbackItem>();
+  const feedbackSources = dashboard.lessons.flatMap((lesson) => [
+    ...lesson.communicationFeedback,
+    ...lesson.vocabulary.strengths,
+    ...lesson.vocabulary.improvements,
+    ...lesson.grammar.strengths,
+    ...lesson.grammar.improvements,
+    ...lesson.fluency.feedback,
+  ]);
+  feedbackSources.forEach((item) => feedbackById.set(item.id, item));
+
+  const groupedFeedback = new Map<string, { latest: DashboardFeedbackItem; answerIds: Set<string> }>();
+  const latestFeedbackState = new Map<string, boolean>();
+  const feedbackByRecency = [...feedbackById.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  for (const item of feedbackByRecency) {
+    const skill = item.skill?.trim().toLocaleLowerCase() || item.dimension.toLocaleLowerCase();
+    if (!latestFeedbackState.has(skill)) latestFeedbackState.set(skill, Boolean(item.positive));
+  }
+
+  for (const item of feedbackById.values()) {
+    const skill = item.skill?.trim().toLocaleLowerCase() || item.dimension.toLocaleLowerCase();
+    const key = `${item.positive ? 'strength' : 'focus'}:${skill}`;
+    const existing = groupedFeedback.get(key) ?? { latest: item, answerIds: new Set<string>() };
+    existing.answerIds.add(item.responseId ?? `session:${item.sessionId}`);
+    if (item.createdAt > existing.latest.createdAt) existing.latest = item;
+    groupedFeedback.set(key, existing);
+  }
+
+  const patterns: CoachingPattern[] = [];
+  const answerCount = dashboard.completedAnswerCount;
+  const pace = dashboard.fluency.averageWpm;
+  if (pace > 0 && pace < PACE_RANGE_START) {
+    patterns.push({
+      id: 'pace-slow',
+      kind: 'focus',
+      title: 'Your speaking pace trends slower than conversational',
+      detail: `Your average is ${pace} WPM. Build a little more momentum while keeping the structure and wording clear.`,
+      meta: `Across ${answerCount} ${answerCount === 1 ? 'answer' : 'answers'}`,
+      priority: 130,
+    });
+  } else if (pace > PACE_RANGE_END) {
+    patterns.push({
+      id: 'pace-fast',
+      kind: 'focus',
+      title: 'Your speaking pace trends faster than conversational',
+      detail: `Your average is ${pace} WPM. Add brief pauses between ideas so the evidence and conclusion have time to land.`,
+      meta: `Across ${answerCount} ${answerCount === 1 ? 'answer' : 'answers'}`,
+      priority: 130,
+    });
+  } else if (pace > 0 && answerCount >= 2) {
+    patterns.push({
+      id: 'pace-clear',
+      kind: 'strength',
+      title: 'Your speaking pace is clear and conversational',
+      detail: `Your ${pace} WPM average stays within the 100–165 WPM clarity reference.`,
+      meta: `Across ${answerCount} answers`,
+      priority: 55,
+    });
+  }
+
+  const commonFillers = dashboard.fluency.commonFillers.filter((item) => item.count > 0).slice(0, 3);
+  const topFiller = commonFillers[0];
+  if (topFiller && (topFiller.count >= 2 || dashboard.fluency.fillerRatePer100Words >= 1.5)) {
+    const fillerList = commonFillers.map((item) => `“${item.phrase}” (${item.count})`).join(', ');
+    patterns.push({
+      id: 'fillers',
+      kind: 'focus',
+      title: `“${topFiller.phrase}” is your most common filler`,
+      detail: `${fillerList} ${commonFillers.length === 1 ? 'appears' : 'appear'} most often, for an overall rate of ${dashboard.fluency.fillerRatePer100Words} per 100 words.`,
+      meta: `Across ${answerCount} ${answerCount === 1 ? 'answer' : 'answers'}`,
+      priority: 125,
+    });
+  }
+
+  const repeatedOpening = dashboard.fluency.repeatedOpenings[0];
+  if (repeatedOpening) {
+    patterns.push({
+      id: 'repeated-opening',
+      kind: 'focus',
+      title: 'Several answers begin in the same way',
+      detail: `The opening “${repeatedOpening.phrase}” appears ${repeatedOpening.count} times. Vary the opening and lead with the answer you want the interviewer to remember.`,
+      meta: `Across ${answerCount} ${answerCount === 1 ? 'answer' : 'answers'}`,
+      priority: 110,
+    });
+  }
+
+  const feedbackPatterns = [...groupedFeedback.entries()]
+    .map(([id, group]) => ({ id, ...group, supportCount: group.answerIds.size }))
+    .filter((group) => {
+      const skill = group.latest.skill?.trim().toLocaleLowerCase() || group.latest.dimension.toLocaleLowerCase();
+      return latestFeedbackState.get(skill) === Boolean(group.latest.positive);
+    })
+    .filter((group) => group.supportCount >= 2 || answerCount <= 1)
+    .filter((group) => !/pace|filler|hesitat|repeat|opening/i.test(`${group.latest.skill ?? ''} ${group.latest.title}`))
+    .map<CoachingPattern>((group) => ({
+      id: group.id,
+      kind: group.latest.positive ? 'strength' : 'focus',
+      title: feedbackPatternTitle(group.latest),
+      detail: feedbackPatternDetail(group.latest, group.supportCount),
+      meta: group.supportCount >= 2 ? `Seen in ${group.supportCount} answers` : 'Early signal',
+      priority: (group.latest.positive ? 45 : 80) + group.supportCount,
+    }));
+  patterns.push(...feedbackPatterns);
+
+  const focusPatterns = patterns.filter((pattern) => pattern.kind === 'focus').sort((a, b) => b.priority - a.priority);
+  const strengthPatterns = patterns.filter((pattern) => pattern.kind === 'strength').sort((a, b) => b.priority - a.priority);
+  const selected = focusPatterns.slice(0, 4);
+  if (selected.length < 4 && strengthPatterns[0]) selected.push(strengthPatterns[0]);
+  return selected.slice(0, 4);
 }
 
 function SpeakingChart({ activity }: { activity: GoalDashboard['speakingActivity'] }) {
@@ -268,39 +398,18 @@ function SpeakingChart({ activity }: { activity: GoalDashboard['speakingActivity
 }
 
 function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
-  const newestLessons = dashboard.lessons;
   const speedFeedback = speakingSpeedFeedback(dashboard.fluency.averageWpm);
-  const interviewFeedback = newestLessons.flatMap((lesson) => lesson.communicationFeedback);
-  const vocabularyFeedback = newestLessons.flatMap((lesson) => [...lesson.vocabulary.strengths, ...lesson.vocabulary.improvements]);
-  const grammarFeedback = newestLessons.flatMap((lesson) => [...lesson.grammar.strengths, ...lesson.grammar.improvements]);
-  const fluencyFeedback = newestLessons.flatMap((lesson) => lesson.fluency.feedback);
-  const summaries = [
-    {
-      label: 'Interview skills',
-      text: summarizeFeedback(interviewFeedback, 'Complete a lesson to receive feedback on how directly and convincingly you answer interview questions.'),
-    },
-    {
-      label: 'Vocabulary',
-      text: summarizeFeedback(vocabularyFeedback, 'No vocabulary pattern has been identified yet.'),
-    },
-    {
-      label: 'Grammar & sentence structure',
-      text: summarizeFeedback(grammarFeedback, 'No grammar or sentence-structure pattern has been identified yet.'),
-    },
-    {
-      label: 'Fluency',
-      text: summarizeFeedback(fluencyFeedback, dashboard.completedAnswerCount > 0
-        ? `Average pace: ${dashboard.fluency.averageWpm} WPM. ${dashboard.fluency.fillerCount} fillers across ${dashboard.completedAnswerCount} completed ${dashboard.completedAnswerCount === 1 ? 'answer' : 'answers'}.`
-        : 'Complete a lesson to establish your pace and filler baseline.'),
-    },
-  ];
+  const coachingPatterns = buildCoachingPatterns(dashboard);
+  const patternBasis = dashboard.completedAnswerCount === 1
+    ? 'Early signals from 1 answer'
+    : `Patterns across ${dashboard.completedAnswerCount} answers`;
 
   return (
     <section className="my-9 space-y-5 rounded-[30px] bg-[#f3f2ef] p-4 md:p-5">
       <section className="overflow-hidden rounded-3xl border border-[#e4e2dd] bg-white shadow-[0_10px_30px_rgba(19,45,59,0.07)]" aria-labelledby="progress-at-a-glance-title">
         <header className="px-6 pt-6 md:px-7 md:pt-7">
           <h2 id="progress-at-a-glance-title" className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">Your progress at a glance</h2>
-          <p className="mt-1 text-sm text-[var(--muted-ink)]">A combined view of your interview delivery and language feedback</p>
+          <p className="mt-1 text-base leading-7 text-[var(--muted-ink)]">A combined view of your interview delivery and language feedback</p>
         </header>
 
         <div className="mx-6 mt-6 bg-[#f7f6f3] px-5 py-4 md:mx-7">
@@ -319,7 +428,7 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
                 )}>{speedFeedback.label}</span>
               </div>
               <p className="mt-4 text-base font-semibold text-[var(--navy)]">{speedFeedback.title}</p>
-              <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--muted-ink)]">{speedFeedback.detail}</p>
+              <p className="mt-1 max-w-xl text-base leading-7 text-[var(--muted-ink)]">{speedFeedback.detail}</p>
               {dashboard.fluency.averageWpm > 0 && <p className="mt-3 text-xs text-[var(--muted-ink)]">Average across your recorded practice</p>}
             </div>
             <SpeakingSpeedGauge wordsPerMinute={dashboard.fluency.averageWpm} />
@@ -332,20 +441,33 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
       </section>
 
       <section className="rounded-3xl border border-[#e4e2dd] bg-white px-6 py-6 shadow-[0_10px_30px_rgba(19,45,59,0.07)] md:px-7 md:py-7" aria-labelledby="coaching-summary-title">
-          <h2 id="coaching-summary-title" className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">Coaching summary</h2>
-          <p className="mt-1 text-sm text-[var(--muted-ink)]">The strongest patterns across your recent interview answers</p>
-          <div className="mt-5 grid grid-cols-1 gap-x-10 md:grid-cols-2">
-            {summaries.map((summary) => (
-              <section key={summary.label} className="border-t border-[var(--line)] py-5" aria-labelledby={`summary-${summary.label.replace(/[^a-z]+/gi, '-').toLowerCase()}`}>
-                <h4 id={`summary-${summary.label.replace(/[^a-z]+/gi, '-').toLowerCase()}`} className="text-sm font-semibold text-[var(--navy)]">{summary.label}</h4>
-                <div className="mt-4 space-y-4 text-sm leading-6 text-[var(--ink)]">
-                  {summary.text.strength && <div className="grid grid-cols-[76px_minmax(0,1fr)] gap-3"><span className="pt-0.5 text-[10px] font-bold uppercase tracking-[0.09em] text-[#6842d8]">{summary.text.strengthLabel}</span><p>{summary.text.strength}</p></div>}
-                  {summary.text.focus && <div className="grid grid-cols-[76px_minmax(0,1fr)] gap-3"><span className="pt-0.5 text-[10px] font-bold uppercase tracking-[0.09em] text-[#946414]">{summary.text.focusLabel}</span><p>{summary.text.focus}</p></div>}
-                  {summary.text.fallback && <p className="text-[var(--muted-ink)]">{summary.text.fallback}</p>}
-                </div>
-              </section>
-            ))}
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <h2 id="coaching-summary-title" className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">Coaching summary</h2>
+            {dashboard.completedAnswerCount > 0 && <span className="text-xs font-medium text-[var(--muted-ink)]">{patternBasis}</span>}
           </div>
+          {coachingPatterns.length > 0 ? (
+            <ul className="mt-5 border-t border-[var(--line)]">
+              {coachingPatterns.map((pattern) => (
+                <li key={pattern.id} className="grid gap-3 border-b border-[var(--line)] py-5 last:border-b-0 md:grid-cols-[18px_minmax(0,1fr)_auto] md:gap-4">
+                  <span className={cn('mt-2 size-2.5 rounded-full', pattern.kind === 'strength' ? 'bg-[#6842d8]' : 'bg-[#d6a44f]')} aria-hidden="true" />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-semibold text-[var(--navy)]">{pattern.title}</h3>
+                      {pattern.kind === 'strength' && <span className="rounded-full bg-[#f0ecff] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.07em] text-[#6842d8]">Strength</span>}
+                    </div>
+                    <p className="mt-1.5 max-w-4xl text-base leading-7 text-[var(--muted-ink)]">{pattern.detail}</p>
+                  </div>
+                  <span className="text-xs font-medium text-[var(--muted-ink)] md:pt-1">{pattern.meta}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-5 border-t border-[var(--line)] pt-5 text-base leading-7 text-[var(--muted-ink)]">
+              {dashboard.completedAnswerCount > 0
+                ? 'No recurring pattern is strong enough yet. Complete another lesson and Sayform will keep looking across your feedback.'
+                : 'Complete a lesson to start identifying recurring interview patterns.'}
+            </p>
+          )}
       </section>
     </section>
   );
@@ -449,14 +571,14 @@ export function GoalsView() {
         {loading ? (
           <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-white text-sm text-[var(--muted-ink)]">Loading your dashboard…</div>
         ) : !activeGoal ? (
-          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-white text-center"><div><Target className="mx-auto size-8 text-[var(--teal)]" /><h2 className="mt-4 text-base font-semibold text-[var(--navy)]">No active goal</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">No practice goals are currently available.</p></div></div>
+          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-white text-center"><div><Target className="mx-auto size-8 text-[var(--teal)]" /><h2 className="mt-4 text-base font-semibold text-[var(--navy)]">No active goal</h2><p className="mt-1 text-base leading-7 text-[var(--muted-ink)]">No practice goals are currently available.</p></div></div>
         ) : (
           <>
             <section className="overflow-hidden rounded-3xl bg-[#6842d8] px-6 py-7 text-white md:px-8 md:py-8" aria-labelledby="active-goal-title">
               <div className="flex flex-col items-start justify-between gap-7 lg:flex-row lg:items-end">
                 <div className="max-w-3xl">
                   <h2 id="active-goal-title" className="font-display text-[34px] font-semibold tracking-[-0.04em] text-white">{activeGoal.title}</h2>
-                  {activeGoal.description && <p className="mt-3 text-[15px] leading-7 text-white/80">{activeGoal.description}</p>}
+                  {activeGoal.description && <p className="mt-3 text-base leading-7 text-white/80">{activeGoal.description}</p>}
                   <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/80">
                     <span><strong className="mr-1 font-display text-xl font-semibold text-white">{dashboard?.sessionCount ?? activeGoal.sessions}</strong> lessons</span>
                     <span><strong className="mr-1 font-display text-xl font-semibold text-white">{dashboard ? minutesLabel(dashboard.totalSpeakingSeconds).replace(' minutes', '') : '—'}</strong> minutes</span>
@@ -522,7 +644,7 @@ export function GoalsView() {
                       )}
                     </div>
                   ) : (
-                    <div className="mt-6 grid min-h-64 place-items-center rounded-2xl border border-dashed border-[#d9d0f5] bg-white px-8 text-center"><div className="max-w-md"><MessageSquareText className="mx-auto size-8 text-[#6842d8]" /><h3 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Your lesson insights will appear here</h3><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Complete a practice session to create your first lesson-level interview analysis.</p><Button onClick={() => startPractice(activeGoal)} className="mt-5 rounded-xl bg-[var(--navy)]">Practise this goal <ArrowRight className="ml-1 size-4" /></Button></div></div>
+                    <div className="mt-6 grid min-h-64 place-items-center rounded-2xl border border-dashed border-[#d9d0f5] bg-white px-8 text-center"><div className="max-w-md"><MessageSquareText className="mx-auto size-8 text-[#6842d8]" /><h3 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Your lesson insights will appear here</h3><p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">Complete a practice session to create your first lesson-level interview analysis.</p><Button onClick={() => startPractice(activeGoal)} className="mt-5 rounded-xl bg-[var(--navy)]">Practise this goal <ArrowRight className="ml-1 size-4" /></Button></div></div>
                   )}
                 </section>
               </>
@@ -540,7 +662,7 @@ export function GoalsView() {
                   {recommendedExercises.map((exercise) => (
                     <li key={exercise.id} className="flex min-w-0 flex-col py-4 first:pt-0 md:px-5 md:py-0 md:first:pl-0 md:last:pr-0">
                       <h3 className="font-display text-base font-semibold leading-6 text-[var(--navy)]">{exercise.title}</h3>
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted-ink)]">{exercise.targetBehavior}</p>
+                      <p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--muted-ink)]">{exercise.targetBehavior}</p>
                       <div className="mt-auto flex items-center justify-between gap-4 pt-3 text-xs">
                         <span className="text-[var(--muted-ink)]">{exercise.estimatedMinutes} min</span>
                         <button type="button" onClick={() => void startSavedExercise(exercise)} disabled={Boolean(startingExerciseId)} className="font-semibold text-[#6842d8] hover:underline disabled:opacity-50">{startingExerciseId === exercise.id ? 'Opening…' : 'Start →'}</button>
@@ -549,7 +671,7 @@ export function GoalsView() {
                   ))}
                 </ol>
               ) : (
-                <p className="mt-4 text-sm text-[var(--muted-ink)]">Complete a lesson and your next recommended exercise will appear here.</p>
+                <p className="mt-4 text-base leading-7 text-[var(--muted-ink)]">Complete a lesson and your next recommended exercise will appear here.</p>
               )}
             </section>
           </>

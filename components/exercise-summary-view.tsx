@@ -70,7 +70,7 @@ export function ExerciseSummaryView() {
         <Breadcrumbs items={[{ label: 'Exercises', href: '/exercises' }, { label: 'Exercise results' }]} />
         <div className="rounded-[30px] bg-[var(--navy)] px-9 py-8 text-white shadow-[var(--shadow-lg)]">
           <div className="flex items-start justify-between gap-8">
-            <div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]"><CheckCircle2 className="size-4" /> Targeted practice complete</div><h1 className="mt-4 font-display text-[38px] font-semibold tracking-[-0.045em]">You practised {activeExercise.targetSkill.toLocaleLowerCase()}</h1><p className="mt-3 max-w-3xl text-[15px] leading-7 text-white/65">{activeExercise.targetBehavior}</p></div>
+            <div><div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]"><CheckCircle2 className="size-4" /> Targeted practice complete</div><h1 className="mt-4 font-display text-[38px] font-semibold tracking-[-0.045em]">You practised {activeExercise.targetSkill.toLocaleLowerCase()}</h1><p className="mt-3 max-w-3xl text-base leading-7 text-white/65">{activeExercise.targetBehavior}</p></div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-right"><p className="text-[11px] uppercase tracking-[0.1em] text-white/45">Exercise</p><p className="mt-1 text-sm font-semibold">{activeExercise.title}</p></div>
           </div>
         </div>
@@ -80,18 +80,18 @@ export function ExerciseSummaryView() {
             <RefreshCw className="size-4" />
             Future focus
           </div>
-          <p className="mt-3 max-w-4xl text-[15px] leading-7 text-[var(--ink)]">{exerciseCompletion.recommendedNextPractice}</p>
+          <p className="mt-3 max-w-4xl text-base leading-7 text-[var(--ink)]">{exerciseCompletion.recommendedNextPractice}</p>
         </section>
 
         <div className="mt-6">
           <section className="rounded-3xl border border-[var(--line)] bg-[var(--paper)] p-7">
             <div className="flex items-center gap-2"><Dumbbell className="size-5 text-[var(--teal)]" /><h2 className="font-display text-xl font-semibold text-[var(--navy)]">Your attempts</h2></div>
             <div className="mt-5 space-y-3">{exerciseCompletion.guidedAttempts.map((attempt) => <AttemptRow key={attempt.id} attempt={attempt} />)}</div>
-            <div className="mt-6"><h3 className="text-sm font-semibold text-[var(--navy)]">Independent transfer</h3>{exerciseCompletion.transferTest ? <div className="mt-3"><AttemptRow attempt={exerciseCompletion.transferTest} /></div> : <div className="mt-3 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--canvas)] p-5"><p className="text-sm font-medium text-[var(--ink)]">Not tested</p><p className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">Your guided attempts were saved, but independent performance was not tested in this exercise.</p></div>}</div>
+            <div className="mt-6"><h3 className="text-sm font-semibold text-[var(--navy)]">Independent transfer</h3>{exerciseCompletion.transferTest ? <div className="mt-3"><AttemptRow attempt={exerciseCompletion.transferTest} /></div> : <div className="mt-3 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--canvas)] p-5"><p className="text-sm font-medium text-[var(--ink)]">Not tested</p><p className="mt-1 text-sm leading-6 text-[var(--muted-ink)]">Your guided attempts were saved, but independent performance was not tested in this exercise.</p></div>}</div>
           </section>
 
           <div className="mt-4 flex items-center justify-between gap-5 rounded-2xl border border-[var(--line)] bg-white p-4">
-            <div className="flex gap-2 text-xs leading-5 text-[var(--muted-ink)]"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--teal)]" />When you end the exercise, these results are removed. Sayform keeps only the learning signal needed to recommend your next exercise.</div>
+            <div className="flex gap-2 text-sm leading-6 text-[var(--muted-ink)]"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--teal)]" />When you end the exercise, these results are removed. Sayform keeps only the learning signal needed to recommend your next exercise.</div>
             <Button onClick={() => void finish()} disabled={ending} className="h-11 shrink-0 rounded-xl bg-[var(--navy)] px-6 hover:bg-[#4c1d95]">{ending ? 'Ending…' : 'End exercise'} <ArrowRight className="ml-1 size-4" /></Button>
           </div>
           {endError && <p role="alert" className="mt-3 text-right text-xs text-[#9a493c]">{endError}</p>}

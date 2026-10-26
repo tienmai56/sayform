@@ -178,7 +178,7 @@ export function ExerciseAttemptFeedback() {
               <div key={metric.label} className={cn('px-5 first:pl-0 last:pr-0', index > 0 && 'border-l border-[var(--line)]')}>
                 <dt className="text-xs font-medium text-[var(--muted-ink)]">{metric.label}</dt>
                 <dd className="mt-1 font-display text-xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{metric.value}</dd>
-                <dd className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">{metric.detail}</dd>
+                <dd className="mt-1 text-sm leading-6 text-[var(--muted-ink)]">{metric.detail}</dd>
               </div>
             ))}
           </dl>
@@ -208,7 +208,7 @@ export function ExerciseAttemptFeedback() {
             <div className="my-5 border-l-2 border-[#6842d8] bg-[#faf8ff] px-5 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Your next question</p>
               <p className="mt-2 text-sm font-medium leading-6 text-[var(--ink)]">{next.prompt}</p>
-              <p className="mt-2 text-xs leading-5 text-[var(--muted-ink)]">Use the specific rewrite above as a pattern, not a script.</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Use the specific rewrite above as a pattern, not a script.</p>
             </div>
           )}
           {next.stage === 'transfer' && (
