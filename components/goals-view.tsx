@@ -440,7 +440,7 @@ export function GoalsView() {
               </>
             )}
 
-            <section className="border-t border-[#e6def7] py-7" aria-labelledby="recommended-exercises-title">
+            <section className="py-7" aria-labelledby="recommended-exercises-title">
               <div className="flex items-center justify-between gap-6">
                 <h2 id="recommended-exercises-title" className="font-display text-xl font-semibold tracking-[-0.02em] text-[var(--navy)]">Recommended exercises</h2>
                 <Link href="/exercises" className="shrink-0 text-xs font-semibold text-[#6842d8] hover:underline">See all exercises</Link>
