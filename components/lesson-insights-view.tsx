@@ -6,16 +6,23 @@ import { AlertCircle, ArrowLeft, CheckCircle2, Gauge, MessageSquareText, Repeat2
 import { AppShell, Screen } from '@/components/app-shell';
 import type { DashboardFeedbackItem, GoalDashboard, GoalLessonInsight } from '@/lib/types';
 import { getGoalDashboard } from '@/lib/client-data';
-import { conciseOverallFeedback } from '@/lib/feedback-copy';
+import { conciseOverallFeedback, getInterviewEvaluation } from '@/lib/feedback-copy';
 import { cn } from '@/lib/utils';
 
-type InsightTab = 'interview' | 'vocabulary' | 'fluency' | 'grammar';
+type InsightTab = 'interview' | 'vocabulary' | 'speaking-speed' | 'fluency' | 'grammar';
 
 function minutesLabel(seconds: number) {
   const minutes = seconds / 60;
   if (minutes === 0) return '0 minutes';
   if (minutes < 10 && !Number.isInteger(minutes)) return `${minutes.toFixed(1)} minutes`;
   return `${Math.round(minutes)} minutes`;
+}
+
+function speakingSpeedSummary(wordsPerMinute: number) {
+  if (wordsPerMinute <= 0) return 'Complete a recorded answer to establish your speaking speed.';
+  if (wordsPerMinute < 100) return 'A little slow for an interview. Try speaking slightly faster while keeping your words clear.';
+  if (wordsPerMinute <= 165) return 'A clear, natural pace for most interview answers.';
+  return 'A little fast. Slow down slightly so your key points are easier to follow.';
 }
 
 type FeedbackGroup = {
@@ -45,12 +52,12 @@ function FeedbackGroupCard({ group, tone }: { group: FeedbackGroup; tone: 'posit
         {group.items.length > 1 && <span className="ml-auto rounded-full bg-[#f0ecff] px-2.5 py-1 text-[10px] font-semibold text-[#6842d8]">{group.items.length} examples</span>}
       </div>
 
-      <div className="mt-4 divide-y divide-[var(--line)]">
+      <div className="mt-4">
         {group.items.map((item, itemIndex) => {
           const corrections = (item.corrections ?? []).filter((correction) => correction.evidence.trim() && correction.suggestion.trim()).slice(0, 2);
           return (
-            <section key={item.id} className="py-5 first:pt-0 last:pb-0" aria-label={group.items.length > 1 ? `Example ${itemIndex + 1}` : undefined}>
-              {group.items.length > 1 && <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Example {itemIndex + 1}</p>}
+            <section key={item.id} className="py-6 first:pt-0 last:pb-0" aria-label={group.items.length > 1 ? `Example ${itemIndex + 1}` : undefined}>
+              {group.items.length > 1 && <h5 className="mb-4 font-display text-sm font-semibold text-[#6842d8]">Example {itemIndex + 1}</h5>}
               {corrections.length ? (
                 <div className="space-y-4">
                   {corrections.map((correction, correctionIndex) => (
@@ -114,20 +121,35 @@ const interviewEvaluationDefinitions = [
 ] as const;
 
 function InterviewEvaluationCard({ question, item }: { question: string; item?: DashboardFeedbackItem }) {
+  const evaluation = item ? getInterviewEvaluation(item) : null;
   return (
     <article className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
       <div className="flex items-start gap-3">
         <span className={cn(
           'mt-0.5 grid size-8 shrink-0 place-items-center rounded-full',
-          item?.positive ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--amber-soft)] text-[#8a621c]',
+          evaluation?.verdict === 'yes'
+            ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]'
+            : evaluation?.verdict === 'partially'
+              ? 'bg-[var(--amber-soft)] text-[#8a621c]'
+              : 'bg-[var(--rose-soft)] text-[#914435]',
         )}>
-          {item?.positive ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
+          {evaluation?.verdict === 'yes' ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
         </span>
         <h3 className="pt-1 text-sm font-semibold leading-5 text-[var(--navy)]">{question}</h3>
       </div>
-      {item ? (
+      {item && evaluation ? (
         <>
-          <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{item.explanation}</p>
+          <div className="mt-4">
+            <span className={cn(
+              'inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]',
+              evaluation.verdict === 'yes'
+                ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]'
+                : evaluation.verdict === 'partially'
+                  ? 'bg-[var(--amber-soft)] text-[#8a621c]'
+                  : 'bg-[var(--rose-soft)] text-[#914435]',
+            )}>{evaluation.label}</span>
+            <p className="mt-2 text-sm leading-6 text-[var(--ink)]">{evaluation.reason}</p>
+          </div>
           {item.evidence && (
             <div className="mt-4 border-t border-[var(--line)] pt-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Supporting evidence from your transcript</p>
@@ -178,7 +200,8 @@ function VocabularyInsights({ lesson }: { lesson: GoalLessonInsight }) {
   const vocabulary = lesson.vocabulary;
   return (
     <div className="space-y-7">
-      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Vocabulary</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Word use and word-choice feedback from this lesson only</p></div>
+      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Vocabulary</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Word choice from this lesson and vocabulary growth across your completed sessions</p></div>
+      <VocabularySizeCard vocabulary={vocabulary} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Total words spoken" value={vocabulary.totalWords.toLocaleString()} detail={`Across ${lesson.answerCount} ${lesson.answerCount === 1 ? 'answer' : 'answers'}`} />
         <Metric label="Distinct words used" value={vocabulary.uniqueWords.toLocaleString()} detail="Observed in this lesson" />
@@ -194,21 +217,75 @@ function VocabularyInsights({ lesson }: { lesson: GoalLessonInsight }) {
   );
 }
 
-function FluencyInsights({ lesson }: { lesson: GoalLessonInsight }) {
+function VocabularySizeCard({ vocabulary }: { vocabulary: GoalLessonInsight['vocabulary'] }) {
+  const width = 190;
+  const height = 74;
+  const padding = 7;
+  const baseline = height - padding;
+  const values = vocabulary.sizeHistory.map((point) => point.uniqueWords);
+  const maximum = Math.max(...values, 1);
+  const minimum = Math.min(...values, 0);
+  const range = Math.max(1, maximum - minimum);
+  const points = values.map((value, index) => ({
+    x: values.length === 1 ? width - padding : padding + (index / (values.length - 1)) * (width - padding * 2),
+    y: padding + ((maximum - value) / range) * (height - padding * 2),
+  }));
+  const displayPoints = points.length === 1
+    ? [{ x: padding, y: points[0].y }, points[0]]
+    : points;
+  const linePath = displayPoints.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+  const areaPath = `${linePath} L ${displayPoints.at(-1)?.x ?? width - padding} ${baseline} L ${displayPoints[0]?.x ?? padding} ${baseline} Z`;
+  const latestPoint = displayPoints.at(-1);
+
+  return (
+    <section className="flex max-w-xl items-center justify-between gap-7 rounded-2xl border border-[var(--line)] bg-white px-5 py-5 shadow-[var(--shadow-sm)]" aria-labelledby="vocabulary-size-title">
+      <div className="min-w-0">
+        <h3 id="vocabulary-size-title" className="text-sm font-semibold text-[var(--navy)]">Vocabulary size</h3>
+        <p className="mt-2 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">+{vocabulary.vocabularySize.toLocaleString()}</p>
+        <p className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">Unique words used since your first session</p>
+      </div>
+      <div className="w-48 shrink-0">
+        <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full" aria-hidden="true">
+          <path d={areaPath} fill="#eee8ff" />
+          <path d={linePath} fill="none" stroke="#6842d8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
+          {latestPoint && <circle cx={latestPoint.x} cy={latestPoint.y} r="4" fill="white" stroke="#6842d8" strokeWidth="2.5" />}
+        </svg>
+        <p className="sr-only">Vocabulary size is {vocabulary.vocabularySize} unique words across {vocabulary.sizeHistory.length} completed {vocabulary.sizeHistory.length === 1 ? 'session' : 'sessions'}.</p>
+      </div>
+    </section>
+  );
+}
+
+function SpeakingSpeedInsights({ lesson }: { lesson: GoalLessonInsight }) {
   const fluency = lesson.fluency;
   const pacePosition = Math.min(100, Math.max(0, ((fluency.averageWpm - 60) / 160) * 100));
+
+  return (
+    <div className="space-y-7">
+      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Speaking speed</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Your speaking pace across the recorded answers in this lesson</p></div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Metric label="Average speaking speed" value={fluency.averageWpm > 0 ? `${fluency.averageWpm} WPM` : '—'} detail="Weighted by recorded speaking time" />
+        <Metric label="Speaking time" value={minutesLabel(lesson.speakingSeconds)} detail="Recorded speech in this lesson" />
+      </div>
+      <section className="rounded-2xl border border-[var(--line)] bg-white p-6 shadow-[var(--shadow-sm)]">
+        <div className="flex items-center gap-2"><Gauge className="size-5 text-[#6842d8]" /><h3 className="font-display text-lg font-semibold text-[var(--navy)]">How to read your pace</h3></div>
+        <p className="mt-3 text-sm font-semibold leading-6 text-[var(--navy)]">{speakingSpeedSummary(fluency.averageWpm)}</p>
+        <p className="mt-1 text-sm leading-6 text-[var(--muted-ink)]">The 100–165 WPM band is a practical clarity reference for professional speech. It is guidance, not a score, and the best pace may vary with the complexity of your answer.</p>
+        <div className="relative mt-6 h-3 rounded-full bg-[var(--warm)]"><div className="absolute bottom-0 top-0 rounded-full bg-[#d9d0f5]" style={{ left: '25%', width: '40.6%' }} />{fluency.averageWpm > 0 && <span className="absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[#6842d8] shadow" style={{ left: `${pacePosition}%` }} />}</div>
+        <div className="mt-2 flex justify-between text-[10px] text-[var(--muted-ink)]"><span>60 WPM</span><span>Clarity reference: 100–165 WPM</span><span>220 WPM</span></div>
+      </section>
+    </div>
+  );
+}
+
+function FluencyInsights({ lesson }: { lesson: GoalLessonInsight }) {
+  const fluency = lesson.fluency;
   const strengths = fluency.feedback.filter((item) => item.positive);
   const improvements = fluency.feedback.filter((item) => !item.positive);
   return (
     <div className="space-y-7">
-      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Fluency</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Pace, fillers, repetition, and hesitation from this lesson only</p></div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Average pace" value={`${fluency.averageWpm} WPM`} detail="Weighted by recorded speaking time" /><Metric label="Filler words" value={fluency.fillerCount.toLocaleString()} detail="Across completed answers" /><Metric label="Filler rate" value={`${fluency.fillerRatePer100Words}`} detail="Fillers per 100 words" /><Metric label="Speaking time" value={minutesLabel(lesson.speakingSeconds)} detail="Recorded speech in this lesson" /></div>
-      <section className="rounded-2xl border border-[var(--line)] bg-white p-6 shadow-[var(--shadow-sm)]">
-        <div className="flex items-center gap-2"><Gauge className="size-5 text-[var(--teal)]" /><h3 className="font-display text-lg font-semibold text-[var(--navy)]">Speaking pace</h3></div>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">The 100–165 WPM band is a practical reference for clear professional speech, not a score.</p>
-        <div className="relative mt-6 h-3 rounded-full bg-[var(--warm)]"><div className="absolute bottom-0 top-0 rounded-full bg-[var(--mint)]" style={{ left: '25%', width: '40.6%' }} /><span className="absolute top-1/2 size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-[var(--navy)] shadow" style={{ left: `${pacePosition}%` }} /></div>
-        <div className="mt-2 flex justify-between text-[10px] text-[var(--muted-ink)]"><span>60 WPM</span><span>Reference: 100–165</span><span>220 WPM</span></div>
-      </section>
+      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Fluency</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Fillers, repetition, and hesitation from this lesson only</p></div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><Metric label="Filler words" value={fluency.fillerCount.toLocaleString()} detail="Across completed answers" /><Metric label="Filler rate" value={`${fluency.fillerRatePer100Words}`} detail="Fillers per 100 words" /></div>
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <section className="rounded-2xl border border-[var(--line)] bg-white p-5"><h3 className="flex items-center gap-2 font-display text-lg font-semibold text-[var(--navy)]"><MessageSquareText className="size-4 text-[var(--teal)]" />Common fillers</h3>{fluency.commonFillers.length ? <div className="mt-4 flex flex-wrap gap-2">{fluency.commonFillers.map((item) => <span key={item.phrase} className="rounded-full bg-[var(--amber-soft)] px-3 py-1.5 text-xs text-[#78581d]">{item.phrase} × {item.count}</span>)}</div> : <p className="mt-3 text-sm text-[var(--muted-ink)]">No filler expressions were detected.</p>}</section>
         <section className="rounded-2xl border border-[var(--line)] bg-white p-5"><h3 className="flex items-center gap-2 font-display text-lg font-semibold text-[var(--navy)]"><Repeat2 className="size-4 text-[var(--teal)]" />Repeated openings</h3>{fluency.repeatedOpenings.length ? <div className="mt-4 space-y-2">{fluency.repeatedOpenings.map((item) => <div key={item.phrase} className="flex items-center justify-between rounded-xl bg-[var(--canvas)] px-3 py-2 text-xs"><span>“{item.phrase}…”</span><span className="text-[var(--muted-ink)]">{item.count} times</span></div>)}</div> : <p className="mt-3 text-sm text-[var(--muted-ink)]">No repeated answer openings were detected.</p>}</section>
@@ -257,13 +334,14 @@ export function LessonInsightsView({ goalId, lessonId }: { goalId: string; lesso
             <header className="mt-8 border-b border-[var(--line)] pb-8">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Lesson insights</p>
               <h1 className="mt-3 max-w-4xl font-display text-4xl font-semibold leading-tight tracking-[-0.04em] text-[var(--navy)]">{lesson.title}</h1>
-              <p className="mt-3 text-sm text-[var(--muted-ink)]">{new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(lesson.completedAt))} · {lesson.answerCount} {lesson.answerCount === 1 ? 'answer' : 'answers'} · {minutesLabel(lesson.speakingSeconds)} of recorded speech</p>
+              <p className="mt-3 text-sm text-[var(--muted-ink)]">{new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(lesson.completedAt))} · {lesson.answerCount} {lesson.answerCount === 1 ? 'answer' : 'answers'} · {minutesLabel(lesson.speakingSeconds)} of recorded speech · {lesson.fluency.averageWpm > 0 ? `${lesson.fluency.averageWpm} WPM` : 'Speaking speed unavailable'}</p>
             </header>
 
             <div className="flex items-center gap-8 overflow-x-auto border-b border-[var(--line)]" role="tablist" aria-label="Lesson evaluation dimensions">
               {([
                 ['interview', 'Interview coaching'],
                 ['vocabulary', 'Vocabulary'],
+                ['speaking-speed', 'Speaking speed'],
                 ['fluency', 'Fluency'],
                 ['grammar', 'Grammar & sentence structure'],
               ] as const).map(([value, label]) => (
@@ -272,7 +350,11 @@ export function LessonInsightsView({ goalId, lessonId }: { goalId: string; lesso
             </div>
 
             <main className="py-9">
-              {tab === 'interview' ? <InterviewCoaching lesson={lesson} /> : tab === 'vocabulary' ? <VocabularyInsights lesson={lesson} /> : tab === 'fluency' ? <FluencyInsights lesson={lesson} /> : <GrammarInsights lesson={lesson} />}
+              {tab === 'interview' && <InterviewCoaching lesson={lesson} />}
+              {tab === 'vocabulary' && <VocabularyInsights lesson={lesson} />}
+              {tab === 'speaking-speed' && <SpeakingSpeedInsights lesson={lesson} />}
+              {tab === 'fluency' && <FluencyInsights lesson={lesson} />}
+              {tab === 'grammar' && <GrammarInsights lesson={lesson} />}
             </main>
           </>
         )}

@@ -25,12 +25,20 @@ import { usePractice } from '@/components/practice-context';
 import { getResponseAnalysisProgress, rateFeedback } from '@/lib/client-data';
 import { ExerciseAttemptFeedback } from '@/components/exercise-attempt-feedback';
 import { FeedbackCoachingContent } from '@/components/feedback-coaching-content';
+import { FeedbackProgressSteps } from '@/components/feedback-progress-steps';
+import { getInterviewEvaluation } from '@/lib/feedback-copy';
 import type { FeedbackDimension, FeedbackItem, ResponseAnalysisProgress } from '@/lib/types';
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return minutes ? `${minutes} min ${seconds} sec` : `${seconds} sec`;
+}
+
+function speakingPaceComment(wordsPerMinute: number) {
+  if (wordsPerMinute < 100) return 'Below the 100–165 WPM clarity reference. Try speaking slightly faster while keeping your words clear.';
+  if (wordsPerMinute <= 165) return 'Within the 100–165 WPM clarity reference—a clear, natural pace for most interviews.';
+  return 'Above the 100–165 WPM clarity reference. Slow down slightly so your key points have time to land.';
 }
 
 const interviewCheckDefinitions: Array<{
@@ -50,16 +58,27 @@ function InterviewAnswerCheck({ feedback }: { feedback: FeedbackItem[] }) {
       <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3">
         {interviewCheckDefinitions.map((definition) => {
           const item = feedback.find((candidate) => candidate.dimension === definition.dimension);
-          const passed = Boolean(item?.positive);
+          const evaluation = item ? getInterviewEvaluation(item) : null;
           return (
             <article key={definition.dimension} className="rounded-2xl border border-[var(--line)] bg-white p-4">
               <div className="flex items-start gap-2.5">
-                <span className={`mt-0.5 grid size-7 shrink-0 place-items-center rounded-full ${passed ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--amber-soft)] text-[#8a621c]'}`}>
-                  {passed ? <CheckCircle2 className="size-3.5" /> : <AlertCircle className="size-3.5" />}
+                <span className={cn(
+                  'mt-0.5 grid size-7 shrink-0 place-items-center rounded-full',
+                  evaluation?.verdict === 'yes'
+                    ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]'
+                    : evaluation?.verdict === 'partially'
+                      ? 'bg-[var(--amber-soft)] text-[#8a621c]'
+                      : 'bg-[var(--rose-soft)] text-[#914435]',
+                )}>
+                  {evaluation?.verdict === 'yes' ? <CheckCircle2 className="size-3.5" /> : <AlertCircle className="size-3.5" />}
                 </span>
                 <p className="pt-1 text-xs font-semibold leading-5 text-[var(--navy)]">{definition.question}</p>
               </div>
-              <p className="mt-3 text-xs leading-5 text-[var(--ink)]">{item?.explanation ?? 'This check could not be evaluated from the transcript.'}</p>
+              {evaluation ? (
+                <p className="mt-3 text-xs leading-5 text-[var(--ink)]"><span className="font-bold">{evaluation.label}.</span> {evaluation.reason}</p>
+              ) : (
+                <p className="mt-3 text-xs leading-5 text-[var(--muted-ink)]">This check could not be evaluated from the transcript.</p>
+              )}
             </article>
           );
         })}
@@ -96,7 +115,7 @@ function StandardFeedbackWorkspace() {
     updateSetup,
   } = usePractice();
   const [fullScreen, setFullScreen] = useState(false);
-  const [selectedId, setSelectedId] = useState('');
+  const [recordingOpen, setRecordingOpen] = useState(false);
   const [ratings, setRatings] = useState<Record<string, 'helpful' | 'unhelpful'>>({});
   const [pendingDismiss, setPendingDismiss] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -116,9 +135,6 @@ function StandardFeedbackWorkspace() {
     () => [...activeFeedback].sort((first, second) => Number(Boolean(second.positive)) - Number(Boolean(first.positive))),
     [activeFeedback],
   );
-  const effectiveSelectedId = activeFeedback.some((item) => item.id === selectedId)
-    ? selectedId
-    : orderedFeedback[0]?.id ?? '';
   const resolvedCount = activeFeedback.filter((item) => item.progressStatus === 'resolved').length;
   const continuingCount = activeFeedback.filter((item) => item.progressStatus === 'still_happening').length;
   const newIssueCount = activeFeedback.filter((item) => item.progressStatus === 'new' && !item.positive).length;
@@ -137,7 +153,10 @@ function StandardFeedbackWorkspace() {
         if (cancelled) return;
         setAnalysisPreview(progress);
         if (progress.analysis) {
-          completeResponse(responseId, progress.feedbackIds ?? {}, progress.analysis);
+          const analysis = progress.analysis;
+          timer = setTimeout(() => {
+            if (!cancelled) completeResponse(responseId, progress.feedbackIds ?? {}, analysis);
+          }, 800);
           return;
         }
         if (progress.stage === 'failed') {
@@ -181,8 +200,6 @@ function StandardFeedbackWorkspace() {
   function dismissSuggestion(id: string) {
     setDismissed((current) => [...current, id]);
     setPendingDismiss(null);
-    const next = activeFeedback.find((item) => item.id !== id);
-    if (next) setSelectedId(next.id);
     void rateFeedback(feedbackIds[id], { rating: 'unhelpful', note, dismissed: true });
   }
 
@@ -239,14 +256,22 @@ function StandardFeedbackWorkspace() {
             </div>
             <p className="mt-1 text-xs text-[var(--muted-ink)]">{activeExercise ? `Focused on ${activeExercise.targetSkill}` : goalSkills.length ? `Evaluated across all ${goalSkills.length} goal skills, based only on this response` : 'Evaluated across all coaching dimensions, based only on this response'}</p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => setFullScreen((current) => !current)}
-            className="rounded-xl bg-white"
-          >
-            {fullScreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-            {fullScreen ? 'Return to split screen' : 'View full screen'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {!fullScreen && (
+              <Button variant="outline" onClick={() => setRecordingOpen((current) => !current)} className="rounded-xl bg-white">
+                <Play className="size-4" />
+                {recordingOpen ? 'Hide recording' : 'View recording'}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setFullScreen((current) => !current)}
+              className="rounded-xl bg-white"
+            >
+              {fullScreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+              {fullScreen ? 'Return to feedback page' : 'View full screen'}
+            </Button>
+          </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
@@ -266,25 +291,14 @@ function StandardFeedbackWorkspace() {
                     <h3 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Preparing your personalized feedback</h3>
                     <p className="mt-2 text-sm text-[var(--muted-ink)]">You can stay here while each stage appears as soon as it is ready.</p>
                   </div>
-                  <div className="mt-6 grid grid-cols-3 gap-2">
-                    {([
-                      ['transcribing', 'Transcribing'],
-                      ['analyzing', 'Evaluating'],
-                      ['completed', 'Finalizing'],
-                    ] as const).map(([stage, label], index) => {
-                      const stageOrder = { queued: 0, transcribing: 0, analyzing: 1, completed: 2, failed: 0 } as const;
-                      const currentStage = analysisPreview?.stage ?? (analysisStatus === 'idle' ? 'queued' : analysisStatus);
-                      const reached = stageOrder[currentStage] >= index;
-                      return <div key={stage} className={cn('rounded-xl border px-3 py-3 text-center text-xs font-semibold', reached ? 'border-[var(--mint)] bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'border-[var(--line)] bg-white text-[var(--muted-ink)]')}>{label}</div>;
-                    })}
-                  </div>
+                  <FeedbackProgressSteps stage={analysisPreview?.stage ?? (analysisStatus === 'idle' ? 'queued' : analysisStatus)} />
                   {analysisPreview?.transcript && (
                     <div className="mt-6 rounded-2xl border border-[var(--line)] bg-white p-5 text-left">
                       <div className="flex items-center justify-between gap-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Transcript ready</p>
                         {analysisPreview.metrics && <span className="text-xs text-[var(--muted-ink)]">{analysisPreview.metrics.wordCount} words · {analysisPreview.metrics.averageWpm} WPM</span>}
                       </div>
-                      <p className="mt-3 line-clamp-5 text-sm leading-7 text-[#52666e]">{analysisPreview.transcript}</p>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#52666e]">{analysisPreview.transcript}</p>
                     </div>
                   )}
                 </>
@@ -317,7 +331,7 @@ function StandardFeedbackWorkspace() {
           )}
           {!activeExercise && isInterview && <InterviewAnswerCheck feedback={activeFeedback} />}
           <div className="grid grid-cols-4 gap-3">
-            <MetricCard label="Average pace" value={currentAnalysis ? `${currentAnalysis.metrics.averageWpm} WPM` : '—'} detail="Calculated from this recording" />
+            <MetricCard label="Average pace" value={currentAnalysis ? `${currentAnalysis.metrics.averageWpm} WPM` : '—'} detail={currentAnalysis ? speakingPaceComment(currentAnalysis.metrics.averageWpm) : 'Calculated from this recording'} />
             <MetricCard
               label="Fillers"
               value={currentAnalysis ? String(currentAnalysis.metrics.fillerCount) : '—'}
@@ -360,27 +374,18 @@ function StandardFeedbackWorkspace() {
             )}
 
             <section aria-labelledby="coaching-feedback-title">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 id="coaching-feedback-title" className="text-sm font-semibold text-[var(--navy)]">Coaching feedback</h3>
-                <div className="flex items-center gap-4 text-[11px] font-medium text-[var(--muted-ink)]" aria-label="Feedback types">
-                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#55a887]" />What worked</span>
-                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#d19a29]" />Needs focus</span>
-                </div>
-              </div>
+              <h3 id="coaching-feedback-title" className="text-sm font-semibold text-[var(--navy)]">Coaching feedback</h3>
 
-              <div className="mt-3 grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="mt-3 columns-1 xl:columns-2 xl:gap-4">
                 {orderedFeedback.map((item) => {
                   return (
                     <article
                       key={item.id}
-                      className={cn(
-                        'flex h-full flex-col rounded-2xl border bg-white p-5 transition-all',
-                        effectiveSelectedId === item.id ? 'border-[var(--teal)] shadow-[0_0_0_3px_rgb(22_127_118/8%)]' : 'border-[var(--line)]',
-                      )}
+                      className="mb-4 inline-block w-full break-inside-avoid rounded-2xl border border-[var(--line)] bg-white p-5 align-top"
                     >
-                      <button onClick={() => setSelectedId(item.id)} className="flex-1 text-left">
+                      <div className="text-left">
                         <FeedbackCoachingContent item={item} />
-                      </button>
+                      </div>
 
                       {pendingDismiss === item.id ? (
                         <div className="mt-4 border-t border-[var(--line)] pt-4">
@@ -452,8 +457,8 @@ function StandardFeedbackWorkspace() {
           <span className="shrink-0 rounded-full bg-[var(--mint-soft)] px-3 py-1.5 text-xs font-medium text-[var(--teal-dark)]">{activeExercise ? `Skill · ${activeExercise.targetSkill}` : `Goal · ${goalTitle}`}</span>
         </div>
 
-        <div className="grid h-[calc(100vh-190px)] min-h-[720px] grid-cols-[minmax(420px,0.72fr)_minmax(620px,1.28fr)] gap-5">
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-[#243e49] bg-[#102630] shadow-[var(--shadow-sm)]">
+        <div className={cn('grid h-[calc(100vh-190px)] min-h-[720px] gap-5', recordingOpen ? 'grid-cols-[minmax(380px,0.62fr)_minmax(620px,1.38fr)]' : 'grid-cols-1')}>
+          {recordingOpen && <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-[#243e49] bg-[#102630] shadow-[var(--shadow-sm)]">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-white">
               <div className="flex items-center gap-2"><Play className="size-4 text-[var(--mint)]" /><span className="text-sm font-semibold">Your recording</span></div>
               <span className="text-xs text-white/45">Paused · play when ready</span>
@@ -475,7 +480,7 @@ function StandardFeedbackWorkspace() {
             <div className="border-t border-white/10 px-5 py-4 text-xs leading-5 text-white/45">
               This recording remains only in the current feedback view. It is released when you continue.
             </div>
-          </section>
+          </section>}
 
           {report}
         </div>

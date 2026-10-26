@@ -24,6 +24,9 @@ export function getFeedbackCorrections(item: FeedbackItem) {
 
 export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
   const corrections = getFeedbackCorrections(item);
+  const normalizedDimension = item.dimension.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  const normalizedTitle = item.title.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  const showTitle = Boolean(normalizedTitle && normalizedTitle !== normalizedDimension);
   const progressLabel = item.progressStatus === 'resolved'
     ? 'Resolved'
     : item.progressStatus === 'still_happening'
@@ -48,8 +51,7 @@ export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
           )}>{progressLabel}</span>
         )}
       </div>
-      <h4 className="mt-3 text-sm font-semibold leading-5 text-[var(--navy)]">{item.title}</h4>
-      {item.skill && <p className="mt-1 text-[11px] font-medium text-[var(--teal-dark)]">Skill · {item.skill}</p>}
+      {showTitle && <h4 className="mt-3 text-sm font-semibold leading-5 text-[var(--navy)]">{item.title}</h4>}
 
       {corrections.length ? (
         <div className="mt-4 space-y-4">

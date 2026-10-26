@@ -12,9 +12,9 @@ import type { Goal, GoalExercise } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const exerciseStatusCopy: Record<GoalExercise['status'], { label: string; className: string }> = {
-  recommended: { label: 'Ready to practise', className: 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' },
+  recommended: { label: 'Ready to practise', className: 'bg-[#f0ecff] text-[#6842d8]' },
   in_progress: { label: 'In progress', className: 'bg-[#e7eef6] text-[#3e6078]' },
-  completed: { label: 'Completed', className: 'bg-[#dff2e9] text-[#286b55]' },
+  completed: { label: 'Completed', className: 'bg-[#f0ecff] text-[#6842d8]' },
   skipped: { label: 'Saved for later', className: 'bg-[var(--warm)] text-[var(--muted-ink)]' },
   abandoned: { label: 'Saved for later', className: 'bg-[var(--warm)] text-[var(--muted-ink)]' },
 };
@@ -76,7 +76,6 @@ export function ExercisesView() {
     <AppShell>
       <Screen wide>
         <PageHeader
-          eyebrow="Exercises"
           title="Personalized exercises"
           description={activeGoal ? `Practice recommendations created from your feedback for ${activeGoal.title.toLocaleLowerCase()}.` : 'Practice recommendations created from your personal feedback.'}
         />
@@ -101,13 +100,13 @@ export function ExercisesView() {
               return (
                 <article key={exercise.id} className="flex min-h-[330px] flex-col rounded-2xl border border-[var(--line)] bg-white p-6 shadow-[var(--shadow-sm)]">
                   <div className="flex items-start justify-between gap-4"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Dumbbell className="size-5" /></span><span className={cn('rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.07em]', status.className)}>{status.label}</span></div>
-                  <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Skill · {exercise.targetSkill}</p>
+                  <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#6842d8]">Skill · {exercise.targetSkill}</p>
                   <h2 className="mt-2 font-display text-xl font-semibold leading-7 text-[var(--navy)]">{exercise.title}</h2>
                   <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">{exercise.targetBehavior}</p>
                   <div className="mt-auto pt-5">
                     <div className="flex items-center justify-between border-t border-[var(--line)] pt-4 text-xs text-[var(--muted-ink)]"><span><Clock3 className="mr-1 inline size-3.5" />{exercise.estimatedMinutes} min</span><span>{date}</span></div>
                     <div className="mt-4 flex items-center justify-between gap-3">
-                      <Link href={`/history/${exercise.sessionId}`} className="text-xs font-semibold text-[var(--teal-dark)] hover:underline">View source lesson</Link>
+                      <Link href={`/history/${exercise.sessionId}`} className="text-xs font-semibold text-[#6842d8] hover:underline">View source lesson</Link>
                       <Button size="sm" disabled={Boolean(startingId)} onClick={() => void startSavedExercise(exercise)} className="rounded-xl bg-[var(--navy)] hover:bg-[#1d4255]">{startingId === exercise.id ? 'Opening…' : exercise.attemptCount ? 'Continue exercise' : 'Start exercise'} <ArrowRight className="ml-1 size-3.5" /></Button>
                     </div>
                   </div>

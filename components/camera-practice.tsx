@@ -69,11 +69,17 @@ function createRecorder(stream: MediaStream, mimeTypes: string[], options: Media
   return new MediaRecorder(stream, mimeType ? { ...options, mimeType } : options);
 }
 
+function recordedBlob(recorder: MediaRecorder | null, chunks: Blob[]) {
+  if (!chunks.length) return null;
+  const mimeType = recorder?.mimeType || chunks.find((chunk) => chunk.type)?.type || 'audio/webm';
+  return new Blob(chunks, { type: mimeType });
+}
+
 function stopRecorder(recorder: MediaRecorder | null, chunks: Blob[]) {
-  if (!recorder || recorder.state === 'inactive') return Promise.resolve<Blob | null>(null);
+  if (!recorder || recorder.state === 'inactive') return Promise.resolve(recordedBlob(recorder, chunks));
   return new Promise<Blob | null>((resolve) => {
     recorder.addEventListener('stop', () => {
-      resolve(chunks.length ? new Blob(chunks, { type: recorder.mimeType }) : null);
+      resolve(recordedBlob(recorder, chunks));
     }, { once: true });
     recorder.stop();
   });
@@ -114,6 +120,7 @@ export function CameraPractice() {
   const previewChunksRef = useRef<Blob[]>([]);
   const audioChunksRef = useRef<Blob[]>([]);
   const retryAudioRef = useRef<Blob | null>(null);
+  const finishInFlightRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const automaticMediaRequestRef = useRef(false);
   const [status, setStatus] = useState<PracticeStatus>('permission');
@@ -121,6 +128,7 @@ export function CameraPractice() {
   const [errorMessage, setErrorMessage] = useState('');
   const [demoMode, setDemoMode] = useState(false);
   const [errorKind, setErrorKind] = useState<'media' | 'save'>('media');
+  const [hasRetryAudio, setHasRetryAudio] = useState(false);
   const [starting, setStarting] = useState(false);
   const [setupError, setSetupError] = useState('');
   const practiceCategories = categories.length > 0 ? categories : ['spontaneous'];
@@ -256,6 +264,7 @@ export function CameraPractice() {
     previewChunksRef.current = [];
     audioChunksRef.current = [];
     retryAudioRef.current = null;
+    setHasRetryAudio(false);
     setElapsed(0);
 
     if (streamRef.current && typeof MediaRecorder !== 'undefined') {
@@ -294,7 +303,7 @@ export function CameraPractice() {
   }
 
   async function persistResponse(audio: Blob | null) {
-    if (!audio) throw new Error('A microphone recording is required for speech analysis.');
+    if (!audio) throw new Error('No usable microphone audio was captured. Record your response again.');
     if (activeExercise) {
       const progress = await submitExerciseAttempt({
         exerciseId: activeExercise.id,
@@ -326,6 +335,8 @@ export function CameraPractice() {
   }
 
   async function doneSpeaking() {
+    if (finishInFlightRef.current) return;
+    finishInFlightRef.current = true;
     stopTimer();
     setStatus('processing');
     try {
@@ -334,6 +345,7 @@ export function CameraPractice() {
         stopRecorder(audioRecorderRef.current, audioChunksRef.current),
       ]);
       retryAudioRef.current = audioBlob;
+      setHasRetryAudio(Boolean(audioBlob));
       if (activeExercise && audioBlob) setRecordingUrl(URL.createObjectURL(audioBlob));
       else if (previewBlob) setRecordingUrl(URL.createObjectURL(previewBlob));
       releaseCamera();
@@ -344,10 +356,14 @@ export function CameraPractice() {
       setErrorMessage(caught instanceof Error ? caught.message : 'This response could not be saved.');
       setDemoMode(true);
       setStatus('error');
+    } finally {
+      finishInFlightRef.current = false;
     }
   }
 
   async function retrySave() {
+    if (finishInFlightRef.current) return;
+    finishInFlightRef.current = true;
     setStatus('processing');
     try {
       await persistResponse(retryAudioRef.current);
@@ -355,6 +371,8 @@ export function CameraPractice() {
     } catch (caught) {
       setErrorMessage(caught instanceof Error ? caught.message : 'This response could not be saved.');
       setStatus('error');
+    } finally {
+      finishInFlightRef.current = false;
     }
   }
 
@@ -371,7 +389,12 @@ export function CameraPractice() {
       <div className="grid h-screen grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
         <section className="relative flex min-h-0 items-start justify-center overflow-hidden bg-[#0a1921] px-8 pb-20 pt-7">
           <div className="w-full max-w-[1120px]">
-            {!activeExercise && (
+            {activeExercise ? (
+              <section className="mb-4 border-b border-white/10 pb-4" aria-labelledby="exercise-prompt-title">
+                <p id="exercise-prompt-title" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--mint)]">Exercise prompt</p>
+                <p className="mt-2 max-w-5xl text-sm font-medium leading-6 text-white">{visiblePrompt}</p>
+              </section>
+            ) : (
               <section className="mb-4 border-b border-white/10 pb-4" aria-labelledby="prompt-editor-title">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -405,7 +428,7 @@ export function CameraPractice() {
               </section>
             )}
 
-            <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-[#152c37] ring-1 ring-white/10">
+            <div className="relative h-[calc(100vh-230px)] min-h-[420px] max-h-[700px] w-full overflow-hidden rounded-[20px] bg-[#152c37] ring-1 ring-white/10">
             {!activeExercise && <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />}
 
             {(status === 'permission' || status === 'requesting' || status === 'error' || demoMode) && (
@@ -434,8 +457,8 @@ export function CameraPractice() {
                       <h1 className="mt-6 font-display text-2xl font-semibold">Couldn’t save this response</h1>
                       <p className="mt-2 text-sm leading-6 text-white/60">{errorMessage}</p>
                       <div className="mt-6 flex justify-center gap-3">
-                        <Button onClick={() => void retrySave()} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">Try saving again</Button>
-                        <Button onClick={() => router.push('/practice/feedback')} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Continue without saving</Button>
+                        <Button onClick={hasRetryAudio ? () => void retrySave() : () => void enableAudioOnly()} className="bg-white text-[var(--navy)] hover:bg-[var(--mint-soft)]">{hasRetryAudio ? 'Try saving again' : 'Record again'}</Button>
+                        {!activeExercise && <Button onClick={() => router.push('/practice/feedback')} variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">Continue without saving</Button>}
                       </div>
                     </>
                   )}
@@ -458,10 +481,6 @@ export function CameraPractice() {
               </span>
             </div>
 
-            {activeExercise && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#07161d] via-[#07161d]/85 to-transparent px-6 pb-6 pt-16">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--mint)]">Exercise prompt</p>
-              <p className="mt-2 max-w-4xl font-display text-lg font-medium leading-7">{visiblePrompt}</p>
-            </div>}
             </div>
           </div>
 
@@ -501,8 +520,8 @@ export function CameraPractice() {
             <>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[var(--mint)]">{exerciseStage === 'transfer' ? 'Independent transfer test' : `Personalized exercise · Attempt ${exerciseAttemptNumber}`}</p>
-                <p className="mt-2 text-sm font-semibold text-white/80">{categoryTitle}</p>
-                <h2 className="mt-4 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise.title}</h2>
+                <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-0.03em]">{activeExercise.title}</h2>
+                <p className="mt-2 text-xs leading-5 text-white/55"><span className="font-semibold text-white/80">{categoryTitle}:</span> {activeExercise.targetBehavior}</p>
               </div>
               <div className="my-7 h-px bg-white/10" />
             </>
@@ -511,25 +530,22 @@ export function CameraPractice() {
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto pr-1">
             {activeExercise ? (
               <>
-                <div className="border-b border-white/10 pb-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--mint)]">Target skill</p>
-                  <p className="mt-2 text-sm font-semibold text-white/90">{activeExercise.targetSkill}</p>
-                  <p className="mt-2 text-xs leading-5 text-white/55">{activeExercise.targetBehavior}</p>
-                </div>
-                <div>
-                  <label htmlFor="exercise-reasoning" className="text-xs font-semibold text-white/75">Your reasoning</label>
-                  <p className="mt-2 text-[11px] leading-4 text-white/40">Outline the answer, evidence, and conclusion you want to communicate.</p>
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <label htmlFor="exercise-reasoning" className="font-display text-2xl font-semibold tracking-[-0.03em] text-white">Plan your reasoning</label>
+                  <p className="mt-2 text-xs leading-5 text-white/45">Map the direct answer, supporting logic, evidence, and conclusion you want to communicate.</p>
                   <Textarea
                     id="exercise-reasoning"
                     value={answerNotes}
                     onChange={(event) => updateSetup({ answerNotes: event.target.value })}
                     disabled={status === 'recording' || status === 'processing'}
                     maxLength={2000}
-                    placeholder={'Direct answer\n\n• Supporting reason\n• Evidence or example\n\nClear conclusion'}
-                    className="mt-4 min-h-40 resize-y rounded-none border-0 bg-transparent px-0 py-1 text-xs leading-5 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0 disabled:opacity-50"
+                    placeholder={'Direct answer\n\n• First reason\n• Second reason\n• Evidence or example\n\nClear conclusion'}
+                    className="mt-5 min-h-[360px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 py-1 text-sm leading-6 text-white shadow-none placeholder:text-white/30 focus-visible:ring-0 disabled:opacity-50"
                   />
-                  <p className="mt-2 text-[11px] leading-4 text-white/40">Private planning notes. They do not change the exercise prompt or appear in your coaching.</p>
-                  <p className="mt-2 text-[10px] text-white/35">Difficulty level {exerciseDifficultyLevel} of 3</p>
+                  <div className="mt-2 flex items-center justify-between gap-4 text-[11px] leading-4 text-white/40">
+                    <p>Private notes for this attempt. They aren’t saved or included in your coaching.</p>
+                    <p className="shrink-0">Difficulty {exerciseDifficultyLevel} of 3</p>
+                  </div>
                 </div>
                 {exerciseStage === 'transfer' && (
                   <div className="border-t border-white/10 pt-5">

@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   Clock3,
-  Gauge,
   MessageSquareText,
   Target,
 } from 'lucide-react';
@@ -39,11 +38,85 @@ function minutesLabel(seconds: number) {
   return `${Math.round(minutes)} minutes`;
 }
 
-function speakingSpeedSummary(wordsPerMinute: number) {
-  if (wordsPerMinute <= 0) return 'Complete a recorded answer to establish your speaking speed.';
-  if (wordsPerMinute < 100) return 'A little slow for an interview. Try speaking slightly faster while keeping your words clear.';
-  if (wordsPerMinute <= 165) return 'A clear, natural pace for most interview answers.';
-  return 'A little fast. Slow down slightly so your key points are easier to follow.';
+function speakingSpeedFeedback(wordsPerMinute: number) {
+  if (wordsPerMinute <= 0) {
+    return {
+      label: 'No pace data yet',
+      title: 'Your speaking pace will appear here',
+      detail: 'Complete a recorded answer and we’ll compare your average with the comfortable 100–165 WPM reference range.',
+    };
+  }
+  if (wordsPerMinute < 100) {
+    return {
+      label: 'Build momentum',
+      title: 'Give your answer a little more momentum',
+      detail: 'You’re below the comfortable range. Shorten longer pauses and move into your next sentence once the idea is clear.',
+    };
+  }
+  if (wordsPerMinute <= 165) {
+    return {
+      label: 'Comfortable range',
+      title: 'Your pace is clear and conversational',
+      detail: 'Keep this rhythm, and slow down briefly when you want an important point to stand out.',
+    };
+  }
+  return {
+    label: 'Add breathing room',
+    title: 'Make a little more room for your key points',
+    detail: 'You’re above the comfortable range. Add a short pause between ideas so each point has time to land.',
+  };
+}
+
+const PACE_MIN = 60;
+const PACE_MAX = 220;
+const PACE_RANGE_START = 100;
+const PACE_RANGE_END = 165;
+
+function paceGaugePoint(wordsPerMinute: number, radius = 76) {
+  const clampedPace = Math.min(PACE_MAX, Math.max(PACE_MIN, wordsPerMinute));
+  const angle = Math.PI - ((clampedPace - PACE_MIN) / (PACE_MAX - PACE_MIN)) * Math.PI;
+  return {
+    x: 110 + radius * Math.cos(angle),
+    y: 96 - radius * Math.sin(angle),
+  };
+}
+
+function paceGaugeArc(start: number, end: number) {
+  const startPoint = paceGaugePoint(start);
+  const endPoint = paceGaugePoint(end);
+  return `M ${startPoint.x} ${startPoint.y} A 76 76 0 0 1 ${endPoint.x} ${endPoint.y}`;
+}
+
+function SpeakingSpeedGauge({ wordsPerMinute }: { wordsPerMinute: number }) {
+  const marker = paceGaugePoint(wordsPerMinute);
+  const hasPace = wordsPerMinute > 0;
+
+  return (
+    <figure className="rounded-2xl border border-[#e4e2dd] bg-white px-4 pb-3 pt-4">
+      <svg
+        viewBox="0 0 220 108"
+        className="mx-auto block h-auto w-full max-w-[240px]"
+        aria-labelledby="speaking-speed-gauge-title"
+      >
+        <title id="speaking-speed-gauge-title">
+          {hasPace
+            ? `Speaking speed gauge. Your average is ${wordsPerMinute} words per minute. The comfortable reference range is 100 to 165 words per minute.`
+            : 'Speaking speed gauge. Complete a recorded answer to see your average. The comfortable reference range is 100 to 165 words per minute.'}
+        </title>
+        <path d={paceGaugeArc(PACE_MIN, 96)} fill="none" stroke="#e8e6e1" strokeLinecap="round" strokeWidth="17" />
+        <path d={paceGaugeArc(PACE_RANGE_START, PACE_RANGE_END)} fill="none" stroke="#43c6b5" strokeLinecap="round" strokeWidth="17" />
+        <path d={paceGaugeArc(169, PACE_MAX)} fill="none" stroke="#e8e6e1" strokeLinecap="round" strokeWidth="17" />
+        {hasPace && <circle cx={marker.x} cy={marker.y} r="6" fill="#132d3b" stroke="white" strokeWidth="3" />}
+        <text x="110" y="72" textAnchor="middle" fill="#6c7b80" fontFamily="var(--font-sans-ui)" fontSize="9" fontWeight="700" letterSpacing="0.08em">REFERENCE RANGE</text>
+        <text x="110" y="91" textAnchor="middle" fill="#132d3b" fontFamily="var(--font-display-ui)" fontSize="15" fontWeight="600">100–165 WPM</text>
+      </svg>
+      <figcaption className="-mt-1 grid grid-cols-3 text-[10px] font-semibold text-[var(--muted-ink)]">
+        <span>Slower</span>
+        <span className="text-center text-[var(--teal-dark)]">Comfortable</span>
+        <span className="text-right">Faster</span>
+      </figcaption>
+    </figure>
+  );
 }
 
 function compactMinutesLabel(seconds: number) {
@@ -196,6 +269,7 @@ function SpeakingChart({ activity }: { activity: GoalDashboard['speakingActivity
 
 function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
   const newestLessons = dashboard.lessons;
+  const speedFeedback = speakingSpeedFeedback(dashboard.fluency.averageWpm);
   const interviewFeedback = newestLessons.flatMap((lesson) => lesson.communicationFeedback);
   const vocabularyFeedback = newestLessons.flatMap((lesson) => [...lesson.vocabulary.strengths, ...lesson.vocabulary.improvements]);
   const grammarFeedback = newestLessons.flatMap((lesson) => [...lesson.grammar.strengths, ...lesson.grammar.improvements]);
@@ -222,28 +296,43 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
   ];
 
   return (
-    <section className="py-9">
-      <h2 className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">Your progress at a glance</h2>
-      <p className="mt-1 text-sm text-[var(--muted-ink)]">A combined view of your interview delivery and language feedback</p>
-      <div className="mt-6 flex flex-col gap-4 border-y border-[var(--line)] py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#f0ecff] text-[#6842d8]" aria-hidden="true"><Gauge className="size-5" /></span>
-          <div>
-            <p className="text-xs font-semibold text-[var(--muted-ink)]">Speaking speed</p>
-            <p className="mt-1 text-[var(--navy)]"><strong className="font-display text-3xl font-semibold tracking-[-0.03em]">{dashboard.fluency.averageWpm || '—'}</strong>{dashboard.fluency.averageWpm > 0 && <span className="ml-1.5 text-sm font-semibold">WPM</span>}</p>
+    <section className="my-9 space-y-5 rounded-[30px] bg-[#f3f2ef] p-4 md:p-5">
+      <section className="overflow-hidden rounded-3xl border border-[#e4e2dd] bg-white shadow-[0_10px_30px_rgba(19,45,59,0.07)]" aria-labelledby="progress-at-a-glance-title">
+        <header className="px-6 pt-6 md:px-7 md:pt-7">
+          <h2 id="progress-at-a-glance-title" className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">Your progress at a glance</h2>
+          <p className="mt-1 text-sm text-[var(--muted-ink)]">A combined view of your interview delivery and language feedback</p>
+        </header>
+
+        <div className="mx-6 mt-6 bg-[#f7f6f3] px-5 py-4 md:mx-7">
+          <h3 className="font-display text-lg font-semibold text-[var(--navy)]">Speaking speed</h3>
+          <div className="mt-5 grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_280px] md:gap-8">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <p className="shrink-0 text-[var(--navy)]"><strong className="font-display text-4xl font-semibold tracking-[-0.04em]">{dashboard.fluency.averageWpm || '—'}</strong>{dashboard.fluency.averageWpm > 0 && <span className="ml-1.5 text-sm font-semibold">WPM</span>}</p>
+                <span className={cn(
+                  'rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.06em]',
+                  dashboard.fluency.averageWpm <= 0
+                    ? 'bg-[#e8e6e1] text-[var(--muted-ink)]'
+                    : dashboard.fluency.averageWpm >= PACE_RANGE_START && dashboard.fluency.averageWpm <= PACE_RANGE_END
+                      ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]'
+                      : 'bg-[var(--amber-soft)] text-[#805c1e]',
+                )}>{speedFeedback.label}</span>
+              </div>
+              <p className="mt-4 text-base font-semibold text-[var(--navy)]">{speedFeedback.title}</p>
+              <p className="mt-1 max-w-xl text-sm leading-6 text-[var(--muted-ink)]">{speedFeedback.detail}</p>
+              {dashboard.fluency.averageWpm > 0 && <p className="mt-3 text-xs text-[var(--muted-ink)]">Average across your recorded practice</p>}
+            </div>
+            <SpeakingSpeedGauge wordsPerMinute={dashboard.fluency.averageWpm} />
           </div>
         </div>
-        <div className="sm:max-w-sm sm:text-right">
-          <p className="text-sm font-medium text-[var(--ink)]">{speakingSpeedSummary(dashboard.fluency.averageWpm)}</p>
-          <p className="mt-1 text-xs text-[var(--muted-ink)]">Average across your recorded practice</p>
+
+        <div className="px-6 pb-7 pt-7 md:px-7">
+          <SpeakingChart activity={dashboard.speakingActivity} />
         </div>
-      </div>
-      <div className="mt-8">
-        <div>
-            <SpeakingChart activity={dashboard.speakingActivity} />
-        </div>
-        <div className="mt-10">
-          <h3 className="font-display text-lg font-semibold text-[var(--navy)]">Coaching summary</h3>
+      </section>
+
+      <section className="rounded-3xl border border-[#e4e2dd] bg-white px-6 py-6 shadow-[0_10px_30px_rgba(19,45,59,0.07)] md:px-7 md:py-7" aria-labelledby="coaching-summary-title">
+          <h2 id="coaching-summary-title" className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">Coaching summary</h2>
           <p className="mt-1 text-sm text-[var(--muted-ink)]">The strongest patterns across your recent interview answers</p>
           <div className="mt-5 grid grid-cols-1 gap-x-10 md:grid-cols-2">
             {summaries.map((summary) => (
@@ -257,8 +346,7 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
               </section>
             ))}
           </div>
-        </div>
-      </div>
+      </section>
     </section>
   );
 }
@@ -411,7 +499,7 @@ export function GoalsView() {
                                 </div>
                                 <div className="min-w-0">
                                   <h3 className="font-display text-base font-semibold leading-6 text-[var(--navy)]">{lesson.title}</h3>
-                                  <p className="mt-1 text-xs text-[var(--muted-ink)]">{lesson.answerCount} {lesson.answerCount === 1 ? 'answer' : 'answers'} · {minutesLabel(lesson.speakingSeconds)}</p>
+                                  <p className="mt-1 text-xs text-[var(--muted-ink)]">{lesson.answerCount} {lesson.answerCount === 1 ? 'answer' : 'answers'} · {minutesLabel(lesson.speakingSeconds)} · {lesson.fluency.averageWpm > 0 ? `${lesson.fluency.averageWpm} WPM` : 'Speed unavailable'}</p>
                                 </div>
                                 <Button nativeButton={false} render={<Link href={`/goals/${dashboard.goalId}/lessons/${lesson.id}`} />} variant="outline" className="h-9 justify-self-start rounded-lg border-[var(--line)] bg-white px-3 text-xs text-[var(--navy)] hover:bg-[#f0ecff] md:justify-self-end">View insights <ArrowRight className="ml-1 size-3.5" /></Button>
                               </article>

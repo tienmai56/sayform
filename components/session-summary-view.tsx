@@ -35,18 +35,19 @@ function PatternCard({ pattern, kind }: { pattern: SummaryPattern; kind: 'streng
 }
 
 function InterviewCheckCard({ check }: { check: InterviewCheck }) {
+  const verdict = check.verdict ?? (check.passed ? 'yes' : 'no');
   return (
     <article className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
       <div className="flex items-start gap-3">
-        <span className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-full ${check.passed ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--amber-soft)] text-[#8a621c]'}`}>
-          {check.passed ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
+        <span className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-full ${verdict === 'yes' ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : verdict === 'partially' ? 'bg-[var(--amber-soft)] text-[#8a621c]' : 'bg-[var(--rose-soft)] text-[#914435]'}`}>
+          {verdict === 'yes' ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
         </span>
         <h3 className="pt-1 text-sm font-semibold leading-5 text-[var(--navy)]">{check.question}</h3>
       </div>
-      <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{check.detail}</p>
+      <p className="mt-4 text-sm leading-6 text-[var(--ink)]"><span className="font-bold">{verdict === 'yes' ? 'Yes' : verdict === 'partially' ? 'Partially' : 'No'}.</span> {check.detail}</p>
       {check.evidence && (
         <p className="mt-3 text-xs font-semibold leading-5 text-[var(--ink)]">
-          “{check.passed ? check.evidence : <mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{check.evidence}</mark>}”
+          “{verdict === 'yes' ? check.evidence : <mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{check.evidence}</mark>}”
         </p>
       )}
     </article>

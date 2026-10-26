@@ -87,6 +87,7 @@ export type InterviewCheck = {
   id: 'answer-relevance' | 'reasoning-clarity' | 'clear-conclusion';
   question: string;
   passed: boolean;
+  verdict?: 'yes' | 'partially' | 'no';
   detail: string;
   evidence?: string;
 };
@@ -267,6 +268,12 @@ export type GoalLessonInsight = {
   vocabulary: {
     totalWords: number;
     uniqueWords: number;
+    vocabularySize: number;
+    sizeHistory: Array<{
+      sessionId: string;
+      completedAt: string;
+      uniqueWords: number;
+    }>;
     newlyObservedWords: number | null;
     comparisonLabel: string | null;
     repeatedWords: Array<{ word: string; count: number }>;

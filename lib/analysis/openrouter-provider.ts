@@ -2,7 +2,7 @@ import 'server-only';
 
 import { z } from 'zod';
 import { exerciseTemplates, getExerciseTemplate } from '@/lib/exercise-library';
-import { conciseOverallFeedback } from '@/lib/feedback-copy';
+import { conciseOverallFeedback, ensureInterviewEvaluationExplanation } from '@/lib/feedback-copy';
 import type {
   ExerciseAssessment,
   ExerciseAttemptType,
@@ -501,6 +501,7 @@ async function reviewInterviewQuestionAlignment(input: {
       'A question asking for one or a single item is not answered by listing several options, steps, scenarios, or remediations. A question asking for a measurable signal is not answered by a general process; the rewrite must name one observable metric or signal and state how it would be used. A question asking what comes first must lead with that first choice.',
       'Always return a replacement. If the proposal is aligned, copy its substance without weakening it. If it is not aligned, repair the Communication effectiveness feedback so its title and explanation identify the missed question requirement and its correction is a concise, ready-to-say answer opening.',
       'Keep the replacement explanation to one synthesized sentence of no more than 32 words. Put actionable advice in the correction, not the explanation.',
+      'Begin the replacement explanation with exactly “Yes —”, “Partially —”, or “No —” to answer whether the candidate answered the actual question, then state the reason. Use Yes only when every explicit requirement is met, Partially when some are met, and No when the requested answer is absent or off target.',
       'Use only claims, concepts, and experience supported by the transcript. Do not invent personal outcomes or pretend the speaker supplied a number they did not give. When a necessary value is absent, use a clearly labeled placeholder instead of fabricating it.',
       'Every evidence value must be a short exact quote from the transcript. A corrective replacement needs one or two corrections. A positive replacement must have an empty corrections array.',
     ].join(' '),
@@ -577,7 +578,7 @@ export async function generateResponseFeedback(input: {
           ? 'For the Interview goal, make these three checks explicit and evaluate each against the exact question and the whole transcript: (1) Communication effectiveness must answer “Did the candidate answer the actual question?” and its skill must be exactly “Answer the actual question”; (2) Critical thinking must answer “Was the candidate’s reasoning easy to follow?” and its skill must be exactly “Make the reasoning easy to follow”; (3) Sentence structure must answer “Did the candidate provide a clear conclusion?” and its skill must be exactly “Provide a clear conclusion”. The Vocabulary item should still evaluate precise, credible word choice. The What worked item should identify the strongest transcript-grounded interview behavior. A conclusion must state a final answer, result, lesson, or takeaway rather than merely stop speaking.'
           : 'Use the active goal skills to make every observation relevant to the user’s communication goal.',
       isInterviewGoal
-        ? 'Before judging Communication effectiveness, decompose the exact interview question into all explicit answer constraints: requested answer type, requested number of items, priority or sequence such as “first”, scope, and whether the answer must be measurable, numeric, comparative, or conditional. Judge the transcript against every constraint. Topical relevance alone is not enough. Every Communication effectiveness correction must be a standalone, ready-to-say answer opening that fulfills those same constraints. If the question asks for one or a single item, name exactly one—not a list of steps, options, scenarios, or remediations. If it asks for a measurable signal, name an observable metric or signal and explain how it would be read. If it asks what comes first, lead with that first choice.'
+        ? 'Before judging Communication effectiveness, decompose the exact interview question into all explicit answer constraints: requested answer type, requested number of items, priority or sequence such as “first”, scope, and whether the answer must be measurable, numeric, comparative, or conditional. Judge the transcript against every constraint. Topical relevance alone is not enough. Every Communication effectiveness correction must be a standalone, ready-to-say answer opening that fulfills those same constraints. If the question asks for one or a single item, name exactly one—not a list of steps, options, scenarios, or remediations. If it asks for a measurable signal, name an observable metric or signal and explain how it would be read. If it asks what comes first, lead with that first choice. For Communication effectiveness, Critical thinking, and Sentence structure, begin the explanation with exactly “Yes —”, “Partially —”, or “No —” to directly answer its assigned interview check, then state why. Use Yes only when the criterion is fully met, Partially when it is demonstrated but incomplete or inconsistent, and No when it is absent. Keep positive true only for Yes.'
         : '',
       'Every evidence field must be a short exact quote copied verbatim from the transcript.',
       'Evidence must be specific to its evaluation dimension. Never reuse the same correction fragment for two corrections or across different dimensions; choose the dimension it most directly demonstrates and use different transcript evidence elsewhere.',
@@ -655,10 +656,18 @@ export async function generateResponseFeedback(input: {
       usedCorrectionEvidence.add(evidenceKey);
       corrections = [{ evidence, suggestion: item.corrections[0].suggestion }];
     }
+    const explanation = conciseOverallFeedback(item.explanation);
+    const evaluatedExplanation = isInterviewGoal && (
+      item.dimension === 'Communication effectiveness'
+      || item.dimension === 'Critical thinking'
+      || item.dimension === 'Sentence structure'
+    )
+      ? ensureInterviewEvaluationExplanation({ ...item, explanation })
+      : explanation;
     return {
       id: `feedback-${index}-${item.dimension.toLocaleLowerCase().replace(/[^a-z]+/g, '-')}`,
       ...item,
-      explanation: conciseOverallFeedback(item.explanation),
+      explanation: evaluatedExplanation,
       evidence,
       corrections,
       alternatives: corrections.map((correction) => correction.suggestion),

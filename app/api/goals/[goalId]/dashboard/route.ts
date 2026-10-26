@@ -94,6 +94,10 @@ function wordsFrom(transcript: string) {
   return transcript.toLocaleLowerCase().match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu) ?? [];
 }
 
+function isVocabularyWord(word: string) {
+  return /\p{L}/u.test(word);
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
@@ -223,6 +227,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const wordsBySession = new Map<string, string[]>();
   const lessons: GoalLessonInsight[] = [];
   const previouslyObservedLessonWords = new Set<string>();
+  const cumulativeVocabularyWords = new Set<string>();
+  const vocabularySizeHistory: GoalLessonInsight['vocabulary']['sizeHistory'] = [];
   let completedLessonsSeen = 0;
   let completedAnswerCount = 0;
 
@@ -312,6 +318,12 @@ export async function GET(_request: Request, { params }: RouteParams) {
       ));
       const savedSummary = asArray(session.session_summaries).at(-1)?.summary ?? null;
       const lessonTitle = lessonPrompts[0] ?? session.title;
+      lessonWords.filter(isVocabularyWord).forEach((word) => cumulativeVocabularyWords.add(word));
+      vocabularySizeHistory.push({
+        sessionId: session.id,
+        completedAt: session.completed_at ?? '',
+        uniqueWords: cumulativeVocabularyWords.size,
+      });
 
       lessons.push({
         id: session.id,
@@ -323,7 +335,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
         summary: savedSummary,
         vocabulary: {
           totalWords: lessonWords.length,
-          uniqueWords: new Set(lessonWords).size,
+          uniqueWords: new Set(lessonWords.filter(isVocabularyWord)).size,
+          vocabularySize: cumulativeVocabularyWords.size,
+          sizeHistory: [...vocabularySizeHistory],
           newlyObservedWords: newlyObservedLessonWords,
           comparisonLabel: newlyObservedLessonWords === null
             ? null
@@ -568,7 +582,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     storytellingFramework,
     vocabulary: {
       totalWords: allWords.length,
-      uniqueWords: new Set(allWords).size,
+      uniqueWords: new Set(allWords.filter(isVocabularyWord)).size,
       newlyObservedWords,
       comparisonLabel,
       repeatedWords,

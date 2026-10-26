@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { apiError, databaseError, parseBody, requireApiUser } from '@/lib/api-response';
 import { generateSessionSummary } from '@/lib/analysis/openrouter-provider';
+import { getInterviewEvaluation } from '@/lib/feedback-copy';
 import { getGoalDefinition } from '@/lib/goal-catalog';
 import { finishSessionSchema } from '@/lib/validation';
 import type { FeedbackDimension, InterviewCheck } from '@/lib/types';
@@ -65,11 +66,18 @@ function buildInterviewChecks(feedback: FeedbackRow[]): InterviewCheck[] {
   return definitions.map((definition) => {
     const relevant = feedback.filter((item) => !item.dismissed && item.dimension === definition.dimension);
     const representative = [...relevant].reverse().find((item) => !item.positive) ?? relevant.at(-1);
+    const representativeEvaluation = representative ? getInterviewEvaluation(representative) : null;
+    const verdict = relevant.length > 0 && relevant.every((item) => item.positive)
+      ? 'yes'
+      : relevant.some((item) => item.positive)
+        ? 'partially'
+        : representativeEvaluation?.verdict ?? 'no';
     return {
       id: definition.id,
       question: definition.question,
-      passed: relevant.length > 0 && relevant.every((item) => item.positive),
-      detail: representative?.explanation ?? definition.fallback,
+      passed: verdict === 'yes',
+      verdict,
+      detail: representativeEvaluation?.reason ?? definition.fallback,
       evidence: representative?.evidence || undefined,
     };
   });

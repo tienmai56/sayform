@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, ArrowRight, Sparkles, Target } from 'lucide-react';
-import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
+import { AppShell, Breadcrumbs, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { usePractice } from '@/components/practice-context';
 import { finishPersonalizedExercise, getExerciseAttemptProgress } from '@/lib/client-data';
 import type { ExerciseAssessment, ExerciseAttemptProgress } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { FeedbackProgressSteps } from '@/components/feedback-progress-steps';
 
 const assessmentCopy: Record<ExerciseAssessment, { label: string; className: string }> = {
   pass: { label: 'Pass', className: 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' },
@@ -51,7 +52,10 @@ export function ExerciseAttemptFeedback() {
         if (cancelled) return;
         setAnalysisPreview(progress);
         if (progress.result) {
-          completeExerciseAttempt(progress.result);
+          const result = progress.result;
+          timer = setTimeout(() => {
+            if (!cancelled) completeExerciseAttempt(result);
+          }, 800);
           return;
         }
         if (progress.stage === 'failed') {
@@ -80,7 +84,6 @@ export function ExerciseAttemptFeedback() {
   const exercise = activeExercise;
   if (!currentExerciseResult) {
     const stage = analysisPreview?.stage ?? (exerciseAnalysisStatus === 'idle' ? 'queued' : exerciseAnalysisStatus);
-    const stageOrder = { queued: 0, transcribing: 0, analyzing: 1, completed: 2, failed: 0 } as const;
     const tryAgain = () => {
       clearRecording();
       setExerciseAnalysisProgress('idle');
@@ -110,15 +113,11 @@ export function ExerciseAttemptFeedback() {
                     <h2 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Preparing your targeted feedback</h2>
                     <p className="mt-2 text-sm text-[var(--muted-ink)]">Your recording is saved. Coaching will appear as soon as it is ready.</p>
                   </div>
-                  <div className="mt-6 grid grid-cols-3 gap-2">
-                    {(['Transcribing', 'Evaluating', 'Ready'] as const).map((label, index) => (
-                      <div key={label} className={cn('rounded-xl border px-3 py-3 text-center text-xs font-semibold', stageOrder[stage] >= index ? 'border-[var(--mint)] bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'border-[var(--line)] bg-white text-[var(--muted-ink)]')}>{label}</div>
-                    ))}
-                  </div>
+                  <FeedbackProgressSteps stage={stage} />
                   {analysisPreview?.transcript && (
                     <div className="mt-6 rounded-2xl border border-[var(--line)] bg-white p-5">
                       <div className="flex items-center justify-between gap-4"><p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Transcript ready</p>{analysisPreview.metrics && <span className="text-xs text-[var(--muted-ink)]">{analysisPreview.metrics.wordCount} words · {analysisPreview.metrics.averageWpm} WPM</span>}</div>
-                      <p className="mt-3 line-clamp-5 text-sm leading-7 text-[#52666e]">{analysisPreview.transcript}</p>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#52666e]">{analysisPreview.transcript}</p>
                     </div>
                   )}
                 </>
@@ -164,27 +163,35 @@ export function ExerciseAttemptFeedback() {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--line)] bg-white p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6">
+          <div className="flex items-center justify-between border-b border-[var(--line)] py-5">
             <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">{attempt.attemptType === 'transfer' ? 'Independent transfer test' : `Guided attempt ${attempt.attemptNumber}`}</p><p className="mt-2 text-sm font-semibold text-[var(--navy)]">{exercise.title}</p></div>
             <span className={cn('rounded-full px-3 py-1.5 text-xs font-semibold', assessment.className)}>{assessment.label}</span>
           </div>
 
-          <div className="mt-5 grid grid-cols-3 gap-3">
-            <MetricCard label="Speaking time" value={`${attempt.durationSeconds}s`} detail="This recorded attempt" />
-            <MetricCard label="Speaking pace" value={`${attempt.metrics.averageWpm} WPM`} detail="Supporting metric only" />
-            <MetricCard label="Fillers" value={String(attempt.metrics.fillerCount)} detail="Not used as the pass criterion" />
-          </div>
+          <dl className="grid grid-cols-3 border-b border-[var(--line)] py-5">
+            {[
+              { label: 'Speaking time', value: `${attempt.durationSeconds}s`, detail: 'This recorded attempt' },
+              { label: 'Speaking pace', value: `${attempt.metrics.averageWpm} WPM`, detail: 'Supporting metric only' },
+              { label: 'Fillers', value: String(attempt.metrics.fillerCount), detail: 'Not used as the pass criterion' },
+            ].map((metric, index) => (
+              <div key={metric.label} className={cn('px-5 first:pl-0 last:pr-0', index > 0 && 'border-l border-[var(--line)]')}>
+                <dt className="text-xs font-medium text-[var(--muted-ink)]">{metric.label}</dt>
+                <dd className="mt-1 font-display text-xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{metric.value}</dd>
+                <dd className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">{metric.detail}</dd>
+              </div>
+            ))}
+          </dl>
 
-          <div className={cn('mt-5 grid gap-4', whatWorked ? 'grid-cols-2' : 'grid-cols-1')}>
+          <div className={cn('grid border-b border-[var(--line)] py-6', whatWorked ? 'grid-cols-2 divide-x divide-[var(--line)]' : 'grid-cols-1')}>
             {whatWorked && (
-              <article className="rounded-2xl border border-[var(--line)] bg-white p-5">
-                <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]"><span className="size-2 rounded-full bg-[#55a887]" />What worked</p>
+              <article className="pr-7">
+                <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]"><span className="size-2 rounded-full bg-[#6842d8]" />What worked</p>
                 <h3 className="mt-3 text-sm font-semibold leading-5 text-[var(--navy)]">A behavior to keep</h3>
                 <p className="mt-3 text-sm leading-6 text-[var(--ink)]">{whatWorked}</p>
               </article>
             )}
-            <article className="rounded-2xl border border-[var(--line)] bg-white p-5">
+            <article className={cn(whatWorked && 'pl-7')}>
               <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]"><span className="size-2 rounded-full bg-[#d19a29]" />What you can improve</p>
               <h3 className="mt-3 text-sm font-semibold leading-5 text-[var(--navy)]">Make the target behavior clearer</h3>
               {(attempt.supportingEvidence || attempt.nextGuidance) && (
@@ -198,15 +205,15 @@ export function ExerciseAttemptFeedback() {
           </div>
 
           {next.stage === 'guided' && (
-            <div className="mt-5 rounded-2xl border border-[var(--mint)] bg-[var(--canvas)] p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Your next question</p>
+            <div className="my-5 border-l-2 border-[#6842d8] bg-[#faf8ff] px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Your next question</p>
               <p className="mt-2 text-sm font-medium leading-6 text-[var(--ink)]">{next.prompt}</p>
               <p className="mt-2 text-xs leading-5 text-[var(--muted-ink)]">Use the specific rewrite above as a pattern, not a script.</p>
             </div>
           )}
           {next.stage === 'transfer' && (
-            <div className="mt-5 rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Ready for an independent test</p>
+            <div className="my-5 border-l-2 border-[#6842d8] bg-[#faf8ff] px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Ready for an independent test</p>
               <p className="mt-2 text-sm leading-6 text-[var(--ink)]">You’ll apply the same behavior to a new question without hints or a model answer.</p>
             </div>
           )}
