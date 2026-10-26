@@ -3,6 +3,7 @@ import 'server-only';
 import { z } from 'zod';
 import { exerciseTemplates, getExerciseTemplate } from '@/lib/exercise-library';
 import { conciseOverallFeedback, ensureInterviewEvaluationExplanation } from '@/lib/feedback-copy';
+import type { TimedTranscriptWord } from '@/lib/analysis/speech-metrics';
 import type {
   ExerciseAssessment,
   ExerciseAttemptType,
@@ -48,6 +49,13 @@ const feedbackResultSchema = z.object({
       (items) => items.every((item) => item.positive ? item.corrections.length === 0 : item.corrections.length > 0),
       'Improvement items need a correction and positive items must not contain corrections.',
     ),
+  mainPoint: z.object({
+    found: z.boolean(),
+    evidence: z.string().trim().max(500),
+  }).refine(
+    (item) => item.found ? item.evidence.length > 0 : item.evidence.length === 0,
+    'A detected main point needs exact transcript evidence; an undetected one must have empty evidence.',
+  ),
   followUpQuestion: z.string().trim().max(500),
 });
 
@@ -158,8 +166,17 @@ const feedbackJsonSchema = {
       type: 'string',
       description: 'One interview follow-up grounded in the original question and answer, or an empty string when no follow-up was requested.',
     },
+    mainPoint: {
+      type: 'object',
+      properties: {
+        found: { type: 'boolean', description: 'True only when the transcript contains a concise statement that directly answers the central question or prompt.' },
+        evidence: { type: 'string', description: 'The earliest short, exact transcript quote that directly answers the central question. Empty when no main point is reached.' },
+      },
+      required: ['found', 'evidence'],
+      additionalProperties: false,
+    },
   },
-  required: ['feedback', 'followUpQuestion'],
+  required: ['feedback', 'mainPoint', 'followUpQuestion'],
   additionalProperties: false,
 } as const;
 
@@ -529,17 +546,30 @@ export async function transcribeAudio(audio: File) {
         format: formatFromMimeType(audio.type),
       },
       language: 'en',
-      response_format: 'json',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['word'],
       provider: { zdr: true },
     }),
     signal: AbortSignal.timeout(60_000),
   });
 
   if (!response.ok) throw new OpenRouterRequestError(response.status, `OpenRouter transcription failed: ${await readProviderError(response)}`);
-  const payload = await response.json() as { text?: string };
+  const payload = await response.json() as {
+    text?: string;
+    words?: Array<{ word?: unknown; start?: unknown; end?: unknown }>;
+  };
   const transcript = payload.text?.trim();
   if (!transcript) throw new Error('No speech was detected in the recording.');
-  return transcript;
+  const words: TimedTranscriptWord[] = Array.isArray(payload.words)
+    ? payload.words.flatMap((item) => (
+        typeof item.word === 'string'
+        && typeof item.start === 'number'
+        && typeof item.end === 'number'
+          ? [{ word: item.word, start: item.start, end: item.end }]
+          : []
+      ))
+    : [];
+  return { text: transcript, words };
 }
 
 export async function generateResponseFeedback(input: {
@@ -581,6 +611,7 @@ export async function generateResponseFeedback(input: {
         ? 'Before judging Communication effectiveness, decompose the exact interview question into all explicit answer constraints: requested answer type, requested number of items, priority or sequence such as “first”, scope, and whether the answer must be measurable, numeric, comparative, or conditional. Judge the transcript against every constraint. Topical relevance alone is not enough. Every Communication effectiveness correction must be a standalone, ready-to-say answer opening that fulfills those same constraints. If the question asks for one or a single item, name exactly one—not a list of steps, options, scenarios, or remediations. If it asks for a measurable signal, name an observable metric or signal and explain how it would be read. If it asks what comes first, lead with that first choice. For Communication effectiveness, Critical thinking, and Sentence structure, begin the explanation with exactly “Yes —”, “Partially —”, or “No —” to directly answer its assigned interview check, then state why. Use Yes only when the criterion is fully met, Partially when it is demonstrated but incomplete or inconsistent, and No when it is absent. Keep positive true only for Yes.'
         : '',
       'Every evidence field must be a short exact quote copied verbatim from the transcript.',
+      'Also identify the earliest main point: the first concise claim, choice, recommendation, result, or takeaway that directly answers the central question. Background, restating the prompt, throat-clearing, and supporting detail do not count. Set mainPoint.found false with empty evidence when the transcript never reaches a direct answer. Otherwise copy the shortest exact quote that marks where the direct answer begins.',
       'Evidence must be specific to its evaluation dimension. Never reuse the same correction fragment for two corrections or across different dimensions; choose the dimension it most directly demonstrates and use different transcript evidence elsewhere.',
       'Give specific, respectful feedback. Do not invent tone, pronunciation, facial-expression, or pause observations that cannot be established from the transcript and supplied metrics.',
       'Keep every explanation to one synthesized sentence of no more than 32 words. State only the overall evaluation and its key reason; put actionable advice and rewrites in corrections.',
@@ -679,8 +710,15 @@ export async function generateResponseFeedback(input: {
   const followUpQuestion = firstQuestionEnd >= 0
     ? generatedFollowUp.slice(0, firstQuestionEnd + 1)
     : generatedFollowUp;
+  const mainPointEvidence = result.mainPoint.found
+    ? exactEvidence(input.transcript, result.mainPoint.evidence)
+    : '';
   return {
     feedback,
+    mainPoint: {
+      found: Boolean(mainPointEvidence),
+      evidence: mainPointEvidence,
+    },
     followUpQuestion: input.generateFollowUp ? followUpQuestion : '',
   };
 }

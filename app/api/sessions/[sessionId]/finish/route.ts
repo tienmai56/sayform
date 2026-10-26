@@ -11,7 +11,7 @@ type ApiContext = Extract<Awaited<ReturnType<typeof requireApiUser>>, { userId: 
 
 export const maxDuration = 120;
 
-type MetricRow = { word_count: number; average_wpm: number; filler_count: number };
+type MetricRow = { word_count: number; average_wpm: number; filler_count: number; time_to_main_point_seconds: number | null };
 type FeedbackRow = {
   id: string;
   dimension: FeedbackDimension;
@@ -47,6 +47,8 @@ type FinishData = {
   totalDuration: number;
   wordCount: number;
   averageWpm: number;
+  averageTimeToMainPointSeconds: number | null;
+  timeToMainPointAnswerCount: number;
   fillerCount: number;
   feedback: Array<FeedbackRow & { responseId: string }>;
   interviewChecks?: InterviewCheck[];
@@ -91,6 +93,8 @@ function sessionSnapshot(data: FinishData) {
     durationSeconds: data.totalDuration,
     wordCount: data.wordCount,
     averageWpm: data.averageWpm,
+    averageTimeToMainPointSeconds: data.averageTimeToMainPointSeconds,
+    timeToMainPointAnswerCount: data.timeToMainPointAnswerCount,
     fillerCount: data.fillerCount,
   };
 }
@@ -98,7 +102,7 @@ function sessionSnapshot(data: FinishData) {
 async function loadFinishData(context: ApiContext, sessionId: string) {
   const [sessionResult, responsesResult] = await Promise.all([
     context.supabase.from('sessions').select('id, status, created_at, title, goal_id, goal_title, takeaway, goals(template_key)').eq('id', sessionId).eq('user_id', context.userId).maybeSingle(),
-    context.supabase.from('responses').select('id, prompt, transcript, duration_seconds, sequence_number, response_metrics(word_count, average_wpm, filler_count), feedback_items(id, dimension, evidence, title, explanation, positive, dismissed, skill)').eq('session_id', sessionId).eq('user_id', context.userId).eq('status', 'completed').order('sequence_number', { ascending: true }),
+    context.supabase.from('responses').select('id, prompt, transcript, duration_seconds, sequence_number, response_metrics(word_count, average_wpm, filler_count, time_to_main_point_seconds), feedback_items(id, dimension, evidence, title, explanation, positive, dismissed, skill)').eq('session_id', sessionId).eq('user_id', context.userId).eq('status', 'completed').order('sequence_number', { ascending: true }),
   ]);
   if (sessionResult.error) return { error: databaseError(sessionResult.error) } as const;
   if (!sessionResult.data) return { error: apiError(404, 'session_not_found', 'Practice session not found.') } as const;
@@ -112,6 +116,12 @@ async function loadFinishData(context: ApiContext, sessionId: string) {
   const metricRows = completedResponses.flatMap((response) => asArray(response.response_metrics));
   const wordCount = metricRows.reduce((total, metrics) => total + metrics.word_count, 0);
   const averageWpm = totalDuration > 0 ? Math.round((wordCount * 60) / totalDuration) : 0;
+  const timeToMainPointValues = metricRows.flatMap((metrics) => (
+    typeof metrics.time_to_main_point_seconds === 'number' ? [metrics.time_to_main_point_seconds] : []
+  ));
+  const averageTimeToMainPointSeconds = timeToMainPointValues.length
+    ? Math.round(timeToMainPointValues.reduce((total, seconds) => total + seconds, 0) / timeToMainPointValues.length)
+    : null;
   const fillerCount = metricRows.reduce((total, metrics) => total + metrics.filler_count, 0);
   const feedback = completedResponses.flatMap((response) => asArray(response.feedback_items).map((item) => ({ ...item, responseId: response.id })));
   const goalRelation = Array.isArray(session.goals) ? session.goals[0] : session.goals;
@@ -122,6 +132,8 @@ async function loadFinishData(context: ApiContext, sessionId: string) {
       totalDuration,
       wordCount,
       averageWpm,
+      averageTimeToMainPointSeconds,
+      timeToMainPointAnswerCount: timeToMainPointValues.length,
       fillerCount,
       feedback,
       interviewChecks: goalRelation?.template_key === 'clarity' ? buildInterviewChecks(feedback) : undefined,

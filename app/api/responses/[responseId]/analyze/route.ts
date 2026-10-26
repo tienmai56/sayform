@@ -1,7 +1,7 @@
 import { after, NextResponse } from 'next/server';
 import { apiError, databaseError, requireApiUser } from '@/lib/api-response';
 import { generateResponseFeedback, OpenRouterRequestError, transcribeAudio } from '@/lib/analysis/openrouter-provider';
-import { createSpeechMetrics } from '@/lib/analysis/speech-metrics';
+import { createSpeechMetrics, timeToTranscriptEvidence } from '@/lib/analysis/speech-metrics';
 import { getGoalDefinition } from '@/lib/goal-catalog';
 import type { FeedbackCorrection, FeedbackDimension, FeedbackItem, FeedbackProgressStatus, ResponseMetrics } from '@/lib/types';
 import { analyzeResponseSchema } from '@/lib/validation';
@@ -26,6 +26,8 @@ type PreviousMetricRow = {
   average_wpm: number;
   filler_count: number;
   filler_words: unknown;
+  time_to_main_point_seconds: number | null;
+  main_point_evidence: string;
 };
 
 type PreviousFeedbackRow = {
@@ -223,7 +225,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         'previousAttemptsMs',
         context.supabase
           .from('responses')
-          .select('transcript, sequence_number, response_metrics(word_count, unique_word_count, average_wpm, filler_count, filler_words), feedback_items(id, dimension, skill, evidence, title, explanation, alternatives, corrections, positive, progress_status)')
+          .select('transcript, sequence_number, response_metrics(word_count, unique_word_count, average_wpm, filler_count, filler_words, time_to_main_point_seconds, main_point_evidence), feedback_items(id, dimension, skill, evidence, title, explanation, alternatives, corrections, positive, progress_status)')
           .eq('session_id', response.session_id)
           .eq('user_id', context.userId)
           .eq('prompt', response.prompt)
@@ -234,7 +236,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         timings,
       );
       const transcriptPromise = measure('transcriptionMs', transcribeAudio(upload.data.audio), timings);
-      const [sessionResult, previousResult, transcript] = await Promise.all([
+      const [sessionResult, previousResult, transcription] = await Promise.all([
         sessionPromise,
         previousPromise,
         transcriptPromise,
@@ -244,6 +246,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       if (previousResult.error) throw new Error(`Could not load earlier attempts: ${previousResult.error.message}`);
       const session = sessionResult.data;
       const previousRows = previousResult.data;
+      const transcript = transcription.text;
       const metrics = createSpeechMetrics(transcript, response.duration_seconds);
 
       const partialSaveStartedAt = performance.now();
@@ -266,6 +269,8 @@ export async function POST(request: Request, { params }: RouteParams) {
           average_wpm: metrics.averageWpm,
           filler_count: metrics.fillerCount,
           filler_words: metrics.fillerWords,
+          time_to_main_point_seconds: null,
+          main_point_evidence: '',
         }),
       ]);
       if (jobUpdate.error) throw new Error(`Could not update the analysis job: ${jobUpdate.error.message}`);
@@ -284,6 +289,8 @@ export async function POST(request: Request, { params }: RouteParams) {
           fillerWords: previousMetrics.filler_words && typeof previousMetrics.filler_words === 'object'
             ? previousMetrics.filler_words as Record<string, number>
             : {},
+          timeToMainPointSeconds: previousMetrics.time_to_main_point_seconds,
+          mainPointEvidence: previousMetrics.main_point_evidence,
         };
         const previousFeedback: FeedbackItem[] = asArray(previous.feedback_items).map((item) => ({
           id: item.id,
@@ -320,12 +327,25 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
 
       const persistenceStartedAt = performance.now();
+      const timeToMainPointSeconds = generatedFeedback.mainPoint.found
+        ? timeToTranscriptEvidence(transcription.words, generatedFeedback.mainPoint.evidence)
+        : null;
       const { error: deleteFeedbackError } = await context.supabase
         .from('feedback_items')
         .delete()
         .eq('response_id', response.id)
         .eq('user_id', context.userId);
       if (deleteFeedbackError) throw new Error(`Could not replace feedback: ${deleteFeedbackError.message}`);
+
+      const { error: mainPointMetricError } = await context.supabase
+        .from('response_metrics')
+        .update({
+          time_to_main_point_seconds: timeToMainPointSeconds,
+          main_point_evidence: generatedFeedback.mainPoint.evidence,
+        })
+        .eq('response_id', response.id)
+        .eq('user_id', context.userId);
+      if (mainPointMetricError) throw new Error(`Could not save time to main point: ${mainPointMetricError.message}`);
 
       const { error: feedbackError } = await context.supabase
         .from('feedback_items')

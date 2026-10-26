@@ -54,6 +54,8 @@ export type ResponseMetrics = {
   averageWpm: number;
   fillerCount: number;
   fillerWords: Record<string, number>;
+  timeToMainPointSeconds: number | null;
+  mainPointEvidence: string;
 };
 
 export type ResponseAnalysis = {
@@ -191,6 +193,8 @@ export type FinishedSession = {
     durationSeconds: number;
     wordCount: number;
     averageWpm: number;
+    averageTimeToMainPointSeconds: number | null;
+    timeToMainPointAnswerCount: number;
     fillerCount: number;
   };
   summary: {
@@ -286,6 +290,8 @@ export type GoalLessonInsight = {
   };
   fluency: {
     averageWpm: number;
+    averageTimeToMainPointSeconds: number | null;
+    timeToMainPointAnswerCount: number;
     fillerCount: number;
     fillerRatePer100Words: number;
     commonFillers: Array<{ phrase: string; count: number }>;
@@ -340,6 +346,8 @@ export type GoalDashboard = {
   };
   fluency: {
     averageWpm: number;
+    averageTimeToMainPointSeconds: number | null;
+    timeToMainPointAnswerCount: number;
     fillerCount: number;
     fillerRatePer100Words: number;
     commonFillers: Array<{ phrase: string; count: number }>;

@@ -178,7 +178,11 @@ export function SessionSummaryView() {
 
         <div className="mt-6 grid grid-cols-4 gap-4">
           <MetricCard label="Session pace" value={metrics ? `${metrics.averageWpm} WPM` : '—'} detail={metrics ? `${metrics.wordCount} words ÷ ${formatDuration(metrics.durationSeconds)}` : 'Calculating from all completed answers'} />
-          <MetricCard label="Completed answers" value={metrics ? String(metrics.answers) : '—'} detail="Skipped questions are excluded" />
+          <MetricCard
+            label="Time to main point"
+            value={metrics?.averageTimeToMainPointSeconds !== null && metrics?.averageTimeToMainPointSeconds !== undefined ? `${metrics.averageTimeToMainPointSeconds} sec` : '—'}
+            detail={metrics?.timeToMainPointAnswerCount ? `Average across ${metrics.timeToMainPointAnswerCount} direct ${metrics.timeToMainPointAnswerCount === 1 ? 'answer' : 'answers'}` : 'No measured main point yet'}
+          />
           <MetricCard label="Fillers" value={metrics ? String(metrics.fillerCount) : '—'} detail="From transcribed speech" />
           <MetricCard label="Practice time" value={metrics ? formatDuration(metrics.durationSeconds) : '—'} detail="Recording time across answers" />
         </div>

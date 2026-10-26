@@ -272,7 +272,8 @@ export async function POST(request: Request, { params }: RouteParams) {
         .eq('user_id', context.userId);
       if (transcribingError) throw new Error(`Could not start exercise transcription: ${transcribingError.message}`);
 
-      const transcript = await transcribeAudio(audio);
+      const transcription = await transcribeAudio(audio);
+      const transcript = transcription.text;
       timings.transcriptionMs = Math.round(performance.now() - transcribingStartedAt);
       const metrics = createSpeechMetrics(transcript, durationSeconds);
       const { error: transcriptError } = await context.supabase

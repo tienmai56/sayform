@@ -50,6 +50,8 @@ export function createMockAnalysis(durationSeconds: number, context: AnalysisCon
       averageWpm: Math.round(words.length / (safeDuration / 60)),
       fillerCount: fillerWords.length + 3,
       fillerWords: { like: fillerWords.filter((word) => word === 'like').length, contextual: 3 },
+      timeToMainPointSeconds: 8,
+      mainPointEvidence: 'The operations team reduced manual screening by about 80%',
     },
     feedback: feedbackItems.map((item) => ({
       ...item,

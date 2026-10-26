@@ -413,8 +413,8 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
         </header>
 
         <div className="mx-6 mt-6 bg-[#f7f6f3] px-5 py-4 md:mx-7">
-          <h3 className="font-display text-lg font-semibold text-[var(--navy)]">Speaking speed</h3>
-          <div className="mt-5 grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_280px] md:gap-8">
+          <h3 className="font-display text-lg font-semibold text-[var(--navy)]">Delivery timing</h3>
+          <div className="mt-5 grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)_280px] md:gap-8">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <p className="shrink-0 text-[var(--navy)]"><strong className="font-display text-4xl font-semibold tracking-[-0.04em]">{dashboard.fluency.averageWpm || '—'}</strong>{dashboard.fluency.averageWpm > 0 && <span className="ml-1.5 text-sm font-semibold">WPM</span>}</p>
@@ -430,6 +430,18 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
               <p className="mt-4 text-base font-semibold text-[var(--navy)]">{speedFeedback.title}</p>
               <p className="mt-1 max-w-xl text-base leading-7 text-[var(--muted-ink)]">{speedFeedback.detail}</p>
               {dashboard.fluency.averageWpm > 0 && <p className="mt-3 text-xs text-[var(--muted-ink)]">Average across your recorded practice</p>}
+            </div>
+            <div className="min-w-0 border-t border-[var(--line)] pt-5 md:border-l md:border-t-0 md:pl-8 md:pt-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Time to main point</p>
+              <p className="mt-2 text-[var(--navy)]">
+                <strong className="font-display text-4xl font-semibold tracking-[-0.04em]">{dashboard.fluency.averageTimeToMainPointSeconds ?? '—'}</strong>
+                {dashboard.fluency.averageTimeToMainPointSeconds !== null && <span className="ml-1.5 text-sm font-semibold">sec</span>}
+              </p>
+              <p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">
+                {dashboard.fluency.timeToMainPointAnswerCount > 0
+                  ? `Average from your first spoken word to the first direct answer across ${dashboard.fluency.timeToMainPointAnswerCount} ${dashboard.fluency.timeToMainPointAnswerCount === 1 ? 'response' : 'responses'}.`
+                  : 'No measured main point yet. This will appear after a direct answer is detected in a new response.'}
+              </p>
             </div>
             <SpeakingSpeedGauge wordsPerMinute={dashboard.fluency.averageWpm} />
           </div>

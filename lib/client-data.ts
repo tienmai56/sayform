@@ -120,7 +120,7 @@ export async function getGoalDashboard(goalId: string): Promise<GoalDashboard> {
         : undefined,
       vocabulary: { totalWords: 0, uniqueWords: 0, newlyObservedWords: null, comparisonLabel: null, repeatedWords: [], strengths: [], improvements: [] },
       grammar: { strengths: [], improvements: [] },
-      fluency: { averageWpm: 0, fillerCount: 0, fillerRatePer100Words: 0, commonFillers: [], repeatedOpenings: [], feedback: [] },
+      fluency: { averageWpm: 0, averageTimeToMainPointSeconds: null, timeToMainPointAnswerCount: 0, fillerCount: 0, fillerRatePer100Words: 0, commonFillers: [], repeatedOpenings: [], feedback: [] },
       lessons: [],
     };
   }
@@ -216,12 +216,16 @@ export async function getResponseAnalysisProgress(responseId: string): Promise<R
         average_wpm: number;
         filler_count: number;
         filler_words: Record<string, number>;
+        time_to_main_point_seconds: number | null;
+        main_point_evidence: string;
       }> | {
         word_count: number;
         unique_word_count: number;
         average_wpm: number;
         filler_count: number;
         filler_words: Record<string, number>;
+        time_to_main_point_seconds: number | null;
+        main_point_evidence: string;
       } | null;
       feedback_items: Array<{
         id: string;
@@ -247,6 +251,8 @@ export async function getResponseAnalysisProgress(responseId: string): Promise<R
     averageWpm: metricsRelation.average_wpm,
     fillerCount: metricsRelation.filler_count,
     fillerWords: metricsRelation.filler_words,
+    timeToMainPointSeconds: metricsRelation.time_to_main_point_seconds,
+    mainPointEvidence: metricsRelation.main_point_evidence,
   } : undefined;
   const jobs = Array.isArray(result.response.analysis_jobs)
     ? result.response.analysis_jobs
@@ -383,6 +389,8 @@ function createDemoFinishedSession(
       durationSeconds,
       wordCount: 168 * Math.max(1, answerCount),
       averageWpm: 132,
+      averageTimeToMainPointSeconds: 8,
+      timeToMainPointAnswerCount: Math.max(1, answerCount),
       fillerCount: 3 * Math.max(1, answerCount),
     },
     summary: {
@@ -613,12 +621,16 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
           average_wpm: number;
           filler_count: number;
           filler_words: Record<string, number>;
+          time_to_main_point_seconds: number | null;
+          main_point_evidence: string;
         }> | {
           word_count: number;
           unique_word_count: number;
           average_wpm: number;
           filler_count: number;
           filler_words: Record<string, number>;
+          time_to_main_point_seconds: number | null;
+          main_point_evidence: string;
         } | null;
         feedback_items: Array<{
           id: string;
@@ -711,6 +723,8 @@ export async function getSessionDetail(sessionId: string): Promise<SessionDetail
         averageWpm: metrics.average_wpm,
         fillerCount: metrics.filler_count,
         fillerWords: metrics.filler_words,
+        timeToMainPointSeconds: metrics.time_to_main_point_seconds,
+        mainPointEvidence: metrics.main_point_evidence,
       } : null,
       feedback: response.feedback_items.map(normalizeFeedbackItem),
     };

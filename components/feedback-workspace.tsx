@@ -26,6 +26,7 @@ import { getResponseAnalysisProgress, rateFeedback } from '@/lib/client-data';
 import { ExerciseAttemptFeedback } from '@/components/exercise-attempt-feedback';
 import { FeedbackCoachingContent } from '@/components/feedback-coaching-content';
 import { FeedbackProgressSteps } from '@/components/feedback-progress-steps';
+import { SpeakingPaceIllustration, speakingPaceComment } from '@/components/speaking-pace-illustration';
 import { getInterviewEvaluation } from '@/lib/feedback-copy';
 import type { FeedbackDimension, FeedbackItem, ResponseAnalysisProgress } from '@/lib/types';
 
@@ -35,92 +36,57 @@ function formatDuration(totalSeconds: number) {
   return minutes ? `${minutes} min ${seconds} sec` : `${seconds} sec`;
 }
 
-function speakingPaceComment(wordsPerMinute: number) {
-  if (wordsPerMinute < 100) return 'Below the 100–165 WPM clarity reference. Try speaking slightly faster while keeping your words clear.';
-  if (wordsPerMinute <= 165) return 'Within the 100–165 WPM clarity reference—a clear, natural pace for most interviews.';
-  return 'Above the 100–165 WPM clarity reference. Slow down slightly so your key points have time to land.';
-}
-
-const PACE_MIN = 60;
-const PACE_MAX = 220;
-const PACE_RANGE_START = 100;
-const PACE_RANGE_END = 165;
-
-function paceGaugePoint(wordsPerMinute: number, radius = 62) {
-  const clampedPace = Math.min(PACE_MAX, Math.max(PACE_MIN, wordsPerMinute));
-  const angle = Math.PI - ((clampedPace - PACE_MIN) / (PACE_MAX - PACE_MIN)) * Math.PI;
-  return {
-    x: 82 + radius * Math.cos(angle),
-    y: 72 - radius * Math.sin(angle),
-  };
-}
-
-function paceGaugeArc(start: number, end: number) {
-  const startPoint = paceGaugePoint(start);
-  const endPoint = paceGaugePoint(end);
-  return `M ${startPoint.x} ${startPoint.y} A 62 62 0 0 1 ${endPoint.x} ${endPoint.y}`;
-}
-
-function SpeakingPaceIllustration({ wordsPerMinute }: { wordsPerMinute: number }) {
-  const marker = paceGaugePoint(wordsPerMinute);
-
-  return (
-    <figure className="w-44 shrink-0" aria-label={`Average speaking pace: ${wordsPerMinute} words per minute`}>
-      <svg viewBox="0 0 164 96" className="block h-auto w-full" aria-labelledby="pace-illustration-title">
-        <title id="pace-illustration-title">Speaking pace compared with the 100 to 165 words per minute clarity reference</title>
-        <path d={paceGaugeArc(PACE_MIN, 96)} fill="none" stroke="#e8e3f2" strokeLinecap="round" strokeWidth="14" />
-        <path d={paceGaugeArc(PACE_RANGE_START, PACE_RANGE_END)} fill="none" stroke="#8b5cf6" strokeLinecap="round" strokeWidth="14" />
-        <path d={paceGaugeArc(169, PACE_MAX)} fill="none" stroke="#e8e3f2" strokeLinecap="round" strokeWidth="14" />
-        <circle cx={marker.x} cy={marker.y} r="6" fill="#2b1745" stroke="white" strokeWidth="3" />
-        <text x="82" y="62" textAnchor="middle" fill="#6d5b7f" fontFamily="var(--font-sans-ui)" fontSize="7" fontWeight="700" letterSpacing="0.08em">CLARITY RANGE</text>
-        <text x="82" y="76" textAnchor="middle" fill="#2b1745" fontFamily="var(--font-display-ui)" fontSize="12" fontWeight="600">100–165</text>
-      </svg>
-      <figcaption className="-mt-1 flex justify-between text-[10px] font-semibold text-[var(--muted-ink)]">
-        <span>Slower</span>
-        <span>Faster</span>
-      </figcaption>
-    </figure>
-  );
-}
-
 const interviewCheckDefinitions: Array<{
   question: string;
   dimension: FeedbackDimension;
 }> = [
-  { question: 'Did you answer the actual question?', dimension: 'Communication effectiveness' },
-  { question: 'Was your reasoning easy to follow?', dimension: 'Critical thinking' },
+  { question: 'Did you answer the question?', dimension: 'Communication effectiveness' },
+  { question: 'Was the reasoning easy to follow?', dimension: 'Critical thinking' },
   { question: 'Did you provide a clear conclusion?', dimension: 'Sentence structure' },
 ];
 
 function InterviewAnswerCheck({ feedback }: { feedback: FeedbackItem[] }) {
   return (
-    <section className="mb-7" aria-labelledby="interview-answer-check-title">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Interview answer check</p>
-      <h3 id="interview-answer-check-title" className="mt-1 font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">The three questions your coach always checks</h3>
-      <div className="mt-5 grid grid-cols-1 border-y border-[var(--line)] xl:grid-cols-3 xl:divide-x xl:divide-[var(--line)]">
+    <div aria-labelledby="interview-answer-check-title">
+      <h3 id="interview-answer-check-title" className="font-display text-xl font-semibold tracking-[-0.025em] text-[#4f23c8]">
+        Your answer at a glance
+      </h3>
+      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3">
         {interviewCheckDefinitions.map((definition) => {
           const item = feedback.find((candidate) => candidate.dimension === definition.dimension);
           const evaluation = item ? getInterviewEvaluation(item) : null;
           return (
-            <article key={definition.dimension} className="border-b border-[var(--line)] py-5 last:border-b-0 xl:border-b-0 xl:px-5 xl:first:pl-0 xl:last:pr-0">
-              <div className="flex items-start gap-3">
-                <span className={cn(
-                  'grid size-8 shrink-0 place-items-center rounded-full',
-                  evaluation?.verdict === 'yes'
-                    ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]'
-                    : evaluation?.verdict === 'partially'
-                      ? 'bg-[var(--amber-soft)] text-[#8a621c]'
-                      : 'bg-[var(--rose-soft)] text-[#914435]',
-                )}>
-                  {evaluation?.verdict === 'yes' ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
+            <article
+              key={definition.dimension}
+              className={cn(
+                'rounded-2xl border p-5 shadow-[0_1px_2px_rgba(43,23,69,0.03)]',
+                evaluation?.verdict === 'yes'
+                  ? 'border-[#d3e9df] bg-[#f5fbf8]'
+                  : evaluation?.verdict === 'partially'
+                    ? 'border-[#ecdfc9] bg-[#fffaf2]'
+                    : evaluation?.verdict === 'no'
+                      ? 'border-[#efd6d0] bg-[#fff7f5]'
+                      : 'border-[var(--line)] bg-[#faf9fc]',
+              )}
+            >
+              <p className="text-sm font-semibold leading-5 text-[var(--navy)]">{definition.question}</p>
+              {evaluation && (
+                <span
+                  className={cn(
+                    'mt-3 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.04em]',
+                    evaluation.verdict === 'yes'
+                      ? 'bg-[#c9f2d5] text-[#135f34]'
+                      : evaluation.verdict === 'partially'
+                        ? 'bg-[#ffe8ad] text-[#873f12]'
+                        : 'bg-[#f8d7d1] text-[#8a3427]',
+                  )}
+                >
+                  {evaluation.verdict === 'yes' ? <CheckCircle2 className="size-4" /> : <AlertCircle className="size-4" />}
+                  {evaluation.label}
                 </span>
-                <div>
-                  <p className="text-base font-semibold leading-6 text-[var(--navy)]">{definition.question}</p>
-                  {evaluation && <p className="mt-1 text-xs font-bold uppercase tracking-[0.08em] text-[var(--muted-ink)]">{evaluation.label}</p>}
-                </div>
-              </div>
+              )}
               {evaluation ? (
-                <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{evaluation.reason}</p>
+                <p className="mt-3 text-sm leading-6 text-[var(--ink)]">{evaluation.reason}</p>
               ) : (
                 <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">This check could not be evaluated from the transcript.</p>
               )}
@@ -128,7 +94,7 @@ function InterviewAnswerCheck({ feedback }: { feedback: FeedbackItem[] }) {
           );
         })}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -161,9 +127,8 @@ function StandardFeedbackWorkspace() {
   } = usePractice();
   const [fullScreen, setFullScreen] = useState(false);
   const [recordingOpen, setRecordingOpen] = useState(false);
-  const [ratings, setRatings] = useState<Record<string, 'helpful' | 'unhelpful'>>({});
-  const [pendingDismiss, setPendingDismiss] = useState<string | null>(null);
-  const [dismissed, setDismissed] = useState<string[]>([]);
+  const [coachingRating, setCoachingRating] = useState<'helpful' | 'unhelpful' | null>(null);
+  const [coachingNoteOpen, setCoachingNoteOpen] = useState(false);
   const [note, setNote] = useState('');
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [analysisPreview, setAnalysisPreview] = useState<ResponseAnalysisProgress | null>(null);
@@ -171,11 +136,13 @@ function StandardFeedbackWorkspace() {
   const isInterview = goalTemplateKey === 'clarity';
   const interviewFollowUp = currentAnalysis?.followUpQuestion?.trim() ?? '';
   const canAnswerFollowUp = isInterview && interviewQuestionType === 'primary' && Boolean(interviewFollowUp);
+  const primaryFiller = currentAnalysis
+    ? Object.entries(currentAnalysis.metrics.fillerWords ?? {})
+      .filter(([phrase, count]) => phrase.trim() && count > 0)
+      .sort(([leftPhrase, leftCount], [rightPhrase, rightCount]) => rightCount - leftCount || leftPhrase.localeCompare(rightPhrase))[0] ?? null
+    : null;
 
-  const activeFeedback = useMemo(
-    () => feedback.filter((item) => !dismissed.includes(item.id)),
-    [dismissed, feedback],
-  );
+  const activeFeedback = feedback;
   const orderedFeedback = useMemo(
     () => [...activeFeedback].sort((first, second) => Number(Boolean(second.positive)) - Number(Boolean(first.positive))),
     [activeFeedback],
@@ -230,22 +197,26 @@ function StandardFeedbackWorkspace() {
     };
   }, [activeExercise, activeResponseId, analysisStatus, completeResponse, currentAnalysis, setAnalysisProgress]);
 
-  function rateHelpful(id: string) {
-    setRatings((current) => ({ ...current, [id]: 'helpful' }));
-    setPendingDismiss(null);
-    void rateFeedback(feedbackIds[id], { rating: 'helpful' });
+  function rateCoachingHelpful() {
+    setCoachingRating('helpful');
+    setCoachingNoteOpen(false);
+    setNote('');
+    void Promise.all(
+      activeFeedback.map((item) => rateFeedback(feedbackIds[item.id], { rating: 'helpful' })),
+    );
   }
 
-  function openUnhelpful(id: string) {
-    setRatings((current) => ({ ...current, [id]: 'unhelpful' }));
-    setPendingDismiss(id);
+  function openCoachingUnhelpful() {
+    setCoachingNoteOpen(true);
     setNote('');
   }
 
-  function dismissSuggestion(id: string) {
-    setDismissed((current) => [...current, id]);
-    setPendingDismiss(null);
-    void rateFeedback(feedbackIds[id], { rating: 'unhelpful', note, dismissed: true });
+  function submitCoachingUnhelpful() {
+    setCoachingRating('unhelpful');
+    setCoachingNoteOpen(false);
+    void Promise.all(
+      activeFeedback.map((item) => rateFeedback(feedbackIds[item.id], { rating: 'unhelpful', note })),
+    );
   }
 
   function answerFollowUp() {
@@ -395,43 +366,24 @@ function StandardFeedbackWorkspace() {
               </div>
             </div>
           )}
-          {!activeExercise && isInterview && <InterviewAnswerCheck feedback={activeFeedback} />}
-          <section className="border-y border-[var(--line)] py-6" aria-labelledby="response-metrics-title">
-            <h3 id="response-metrics-title" className="sr-only">Response metrics</h3>
-            <div className="grid items-center gap-7 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,1fr)]">
-              <div className="flex min-w-0 items-center gap-6 xl:border-r xl:border-[var(--line)] xl:pr-8">
-                {currentAnalysis ? <SpeakingPaceIllustration wordsPerMinute={currentAnalysis.metrics.averageWpm} /> : <div className="h-28 w-44 shrink-0 rounded-2xl bg-[var(--canvas)]" />}
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Average speaking pace</p>
-                  <p className="mt-2 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.averageWpm : '—'} <span className="text-base tracking-normal text-[var(--muted-ink)]">WPM</span></p>
-                  <p className="mt-2 max-w-lg text-sm leading-6 text-[var(--muted-ink)]">{currentAnalysis ? speakingPaceComment(currentAnalysis.metrics.averageWpm) : 'Calculated from this recording'}</p>
-                </div>
-              </div>
-              <dl className="grid grid-cols-3 divide-x divide-[var(--line)]">
-                <div className="px-5 first:pl-0">
-                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Fillers</dt>
-                  <dd className="mt-2 font-display text-3xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.fillerCount : '—'}</dd>
-                  <p className="mt-2 text-xs leading-5 text-[var(--muted-ink)]">{currentAnalysis && currentAnalysis.metrics.wordCount ? `${((currentAnalysis.metrics.fillerCount / currentAnalysis.metrics.wordCount) * 100).toFixed(1)} per 100 words` : 'From the transcript'}</p>
-                </div>
-                <div className="px-5">
-                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Total words</dt>
-                  <dd className="mt-2 font-display text-3xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.wordCount : '—'}</dd>
-                  <p className="mt-2 text-xs leading-5 text-[var(--muted-ink)]">{currentAnalysis ? formatDuration(currentAnalysis.durationSeconds) : 'From the transcript'}</p>
-                </div>
-                <div className="px-5 last:pr-0">
-                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Distinct words</dt>
-                  <dd className="mt-2 font-display text-3xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.uniqueWordCount : '—'}</dd>
-                  <p className="mt-2 text-xs leading-5 text-[var(--muted-ink)]">Case-normalized</p>
-                </div>
-              </dl>
-            </div>
-          </section>
+          <section aria-labelledby="coaching-feedback-title">
+            <h2
+              id="coaching-feedback-title"
+              className="font-display text-2xl font-semibold tracking-[-0.03em] text-[#4f23c8]"
+            >
+              Coaching feedback
+            </h2>
 
-          <div className="mt-7 space-y-5">
+            {!activeExercise && isInterview && (
+              <div className="mt-4">
+                <InterviewAnswerCheck feedback={activeFeedback} />
+              </div>
+            )}
+
             {hasComparison && (
-              <div className="border-b border-[var(--line)] pb-5">
+              <div className="mt-4 rounded-2xl bg-[#f5f2fb] px-4 py-3.5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Compared with your last answer</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-2.5 flex flex-wrap gap-2">
                   {resolvedCount > 0 && <span className="rounded-full bg-[#ede9fe] px-2.5 py-1 text-[11px] font-semibold text-[#5b21b6]">{resolvedCount} resolved</span>}
                   {continuingCount > 0 && <span className="rounded-full bg-[#fff0c7] px-2.5 py-1 text-[11px] font-semibold text-[#805b17]">{continuingCount} still happening</span>}
                   {newIssueCount > 0 && <span className="rounded-full bg-[#e7eef6] px-2.5 py-1 text-[11px] font-semibold text-[#3e6078]">{newIssueCount} new {newIssueCount === 1 ? 'issue' : 'issues'}</span>}
@@ -439,56 +391,129 @@ function StandardFeedbackWorkspace() {
               </div>
             )}
 
-            <section aria-labelledby="coaching-feedback-title">
-              <h3 id="coaching-feedback-title" className="text-sm font-semibold text-[var(--navy)]">Coaching feedback</h3>
+            <h3 className="mt-6 font-display text-xl font-semibold tracking-[-0.025em] text-[#4f23c8]">
+              Detailed coaching
+            </h3>
+            <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+              {orderedFeedback.map((item) => (
+                <article
+                  key={item.id}
+                  className="rounded-2xl border border-[#e7e0f3] bg-[#fbfaff] p-4 shadow-[0_1px_2px_rgba(43,23,69,0.03)]"
+                >
+                  <FeedbackCoachingContent item={item} variant="card" />
+                </article>
+              ))}
+            </div>
 
-              <div className="mt-3 columns-1 xl:columns-2 xl:gap-4">
-                {orderedFeedback.map((item) => {
-                  return (
-                    <article
-                      key={item.id}
-                      className="mb-2 inline-block w-full break-inside-avoid border-t border-[var(--line)] px-1 py-5 align-top"
-                    >
-                      <div className="text-left">
-                        <FeedbackCoachingContent item={item} />
-                      </div>
-
-                      {pendingDismiss === item.id ? (
-                        <div className="mt-4 border-t border-[var(--line)] pt-4">
-                          <label htmlFor={`note-${item.id}`} className="text-xs font-medium text-[var(--ink)]">What missed the mark? <span className="font-normal text-[var(--muted-ink)]">Optional</span></label>
-                          <Textarea id={`note-${item.id}`} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add a short note for future coaching" className="mt-2 min-h-20 bg-[var(--canvas)] text-xs" />
-                          <div className="mt-3 flex justify-end gap-2">
-                            <Button size="sm" variant="ghost" onClick={() => setPendingDismiss(null)}>Cancel</Button>
-                            <Button size="sm" variant="destructive" onClick={() => dismissSuggestion(item.id)}>Dismiss suggestion</Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-4 flex items-center gap-2 border-t border-[var(--line)] pt-3">
-                          <span className="mr-auto text-[11px] text-[var(--muted-ink)]">Was this useful?</span>
-                          <button onClick={() => rateHelpful(item.id)} className={cn('flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium', ratings[item.id] === 'helpful' ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'text-[var(--muted-ink)] hover:bg-[var(--warm)]')}><ThumbsUp className="size-3.5" />Helpful</button>
-                          <button onClick={() => openUnhelpful(item.id)} className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-[var(--muted-ink)] hover:bg-[var(--rose-soft)] hover:text-[#914435]"><ThumbsDown className="size-3.5" />Unhelpful</button>
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-
-            {dismissed.length > 0 && (
-              <button onClick={() => setDismissed([])} className="flex w-full items-center justify-center gap-1.5 py-2 text-xs font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">
-                <RotateCcw className="size-3.5" /> Restore dismissed suggestions
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-[#f8f6fc] px-5 py-3.5">
+              <span className="mr-auto text-xs font-medium text-[var(--ink)]">Was this coaching useful?</span>
+              <button
+                type="button"
+                aria-pressed={coachingRating === 'helpful'}
+                onClick={rateCoachingHelpful}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                  coachingRating === 'helpful'
+                    ? 'bg-[#dff4e7] text-[#17613a]'
+                    : 'text-[var(--muted-ink)] hover:bg-white hover:text-[var(--ink)]',
+                )}
+              >
+                <ThumbsUp className="size-3.5" /> Helpful
               </button>
-            )}
+              <button
+                type="button"
+                aria-pressed={coachingRating === 'unhelpful'}
+                onClick={openCoachingUnhelpful}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                  coachingRating === 'unhelpful'
+                    ? 'bg-[var(--rose-soft)] text-[#914435]'
+                    : 'text-[var(--muted-ink)] hover:bg-white hover:text-[#914435]',
+                )}
+              >
+                <ThumbsDown className="size-3.5" /> Unhelpful
+              </button>
+            </div>
 
-            {canAnswerFollowUp && (
-              <div className="rounded-2xl border border-[#cfc3e6] bg-[var(--mint-soft)] p-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Your manager’s follow-up</p>
-                <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{interviewFollowUp}</p>
-                <p className="mt-2 text-xs leading-5 text-[#5f4f72]">This question was generated from your interview question and answer.</p>
+            {coachingNoteOpen && (
+              <div className="mt-3 rounded-2xl bg-[#fff8f6] p-4">
+                <label htmlFor="coaching-note" className="text-xs font-medium text-[var(--ink)]">
+                  What missed the mark? <span className="font-normal text-[var(--muted-ink)]">Optional</span>
+                </label>
+                <Textarea
+                  id="coaching-note"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Add a short note for future coaching"
+                  className="mt-2 min-h-20 border-[#ead8d3] bg-white text-xs"
+                />
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setCoachingNoteOpen(false)}>Cancel</Button>
+                  <Button size="sm" variant="destructive" onClick={submitCoachingUnhelpful}>Send feedback</Button>
+                </div>
               </div>
             )}
-          </div>
+          </section>
+
+          <section className="mt-7 rounded-2xl bg-[#f8f6fc] p-5" aria-labelledby="response-metrics-title">
+            <h3 id="response-metrics-title" className="sr-only">Response metrics</h3>
+            <div className="grid items-center gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(560px,1fr)]">
+              <div className="flex min-w-0 items-center gap-5">
+                {currentAnalysis ? <SpeakingPaceIllustration wordsPerMinute={currentAnalysis.metrics.averageWpm} /> : <div className="h-28 w-44 shrink-0 rounded-2xl bg-white" />}
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Average speaking pace</p>
+                  <p className="mt-2 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.averageWpm : '—'} <span className="text-base tracking-normal text-[var(--muted-ink)]">WPM</span></p>
+                  <p className="mt-2 max-w-lg text-sm leading-6 text-[var(--muted-ink)]">{currentAnalysis ? speakingPaceComment(currentAnalysis.metrics.averageWpm) : 'Calculated from this recording'}</p>
+                </div>
+              </div>
+              <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-xl bg-white p-3.5">
+                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Time to main point</dt>
+                  <dd className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">
+                    {currentAnalysis?.metrics.timeToMainPointSeconds !== null && currentAnalysis?.metrics.timeToMainPointSeconds !== undefined
+                      ? `${currentAnalysis.metrics.timeToMainPointSeconds} sec`
+                      : '—'}
+                  </dd>
+                  <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">
+                    {currentAnalysis
+                      ? currentAnalysis.metrics.mainPointEvidence
+                        ? 'From first spoken word'
+                        : 'Main answer not reached'
+                      : 'From this answer'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-white p-3.5">
+                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Most-used filler</dt>
+                  <dd className="mt-2 break-words font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? primaryFiller ? `“${primaryFiller[0]}”` : 'None' : '—'}</dd>
+                  <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">
+                    {currentAnalysis
+                      ? primaryFiller
+                        ? `Used ${primaryFiller[1]} ${primaryFiller[1] === 1 ? 'time' : 'times'} · ${currentAnalysis.metrics.fillerCount} total`
+                        : 'No filler words detected'
+                      : 'From the transcript'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-white p-3.5">
+                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Total words</dt>
+                  <dd className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.wordCount : '—'}</dd>
+                  <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">{currentAnalysis ? formatDuration(currentAnalysis.durationSeconds) : 'From the transcript'}</p>
+                </div>
+                <div className="rounded-xl bg-white p-3.5">
+                  <dt className="text-xs font-medium text-[var(--muted-ink)]">Distinct words</dt>
+                  <dd className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.uniqueWordCount : '—'}</dd>
+                  <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">Case-normalized</p>
+                </div>
+              </dl>
+            </div>
+          </section>
+
+          {canAnswerFollowUp && (
+            <div className="mt-5 rounded-2xl border border-[#cfc3e6] bg-[var(--mint-soft)] p-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Your manager’s follow-up</p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{interviewFollowUp}</p>
+              <p className="mt-2 text-xs leading-5 text-[#5f4f72]">This question was generated from your interview question and answer.</p>
+            </div>
+          )}
           </div>
         </div>
 

@@ -25,6 +25,25 @@ function SavedSessionContent({ session }: { session: SessionDetail }) {
             <div className="flex items-center gap-2"><MessageSquareQuote className="size-5 text-[var(--teal)]" /><p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Question {index + 1}</p></div>
             <h2 className="mt-3 max-w-4xl font-display text-xl font-semibold leading-7 text-[var(--navy)]">{response.prompt}</h2>
 
+            {response.metrics && (
+              <dl className="mt-6 grid grid-cols-3 border-y border-[var(--line)] py-4">
+                <div>
+                  <dt className="text-xs text-[var(--muted-ink)]">Time to main point</dt>
+                  <dd className="mt-1 text-base font-semibold text-[var(--navy)]">
+                    {response.metrics.timeToMainPointSeconds !== null ? `${response.metrics.timeToMainPointSeconds} sec` : 'Not reached'}
+                  </dd>
+                </div>
+                <div className="border-l border-[var(--line)] px-5">
+                  <dt className="text-xs text-[var(--muted-ink)]">Speaking pace</dt>
+                  <dd className="mt-1 text-base font-semibold text-[var(--navy)]">{response.metrics.averageWpm} WPM</dd>
+                </div>
+                <div className="border-l border-[var(--line)] pl-5">
+                  <dt className="text-xs text-[var(--muted-ink)]">Fillers</dt>
+                  <dd className="mt-1 text-base font-semibold text-[var(--navy)]">{response.metrics.fillerCount}</dd>
+                </div>
+              </dl>
+            )}
+
             <div className="mt-6 rounded-2xl bg-[var(--canvas)] p-5">
               <div className="flex items-center gap-2"><Sparkles className="size-4 text-[var(--teal)]" /><h3 className="font-display text-xl font-semibold text-[var(--navy)]">Saved coaching</h3></div>
               <p className="mt-1 text-xs text-[var(--muted-ink)]">The most useful feedback saved from this answer</p>

@@ -132,6 +132,7 @@ export function CameraPractice() {
   const [hasRetryAudio, setHasRetryAudio] = useState(false);
   const [starting, setStarting] = useState(false);
   const [setupError, setSetupError] = useState('');
+  const [promptValidationActive, setPromptValidationActive] = useState(false);
   const practiceCategories = categories.length > 0 ? categories : ['spontaneous'];
   const goalDefinition = getGoalDefinition(goalTemplateKey);
   const requiresPersonalPrompt = !activeExercise && goalDefinition?.requiresPersonalPrompt === true;
@@ -154,11 +155,13 @@ export function CameraPractice() {
     const nextPrompt = promptDraft.trim();
     if (nextPrompt.length < 3) {
       setPromptSaved(false);
+      setPromptValidationActive(true);
       setSetupError('Your prompt needs at least 3 characters.');
       return;
     }
     updateSetup({ customTopic: nextPrompt, prompt: nextPrompt });
     setPromptSaved(true);
+    setPromptValidationActive(false);
     setSetupError('');
   }
 
@@ -233,8 +236,13 @@ export function CameraPractice() {
     setStarting(true);
     setSetupError('');
     if (!promptReady) {
-      setSetupError(promptDraft.trim().length >= 3 ? 'Save your interview question before starting.' : 'Enter the interview question you want to practise before starting.');
+      setPromptValidationActive(true);
       setStarting(false);
+      window.requestAnimationFrame(() => {
+        const promptInput = document.getElementById('practice-prompt');
+        promptInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        promptInput?.focus({ preventScroll: true });
+      });
       return;
     }
     if (!activeExercise && customTopic.trim() && customTopic.trim().length < 3) {
@@ -396,10 +404,23 @@ export function CameraPractice() {
                 <p className="mt-2 max-w-5xl text-sm font-medium leading-6 text-[var(--ink)]">{visiblePrompt}</p>
               </section>
             ) : (
-              <section className="mb-4 border-b border-[var(--line)] pb-4" aria-labelledby="prompt-editor-title">
+              <section
+                className={cn(
+                  'mb-4 rounded-2xl border p-4 transition-[background-color,border-color,box-shadow] duration-200',
+                  promptValidationActive
+                    ? 'border-[#d19a29] bg-[#fff9eb] shadow-[0_0_0_4px_rgba(209,154,41,0.12)]'
+                    : 'border-transparent border-b-[var(--line)] bg-white',
+                )}
+                aria-labelledby="prompt-editor-title"
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <label id="prompt-editor-title" htmlFor="practice-prompt" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Input your prompt</label>
+                    {promptValidationActive && (
+                      <p id="prompt-save-note" role="alert" className="mt-1 text-xs font-semibold normal-case tracking-normal text-[#8a5b12]">
+                        Save your prompt first
+                      </p>
+                    )}
                   </div>
                   <Button
                     type="button"
@@ -420,7 +441,10 @@ export function CameraPractice() {
                   onChange={(event) => {
                     setPromptDraft(event.target.value);
                     setPromptSaved(false);
+                    setSetupError('');
                   }}
+                  aria-invalid={promptValidationActive}
+                  aria-describedby={promptValidationActive ? 'prompt-save-note' : undefined}
                   disabled={status === 'recording' || status === 'processing'}
                   maxLength={500}
                   placeholder="Paste the interview question you want to practise"
@@ -501,7 +525,7 @@ export function CameraPractice() {
           <div className="absolute bottom-7 left-1/2 z-10 w-full max-w-sm -translate-x-1/2 px-6">
             {setupError && <p role="alert" className="mb-2 rounded-xl bg-[#8f4336]/90 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc] shadow-lg backdrop-blur">{setupError}</p>}
             {status === 'ready' && (
-              <Button onClick={() => void startSpeaking()} disabled={starting || !promptReady} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[var(--navy)] px-7 text-white shadow-xl hover:bg-[#4c1d95] disabled:bg-[var(--line)] disabled:text-[var(--muted-ink)]">
+              <Button onClick={() => void startSpeaking()} disabled={starting} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[var(--navy)] px-7 text-white shadow-xl hover:bg-[#4c1d95] disabled:bg-[var(--line)] disabled:text-[var(--muted-ink)]">
                 <Mic className="size-4" /> {starting ? 'Preparing session…' : 'Start speaking'}
               </Button>
             )}
@@ -538,7 +562,7 @@ export function CameraPractice() {
                     id="exercise-reasoning"
                     value={answerNotes}
                     onChange={(event) => updateSetup({ answerNotes: event.target.value })}
-                    disabled={status === 'recording' || status === 'processing'}
+                    disabled={status === 'processing'}
                     maxLength={2000}
                     placeholder={'Direct answer\n\n• First reason\n• Second reason\n• Evidence or example\n\nClear conclusion'}
                     className="mt-5 min-h-[360px] flex-1 resize-none rounded-none border-0 bg-transparent px-0 py-1 text-sm leading-6 text-[var(--ink)] shadow-none placeholder:text-[var(--muted-ink)]/60 focus-visible:ring-0 disabled:opacity-50"

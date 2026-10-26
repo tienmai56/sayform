@@ -22,8 +22,15 @@ export function getFeedbackCorrections(item: FeedbackItem) {
   return [];
 }
 
-export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
+export function FeedbackCoachingContent({
+  item,
+  variant = 'default',
+}: {
+  item: FeedbackItem;
+  variant?: 'default' | 'card';
+}) {
   const corrections = getFeedbackCorrections(item);
+  const isCard = variant === 'card';
   const normalizedDimension = item.dimension.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ');
   const normalizedTitle = item.title.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, ' ');
   const showTitle = Boolean(normalizedTitle && normalizedTitle !== normalizedDimension);
@@ -51,16 +58,20 @@ export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
           )}>{progressLabel}</span>
         )}
       </div>
-      {showTitle && <h4 className="mt-3 text-sm font-semibold leading-5 text-[var(--navy)]">{item.title}</h4>}
+      {showTitle && (
+        <h4 className={cn('text-sm font-semibold leading-5 text-[var(--navy)]', isCard ? 'mt-2' : 'mt-3')}>
+          {item.title}
+        </h4>
+      )}
 
       {corrections.length ? (
-        <div className="mt-4 space-y-4">
+        <div className={cn('space-y-4', isCard ? 'mt-3' : 'mt-4')}>
           {corrections.map((correction, index) => (
             <div key={`${correction.evidence}-${index}`}>
-              <p className="text-sm font-semibold leading-6 text-[var(--ink)]">
+              <p className={cn('text-sm leading-6 text-[var(--ink)]', !isCard && 'font-semibold')}>
                 “<mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{correction.evidence}</mark>”
               </p>
-              <div className="mt-3">
+              <div className={cn(isCard ? 'mt-2' : 'mt-3')}>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Recommendation</p>
                 <p className="mt-1 text-sm font-medium leading-6 text-[var(--ink)]">→ {correction.suggestion}</p>
               </div>
@@ -68,13 +79,19 @@ export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
           ))}
         </div>
       ) : item.evidence ? (
-        <p className="mt-4 text-sm font-semibold leading-6 text-[var(--ink)]">“{item.evidence}”</p>
+        <p className={cn('text-sm leading-6 text-[var(--ink)]', isCard ? 'mt-2.5' : 'mt-4 font-semibold')}>
+          “{item.evidence}”
+        </p>
       ) : null}
 
-      <div className="mt-4 border-t border-[var(--line)] pt-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Overall feedback</p>
-        <p className="mt-1.5 text-sm leading-6 text-[var(--ink)]">{conciseOverallFeedback(item.explanation)}</p>
-      </div>
+      {isCard ? (
+        <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">{conciseOverallFeedback(item.explanation)}</p>
+      ) : (
+        <div className="mt-4 border-t border-[var(--line)] pt-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Overall feedback</p>
+          <p className="mt-1.5 text-sm leading-6 text-[var(--ink)]">{conciseOverallFeedback(item.explanation)}</p>
+        </div>
+      )}
     </>
   );
 }

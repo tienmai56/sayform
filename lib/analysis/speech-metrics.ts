@@ -1,5 +1,11 @@
 import type { ResponseMetrics } from '@/lib/types';
 
+export type TimedTranscriptWord = {
+  word: string;
+  start: number;
+  end: number;
+};
+
 const fillerPhrases = [
   ['you', 'know'],
   ['kind', 'of'],
@@ -42,5 +48,23 @@ export function createSpeechMetrics(transcript: string, durationSeconds: number)
     averageWpm: Math.round((words.length * 60) / safeDuration),
     fillerCount: Object.values(fillerWords).reduce((total, count) => total + count, 0),
     fillerWords,
+    timeToMainPointSeconds: null,
+    mainPointEvidence: '',
   };
+}
+
+export function timeToTranscriptEvidence(words: TimedTranscriptWord[], evidence: string) {
+  const timedTokens = words.flatMap((item) => wordsFrom(item.word).map((word) => ({
+    word,
+    start: item.start,
+  })));
+  const evidenceTokens = wordsFrom(evidence);
+  if (!timedTokens.length || !evidenceTokens.length) return null;
+
+  for (let index = 0; index <= timedTokens.length - evidenceTokens.length; index += 1) {
+    const matches = evidenceTokens.every((word, offset) => timedTokens[index + offset]?.word === word);
+    if (!matches) continue;
+    return Math.max(0, Math.round(timedTokens[index].start - timedTokens[0].start));
+  }
+  return null;
 }

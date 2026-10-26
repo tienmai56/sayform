@@ -26,6 +26,8 @@ type MetricRow = {
   average_wpm: number;
   filler_count: number;
   filler_words: unknown;
+  time_to_main_point_seconds: number | null;
+  main_point_evidence: string;
 };
 
 type ResponseRow = {
@@ -127,6 +129,8 @@ function metricFrom(value: unknown): Partial<ResponseMetrics> {
     averageWpm: typeof record.averageWpm === 'number' ? record.averageWpm : undefined,
     fillerCount: typeof record.fillerCount === 'number' ? record.fillerCount : undefined,
     fillerWords: recordOfNumbers(record.fillerWords),
+    timeToMainPointSeconds: typeof record.timeToMainPointSeconds === 'number' ? record.timeToMainPointSeconds : null,
+    mainPointEvidence: typeof record.mainPointEvidence === 'string' ? record.mainPointEvidence : '',
   };
 }
 
@@ -206,7 +210,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         sequence_number,
         created_at,
         status,
-        response_metrics(word_count, unique_word_count, average_wpm, filler_count, filler_words),
+        response_metrics(word_count, unique_word_count, average_wpm, filler_count, filler_words, time_to_main_point_seconds, main_point_evidence),
         feedback_items(id, dimension, skill, evidence, title, explanation, alternatives, corrections, positive, progress_status, dismissed, created_at)
       ),
       exercises(id, answer_text, duration_seconds, completed_at, metrics, coaching, exercise_attempts(id, transcript, duration_seconds, completed_at, metrics)),
@@ -229,6 +233,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const previouslyObservedLessonWords = new Set<string>();
   const cumulativeVocabularyWords = new Set<string>();
   const vocabularySizeHistory: GoalLessonInsight['vocabulary']['sizeHistory'] = [];
+  const timeToMainPointValues: number[] = [];
   let completedLessonsSeen = 0;
   let completedAnswerCount = 0;
 
@@ -242,6 +247,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     let lessonAnswerCount = 0;
     let lessonSpeakingSeconds = 0;
     let lessonFillerCount = 0;
+    const lessonTimeToMainPointValues: number[] = [];
     for (const response of asArray(session.responses).sort((a, b) => a.sequence_number - b.sequence_number)) {
       if (response.status !== 'completed') continue;
       completedAnswerCount += 1;
@@ -249,6 +255,11 @@ export async function GET(_request: Request, { params }: RouteParams) {
       const words = wordsFrom(response.transcript);
       const responseMetrics = asArray(response.response_metrics);
       const responseFillerCount = responseMetrics.reduce((sum, metric) => sum + metric.filler_count, 0);
+      const responseTimeToMainPoint = responseMetrics.find((metric) => metric.time_to_main_point_seconds !== null)?.time_to_main_point_seconds;
+      if (typeof responseTimeToMainPoint === 'number') {
+        timeToMainPointValues.push(responseTimeToMainPoint);
+        lessonTimeToMainPointValues.push(responseTimeToMainPoint);
+      }
       allWords.push(...words);
       sessionWords.push(...words);
       lessonWords.push(...words);
@@ -356,6 +367,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
         },
         fluency: {
           averageWpm: lessonSpeakingSeconds > 0 ? Math.round((lessonWords.length * 60) / lessonSpeakingSeconds) : 0,
+          averageTimeToMainPointSeconds: lessonTimeToMainPointValues.length
+            ? Math.round(lessonTimeToMainPointValues.reduce((sum, seconds) => sum + seconds, 0) / lessonTimeToMainPointValues.length)
+            : null,
+          timeToMainPointAnswerCount: lessonTimeToMainPointValues.length,
           fillerCount: lessonFillerCount,
           fillerRatePer100Words: lessonWords.length > 0 ? Number(((lessonFillerCount / lessonWords.length) * 100).toFixed(1)) : 0,
           commonFillers: [...lessonFillerTotals.entries()]
@@ -595,6 +610,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
     },
     fluency: {
       averageWpm,
+      averageTimeToMainPointSeconds: timeToMainPointValues.length
+        ? Math.round(timeToMainPointValues.reduce((sum, seconds) => sum + seconds, 0) / timeToMainPointValues.length)
+        : null,
+      timeToMainPointAnswerCount: timeToMainPointValues.length,
       fillerCount,
       fillerRatePer100Words: allWords.length > 0 ? Number(((fillerCount / allWords.length) * 100).toFixed(1)) : 0,
       commonFillers: [...fillerTotals.entries()]
