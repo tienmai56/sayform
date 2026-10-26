@@ -105,8 +105,7 @@ export function ExercisesView() {
                   <p className="mt-3 text-base leading-7 text-[var(--muted-ink)]">{exercise.targetBehavior}</p>
                   <div className="mt-auto pt-5">
                     <div className="flex items-center justify-between border-t border-[var(--line)] pt-4 text-xs text-[var(--muted-ink)]"><span><Clock3 className="mr-1 inline size-3.5" />{exercise.estimatedMinutes} min</span><span>{date}</span></div>
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <Link href={`/history/${exercise.sessionId}`} className="text-xs font-semibold text-[#6842d8] hover:underline">View source lesson</Link>
+                    <div className="mt-4 flex items-center justify-end gap-3">
                       <Button size="sm" disabled={Boolean(startingId)} onClick={() => void startSavedExercise(exercise)} className="rounded-xl bg-[var(--navy)] hover:bg-[#4c1d95]">{startingId === exercise.id ? 'Opening…' : exercise.attemptCount ? 'Continue exercise' : 'Start exercise'} <ArrowRight className="ml-1 size-3.5" /></Button>
                     </div>
                   </div>
