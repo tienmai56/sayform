@@ -33,8 +33,12 @@ Phase 2 uses Supabase Auth and PostgreSQL. The checked-in migration creates the 
    pnpm dlx supabase db push
    ```
 
-4. Add `http://localhost:3000/auth/callback` to the project’s allowed Auth redirect URLs.
-5. Restart `pnpm dev`, create an account at `/login`, and open the Goals page.
+4. In Supabase **Authentication → URL Configuration**, add `http://localhost:3000/auth/callback` to the allowed redirect URLs. Add the matching `/auth/callback` URL for each deployed environment too.
+5. To enable **Continue with Google**:
+   - In Google Auth Platform, create a **Web application** OAuth client. Add your app origin (for example, `http://localhost:3000`) under **Authorized JavaScript origins**.
+   - Under **Authorized redirect URIs**, add the Supabase callback shown on the Supabase Google provider page. Hosted projects use `https://<project-ref>.supabase.co/auth/v1/callback`; the local Supabase stack uses `http://127.0.0.1:54321/auth/v1/callback`.
+   - In Supabase **Authentication → Sign In / Providers → Google**, enable the provider and add the Google client ID and client secret.
+6. Restart `pnpm dev`, then sign in at `/login` with Google or email and password.
 
 Do not commit `.env.local`. The publishable key is intended for browser use; row-level security is still responsible for isolating each account’s records.
 
@@ -74,7 +78,7 @@ pnpm build
 
 ## Phase 2 scope
 
-- Supabase email/password authentication with cookie-based server sessions and protected application routes.
+- Supabase Google OAuth and email/password authentication with cookie-based server sessions and protected application routes.
 - PostgreSQL persistence for goals, sessions, responses, metrics, feedback, summaries, exercises, and analysis jobs.
 - Row-level security and ownership checks on every user-owned table.
 - API routes that follow the PRD/ADR contract, including idempotent analysis, feedback ratings, session finalization, history, and cascade deletion.

@@ -1,7 +1,8 @@
 import type { FeedbackItem } from '@/lib/types';
+import { conciseOverallFeedback } from '@/lib/feedback-copy';
 import { cn } from '@/lib/utils';
 
-function pairedCorrections(item: FeedbackItem) {
+export function getFeedbackCorrections(item: FeedbackItem) {
   const seenEvidence = new Set<string>();
   const stored = (item.corrections ?? []).filter((correction) => {
     const evidence = correction.evidence.trim();
@@ -22,7 +23,7 @@ function pairedCorrections(item: FeedbackItem) {
 }
 
 export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
-  const corrections = pairedCorrections(item);
+  const corrections = getFeedbackCorrections(item);
   const progressLabel = item.progressStatus === 'resolved'
     ? 'Resolved'
     : item.progressStatus === 'still_happening'
@@ -57,7 +58,10 @@ export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
               <p className="text-sm font-semibold leading-6 text-[var(--ink)]">
                 “<mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{correction.evidence}</mark>”
               </p>
-              <p className="mt-1.5 text-sm font-medium leading-6 text-[var(--ink)]">→ {correction.suggestion}</p>
+              <div className="mt-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Recommendation</p>
+                <p className="mt-1 text-sm font-medium leading-6 text-[var(--ink)]">→ {correction.suggestion}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -65,7 +69,10 @@ export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
         <p className="mt-4 text-sm font-semibold leading-6 text-[var(--ink)]">“{item.evidence}”</p>
       ) : null}
 
-      <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{item.explanation}</p>
+      <div className="mt-4 border-t border-[var(--line)] pt-4">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Overall feedback</p>
+        <p className="mt-1.5 text-sm leading-6 text-[var(--ink)]">{conciseOverallFeedback(item.explanation)}</p>
+      </div>
     </>
   );
 }

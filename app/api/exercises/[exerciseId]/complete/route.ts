@@ -48,6 +48,7 @@ export async function POST(_request: Request, { params }: RouteParams) {
   if (!exercise) return apiError(404, 'exercise_not_found', 'Exercise not found.');
 
   const attempts = asArray(exercise.exercise_attempts as Record<string, unknown> | Record<string, unknown>[])
+    .filter((attempt) => attempt.processing_status === 'completed')
     .map(mapAttempt)
     .sort((left, right) => left.completedAt.localeCompare(right.completedAt));
   if (!attempts.length) return apiError(409, 'no_attempts', 'Complete at least one exercise attempt first.');

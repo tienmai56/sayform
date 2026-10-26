@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Target } from 'lucide-react';
+import { AlertCircle, ArrowRight, Sparkles, Target } from 'lucide-react';
 import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { usePractice } from '@/components/practice-context';
-import { finishPersonalizedExercise } from '@/lib/client-data';
-import type { ExerciseAssessment } from '@/lib/types';
+import { finishPersonalizedExercise, getExerciseAttemptProgress } from '@/lib/client-data';
+import type { ExerciseAssessment, ExerciseAttemptProgress } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 const assessmentCopy: Record<ExerciseAssessment, { label: string; className: string }> = {
@@ -21,17 +21,114 @@ export function ExerciseAttemptFeedback() {
   const router = useRouter();
   const {
     activeExercise,
+    activeExerciseAttemptId,
     advanceExercise,
     clearRecording,
+    completeExerciseAttempt,
     currentExerciseResult,
+    exerciseAnalysisError,
+    exerciseAnalysisStatus,
     exerciseResults,
+    prompt,
+    setExerciseAnalysisProgress,
     setExerciseCompletion,
   } = usePractice();
   const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState('');
+  const [analysisPreview, setAnalysisPreview] = useState<ExerciseAttemptProgress | null>(null);
 
-  if (!activeExercise || !currentExerciseResult) return null;
+  useEffect(() => {
+    if (!activeExercise || currentExerciseResult || !activeExerciseAttemptId || exerciseAnalysisStatus === 'failed') return;
+    const exerciseId = activeExercise.id;
+    const attemptId = activeExerciseAttemptId;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const startedAt = Date.now();
+
+    async function poll() {
+      try {
+        const progress = await getExerciseAttemptProgress(exerciseId, attemptId);
+        if (cancelled) return;
+        setAnalysisPreview(progress);
+        if (progress.result) {
+          completeExerciseAttempt(progress.result);
+          return;
+        }
+        if (progress.stage === 'failed') {
+          setExerciseAnalysisProgress('failed', progress.error);
+          return;
+        }
+        if (Date.now() - startedAt >= 120_000) {
+          setExerciseAnalysisProgress('failed', 'Exercise feedback is taking longer than expected. Please record this attempt again.');
+          return;
+        }
+        timer = setTimeout(() => void poll(), 700);
+      } catch {
+        if (cancelled) return;
+        timer = setTimeout(() => void poll(), 1200);
+      }
+    }
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [activeExercise, activeExerciseAttemptId, completeExerciseAttempt, currentExerciseResult, exerciseAnalysisStatus, setExerciseAnalysisProgress]);
+
+  if (!activeExercise) return null;
   const exercise = activeExercise;
+  if (!currentExerciseResult) {
+    const stage = analysisPreview?.stage ?? (exerciseAnalysisStatus === 'idle' ? 'queued' : exerciseAnalysisStatus);
+    const stageOrder = { queued: 0, transcribing: 0, analyzing: 1, completed: 2, failed: 0 } as const;
+    const tryAgain = () => {
+      clearRecording();
+      setExerciseAnalysisProgress('idle');
+      router.push('/practice/session');
+    };
+    return (
+      <AppShell>
+        <Screen wide>
+          <Breadcrumbs items={[{ label: 'Exercises', href: '/exercises' }, { label: exercise.title }, { label: 'Preparing feedback' }]} />
+          <div className="mb-6 flex items-start justify-between gap-6">
+            <div><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Attempt complete</p><h1 className="mt-2 max-w-4xl font-display text-2xl font-semibold leading-8 text-[var(--navy)]">{prompt}</h1></div>
+            <span className="rounded-full bg-[var(--mint-soft)] px-3 py-1.5 text-xs font-medium text-[var(--teal-dark)]">Skill · {exercise.targetSkill}</span>
+          </div>
+          <section className="min-h-[620px] rounded-3xl border border-[var(--line)] bg-[var(--paper)] p-8 shadow-[var(--shadow-sm)]">
+            <div className="mx-auto flex min-h-[550px] max-w-3xl flex-col justify-center">
+              {exerciseAnalysisStatus === 'failed' || !activeExerciseAttemptId ? (
+                <div className="rounded-2xl border border-[#e8c6bf] bg-[var(--rose-soft)] p-7 text-center">
+                  <AlertCircle className="mx-auto size-7 text-[#914435]" />
+                  <h2 className="mt-3 font-display text-xl font-semibold text-[var(--navy)]">Exercise feedback could not be completed</h2>
+                  <p className="mt-2 text-sm leading-6 text-[#765149]">{exerciseAnalysisError ?? 'Please record this exercise attempt again.'}</p>
+                  <Button onClick={tryAgain} className="mt-5 rounded-xl bg-[var(--navy)]">Try attempt again</Button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Sparkles className="size-5 animate-pulse" /></span>
+                    <h2 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Preparing your targeted feedback</h2>
+                    <p className="mt-2 text-sm text-[var(--muted-ink)]">Your recording is saved. Coaching will appear as soon as it is ready.</p>
+                  </div>
+                  <div className="mt-6 grid grid-cols-3 gap-2">
+                    {(['Transcribing', 'Evaluating', 'Ready'] as const).map((label, index) => (
+                      <div key={label} className={cn('rounded-xl border px-3 py-3 text-center text-xs font-semibold', stageOrder[stage] >= index ? 'border-[var(--mint)] bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'border-[var(--line)] bg-white text-[var(--muted-ink)]')}>{label}</div>
+                    ))}
+                  </div>
+                  {analysisPreview?.transcript && (
+                    <div className="mt-6 rounded-2xl border border-[var(--line)] bg-white p-5">
+                      <div className="flex items-center justify-between gap-4"><p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Transcript ready</p>{analysisPreview.metrics && <span className="text-xs text-[var(--muted-ink)]">{analysisPreview.metrics.wordCount} words · {analysisPreview.metrics.averageWpm} WPM</span>}</div>
+                      <p className="mt-3 line-clamp-5 text-sm leading-7 text-[#52666e]">{analysisPreview.transcript}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+        </Screen>
+      </AppShell>
+    );
+  }
   const { attempt, next } = currentExerciseResult;
   const assessment = assessmentCopy[attempt.assessment];
   const whatWorked = attempt.assessment === 'not_evaluated' ? '' : attempt.whatWorked.trim();

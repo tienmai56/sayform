@@ -13,14 +13,50 @@ import {
   Square,
   X,
 } from 'lucide-react';
+import { getFeedbackCorrections } from '@/components/feedback-coaching-content';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { usePractice } from '@/components/practice-context';
 import { getGoalDefinition } from '@/lib/goal-catalog';
 import { categories as categoryOptions } from '@/lib/mock-data';
-import { completeExerciseAttempt as submitExerciseAttempt, createPracticeSession, saveAndAnalyzeResponse, updateExerciseStatus } from '@/lib/client-data';
+import { completeExerciseAttempt as submitExerciseAttempt, createPracticeSession, startResponseAnalysis, updateExerciseStatus } from '@/lib/client-data';
+import type { FeedbackDimension, FeedbackItem } from '@/lib/types';
 
 type PracticeStatus = 'permission' | 'requesting' | 'ready' | 'recording' | 'processing' | 'error';
+
+const feedbackOrder: Record<FeedbackDimension, number> = {
+  'Communication effectiveness': 0,
+  'Critical thinking': 1,
+  Vocabulary: 2,
+  'Sentence structure': 3,
+  'What worked': 4,
+};
+
+const interviewFeedbackSteps: Record<FeedbackDimension, string> = {
+  'Communication effectiveness': 'Start with the direct answer',
+  'Critical thinking': 'Then show your reasoning',
+  Vocabulary: 'Clarify key terms',
+  'Sentence structure': 'Finish with a clear conclusion',
+  'What worked': 'Keep this strength',
+};
+
+const generalFeedbackSteps: Record<FeedbackDimension, string> = {
+  'Communication effectiveness': 'State the main message',
+  'Critical thinking': 'Support the reasoning',
+  Vocabulary: 'Clarify the wording',
+  'Sentence structure': 'Tighten the structure',
+  'What worked': 'Keep this strength',
+};
+
+function orderFeedbackForNextAttempt(feedback: FeedbackItem[]) {
+  return feedback
+    .map((item, originalIndex) => ({ item, originalIndex }))
+    .sort((left, right) => (
+      feedbackOrder[left.item.dimension] - feedbackOrder[right.item.dimension]
+      || left.originalIndex - right.originalIndex
+    ))
+    .map(({ item }) => item);
+}
 
 function formatTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -28,9 +64,9 @@ function formatTime(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
-function createRecorder(stream: MediaStream, mimeTypes: string[]) {
+function createRecorder(stream: MediaStream, mimeTypes: string[], options: MediaRecorderOptions = {}) {
   const mimeType = mimeTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate));
-  return mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+  return new MediaRecorder(stream, mimeType ? { ...options, mimeType } : options);
 }
 
 function stopRecorder(recorder: MediaRecorder | null, chunks: Blob[]) {
@@ -50,6 +86,8 @@ export function CameraPractice() {
     activeSessionId,
     answerNotes,
     answerCount,
+    beginExerciseAttempt,
+    beginResponse,
     beginSession,
     categories,
     completeResponse,
@@ -100,6 +138,8 @@ export function CameraPractice() {
     : requiresPersonalPrompt
       ? 'Experienced manager coaching'
       : categoryOptions.find((category) => category.id === practiceCategories[0])?.title ?? 'Spontaneous thinking';
+  const feedbackToApply = orderFeedbackForNextAttempt(redoFeedback);
+  const feedbackSteps = goalTemplateKey === 'clarity' ? interviewFeedbackSteps : generalFeedbackSteps;
 
   function savePrompt() {
     const nextPrompt = promptDraft.trim();
@@ -140,7 +180,7 @@ export function CameraPractice() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -160,7 +200,10 @@ export function CameraPractice() {
     setErrorKind('media');
     setStatus('requesting');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+      });
       streamRef.current = stream;
       setDemoMode(true);
       setStatus('ready');
@@ -230,7 +273,7 @@ export function CameraPractice() {
         'audio/webm',
         'audio/mp4',
         'audio/ogg;codecs=opus',
-      ]);
+      ], { audioBitsPerSecond: 32_000 });
       previewRecorderRef.current = previewRecorder;
       audioRecorderRef.current = audioRecorder;
       if (previewRecorder) {
@@ -253,7 +296,7 @@ export function CameraPractice() {
   async function persistResponse(audio: Blob | null) {
     if (!audio) throw new Error('A microphone recording is required for speech analysis.');
     if (activeExercise) {
-      const result = await submitExerciseAttempt({
+      const progress = await submitExerciseAttempt({
         exerciseId: activeExercise.id,
         templateId: activeExercise.templateId,
         audio,
@@ -264,11 +307,12 @@ export function CameraPractice() {
         guidance: '',
         difficultyLevel: exerciseDifficultyLevel,
       });
-      completeExerciseAttempt(result);
+      beginExerciseAttempt(progress.attemptId);
+      if (progress.result) completeExerciseAttempt(progress.result);
       return;
     }
     if (!activeSessionId) return;
-    const result = await saveAndAnalyzeResponse({
+    const result = await startResponseAnalysis({
       sessionId: activeSessionId,
       prompt: displayedPrompt,
       durationSeconds: elapsed,
@@ -277,7 +321,8 @@ export function CameraPractice() {
       goalTemplateKey,
       generateInterviewFollowUp: goalTemplateKey === 'clarity' && interviewQuestionType === 'primary',
     });
-    completeResponse(result.responseId, result.feedbackIds, result.analysis);
+    beginResponse(result.responseId);
+    if (result.analysis) completeResponse(result.responseId, result.feedbackIds ?? {}, result.analysis);
   }
 
   async function doneSpeaking() {
@@ -292,10 +337,7 @@ export function CameraPractice() {
       if (activeExercise && audioBlob) setRecordingUrl(URL.createObjectURL(audioBlob));
       else if (previewBlob) setRecordingUrl(URL.createObjectURL(previewBlob));
       releaseCamera();
-      await Promise.all([
-        persistResponse(audioBlob),
-        new Promise((resolve) => window.setTimeout(resolve, 900)),
-      ]);
+      await persistResponse(audioBlob);
       router.push('/practice/feedback');
     } catch (caught) {
       setErrorKind('save');
@@ -325,7 +367,7 @@ export function CameraPractice() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0e222d] text-white">
+    <div className="min-h-screen bg-[#0e222d] text-white">
       <div className="grid h-screen grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
         <section className="relative flex min-h-0 items-start justify-center overflow-hidden bg-[#0a1921] px-8 pb-20 pt-7">
           <div className="w-full max-w-[1120px]">
@@ -501,17 +543,26 @@ export function CameraPractice() {
                 {redoFeedback.length > 0 && (
                   <div className="mb-6 border-l-2 border-[#d9aa45]/70 pl-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-[#f1ca72]">Feedback to apply</p>
-                    <ul className="mt-3 space-y-3">
-                      {redoFeedback.map((item) => {
-                        const suggestion = item.corrections?.[0]?.suggestion ?? item.alternatives?.[0];
+                    <ol className="mt-3 space-y-4">
+                      {feedbackToApply.map((item, index) => {
+                        const corrections = getFeedbackCorrections(item);
                         return (
                           <li key={item.id} className="flex items-start gap-2.5 text-xs leading-5 text-white/75">
-                            <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[#f1ca72]" />
-                            <span><strong className="font-semibold text-white/90">{item.title}</strong>{suggestion ? <span className="mt-0.5 block text-white/55">Try: {suggestion}</span> : null}</span>
+                            <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[#f1ca72]/15 text-[10px] font-semibold text-[#f1ca72]">{index + 1}</span>
+                            <span className="min-w-0">
+                              <strong className="block font-semibold text-[#f1ca72]">{feedbackSteps[item.dimension]}</strong>
+                              <span className="mt-0.5 block font-medium text-white/90">{item.title}</span>
+                              {corrections.map((correction, correctionIndex) => (
+                                <span key={`${correction.evidence}-${correctionIndex}`} className="mt-1.5 block border-l border-white/15 pl-2.5">
+                                  <span className="block text-white/45"><span className="font-semibold text-white/65">Avoid:</span> “{correction.evidence}”</span>
+                                  <span className="mt-0.5 block text-white/70"><span className="font-semibold text-white/90">{item.dimension === 'Vocabulary' ? 'Use:' : 'Try:'}</span> {correction.suggestion}</span>
+                                </span>
+                              ))}
+                            </span>
                           </li>
                         );
                       })}
-                    </ul>
+                    </ol>
                   </div>
                 )}
 
@@ -543,6 +594,6 @@ export function CameraPractice() {
           </div>
         </aside>
       </div>
-    </main>
+    </div>
   );
 }

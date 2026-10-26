@@ -6,6 +6,7 @@ import { AlertCircle, ArrowLeft, CheckCircle2, Gauge, MessageSquareText, Repeat2
 import { AppShell, Screen } from '@/components/app-shell';
 import type { DashboardFeedbackItem, GoalDashboard, GoalLessonInsight } from '@/lib/types';
 import { getGoalDashboard } from '@/lib/client-data';
+import { conciseOverallFeedback } from '@/lib/feedback-copy';
 import { cn } from '@/lib/utils';
 
 type InsightTab = 'interview' | 'vocabulary' | 'fluency' | 'grammar';
@@ -17,35 +18,72 @@ function minutesLabel(seconds: number) {
   return `${Math.round(minutes)} minutes`;
 }
 
-function FeedbackCard({ item, tone }: { item: DashboardFeedbackItem; tone: 'positive' | 'improve' }) {
-  const corrections = (item.corrections ?? []).filter((correction) => correction.evidence.trim() && correction.suggestion.trim()).slice(0, 2);
+type FeedbackGroup = {
+  key: string;
+  label: string;
+  items: DashboardFeedbackItem[];
+};
+
+function groupFeedback(items: DashboardFeedbackItem[]) {
+  const groups = new Map<string, FeedbackGroup>();
+  for (const item of items) {
+    const label = item.skill?.trim() || item.title.trim();
+    const key = label.toLocaleLowerCase().replace(/\s+/g, ' ');
+    const group = groups.get(key) ?? { key, label, items: [] };
+    group.items.push(item);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
+function FeedbackGroupCard({ group, tone }: { group: FeedbackGroup; tone: 'positive' | 'improve' }) {
   return (
     <article className="rounded-2xl border border-[var(--line)] bg-white p-5">
-      <div className="flex items-center gap-2 text-xs font-semibold text-[var(--muted-ink)]">
-        <span className={cn('h-5 w-1.5 rounded-full', tone === 'positive' ? 'bg-[#55a887]' : 'bg-[#c88a18]')} />
-        {item.skill || item.title}
+      <div className="flex items-center gap-2">
+        <span className={cn('h-5 w-1.5 shrink-0 rounded-full', tone === 'positive' ? 'bg-[#55a887]' : 'bg-[#c88a18]')} />
+        <h4 className="text-xs font-semibold text-[var(--muted-ink)]">{group.label}</h4>
+        {group.items.length > 1 && <span className="ml-auto rounded-full bg-[#f0ecff] px-2.5 py-1 text-[10px] font-semibold text-[#6842d8]">{group.items.length} examples</span>}
       </div>
-      {corrections.length ? (
-        <div className="mt-4 space-y-4">
-          {corrections.map((correction, index) => (
-            <div key={`${correction.evidence}-${index}`}>
-              <p className="text-sm font-semibold leading-6 text-[var(--ink)]">“<mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{correction.evidence}</mark>”</p>
-              <p className="mt-1.5 text-sm font-medium leading-6 text-[var(--ink)]">→ {correction.suggestion}</p>
-            </div>
-          ))}
-        </div>
-      ) : item.evidence ? (
-        <p className="mt-4 text-sm font-semibold leading-6 text-[var(--ink)]">
-          {tone === 'improve' ? <>“<mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{item.evidence}</mark>”</> : <>“{item.evidence}”</>}
-        </p>
-      ) : null}
-      <p className="mt-4 text-sm leading-6 text-[var(--ink)]">{item.explanation}</p>
-      <Link href={`/history/${item.sessionId}`} className="mt-4 inline-flex text-xs font-semibold text-[var(--teal-dark)] hover:underline">View answer in History →</Link>
+
+      <div className="mt-4 divide-y divide-[var(--line)]">
+        {group.items.map((item, itemIndex) => {
+          const corrections = (item.corrections ?? []).filter((correction) => correction.evidence.trim() && correction.suggestion.trim()).slice(0, 2);
+          return (
+            <section key={item.id} className="py-5 first:pt-0 last:pb-0" aria-label={group.items.length > 1 ? `Example ${itemIndex + 1}` : undefined}>
+              {group.items.length > 1 && <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Example {itemIndex + 1}</p>}
+              {corrections.length ? (
+                <div className="space-y-4">
+                  {corrections.map((correction, correctionIndex) => (
+                    <div key={`${correction.evidence}-${correctionIndex}`}>
+                      <p className="text-sm font-semibold leading-6 text-[var(--ink)]">“<mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{correction.evidence}</mark>”</p>
+                      <div className="mt-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Recommendation</p>
+                        <p className="mt-1 text-sm font-medium leading-6 text-[var(--ink)]">→ {correction.suggestion}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : item.evidence ? (
+                <p className="text-sm font-semibold leading-6 text-[var(--ink)]">
+                  {tone === 'improve' ? <>“<mark className="rounded-sm bg-[#fff0a8] px-0.5 text-[var(--ink)]">{item.evidence}</mark>”</> : <>“{item.evidence}”</>}
+                </p>
+              ) : null}
+              <div className="mt-4 border-t border-[var(--line)] pt-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Overall feedback</p>
+                <p className="mt-1.5 text-sm leading-6 text-[var(--ink)]">{conciseOverallFeedback(item.explanation)}</p>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      <Link href={`/history/${group.items[0].sessionId}`} className="mt-5 inline-flex text-xs font-semibold text-[var(--teal-dark)] hover:underline">View {group.items.length > 1 ? 'answers' : 'answer'} in History →</Link>
     </article>
   );
 }
 
 function FeedbackColumns({ strengths, improvements, emptyMessage }: { strengths: DashboardFeedbackItem[]; improvements: DashboardFeedbackItem[]; emptyMessage: string }) {
+  const strengthGroups = groupFeedback(strengths);
+  const improvementGroups = groupFeedback(improvements);
   if (!strengths.length && !improvements.length) {
     return <div className="rounded-2xl border border-dashed border-[#b8c9c4] bg-white px-6 py-12 text-center text-sm text-[var(--muted-ink)]">{emptyMessage}</div>;
   }
@@ -53,12 +91,12 @@ function FeedbackColumns({ strengths, improvements, emptyMessage }: { strengths:
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
       <section>
         <h3 className="mb-3 font-display text-lg font-semibold text-[var(--navy)]">What you did well</h3>
-        <div className="space-y-3">{strengths.map((item) => <FeedbackCard key={item.id} item={item} tone="positive" />)}</div>
+        <div className="space-y-3">{strengthGroups.map((group) => <FeedbackGroupCard key={group.key} group={group} tone="positive" />)}</div>
         {!strengths.length && <p className="rounded-2xl border border-dashed border-[var(--line)] p-5 text-sm text-[var(--muted-ink)]">No transcript-based strength was saved in this category.</p>}
       </section>
       <section>
         <h3 className="mb-3 font-display text-lg font-semibold text-[var(--navy)]">What you can improve</h3>
-        <div className="space-y-3">{improvements.map((item) => <FeedbackCard key={item.id} item={item} tone="improve" />)}</div>
+        <div className="space-y-3">{improvementGroups.map((group) => <FeedbackGroupCard key={group.key} group={group} tone="improve" />)}</div>
         {!improvements.length && <p className="rounded-2xl border border-dashed border-[var(--line)] p-5 text-sm text-[var(--muted-ink)]">No corrective feedback was saved in this category.</p>}
       </section>
     </div>
@@ -207,7 +245,7 @@ export function LessonInsightsView({ goalId, lessonId }: { goalId: string; lesso
   return (
     <AppShell>
       <Screen>
-        <Link href="/goals" className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--teal-dark)] hover:underline"><ArrowLeft className="size-4" />Back to Goals</Link>
+        <Link href="/goals" className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--teal-dark)] hover:underline"><ArrowLeft className="size-4" />Back to Home</Link>
         {error ? (
           <div role="alert" className="mt-8 rounded-2xl border border-[#e8c6bf] bg-[var(--rose-soft)] p-5 text-sm text-[#8f4336]">{error}</div>
         ) : !dashboard ? (

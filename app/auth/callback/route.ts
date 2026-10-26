@@ -18,6 +18,10 @@ export async function GET(request: Request) {
   }
 
   const loginUrl = new URL('/login', url.origin);
-  loginUrl.searchParams.set('error', 'We could not complete sign-in. Please try again.');
+  loginUrl.searchParams.set('next', destination);
+  loginUrl.searchParams.set(
+    'error',
+    'We could not complete sign-in. Please try again.',
+  );
   return NextResponse.redirect(loginUrl);
 }

@@ -64,6 +64,18 @@ export type ResponseAnalysis = {
   followUpQuestion?: string;
 };
 
+export type ResponseAnalysisStage = 'queued' | 'transcribing' | 'analyzing' | 'completed' | 'failed';
+
+export type ResponseAnalysisProgress = {
+  stage: ResponseAnalysisStage;
+  transcript?: string;
+  durationSeconds?: number;
+  metrics?: ResponseMetrics;
+  analysis?: ResponseAnalysis;
+  feedbackIds?: Record<string, string>;
+  error?: string;
+};
+
 export type SummaryPattern = {
   title: string;
   detail: string;
@@ -146,6 +158,18 @@ export type ExerciseAttemptResult = {
   next: ExerciseNextStep;
 };
 
+export type ExerciseAttemptStage = 'queued' | 'transcribing' | 'analyzing' | 'completed' | 'failed';
+
+export type ExerciseAttemptProgress = {
+  attemptId: string;
+  stage: ExerciseAttemptStage;
+  transcript?: string;
+  durationSeconds?: number;
+  metrics?: ResponseMetrics;
+  result?: ExerciseAttemptResult;
+  error?: string;
+};
+
 export type ExerciseCompletionSummary = {
   exerciseId: string;
   status: 'completed';
@@ -178,6 +202,11 @@ export type FinishedSession = {
   };
   exercise: ExerciseRecommendation | null;
 };
+
+export type SessionSummaryProgress =
+  | { generationStatus: 'processing'; session: FinishedSession['session'] }
+  | { generationStatus: 'failed'; session: FinishedSession['session']; error: string }
+  | { generationStatus: 'completed'; result: FinishedSession };
 
 export type PracticeSession = {
   id: string;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { apiError, databaseError, requireApiUser } from '@/lib/api-response';
 import { getGoalDefinition } from '@/lib/goal-catalog';
-import type { DashboardFeedbackItem, FeedbackCorrection, FeedbackDimension, GoalDashboard, GoalLessonInsight, ResponseMetrics, SummaryPattern } from '@/lib/types';
+import type { DashboardFeedbackItem, FeedbackCorrection, FeedbackDimension, FeedbackProgressStatus, GoalDashboard, GoalLessonInsight, ResponseMetrics, SummaryPattern } from '@/lib/types';
 
 type RouteParams = { params: Promise<{ goalId: string }> };
 
@@ -15,6 +15,7 @@ type FeedbackRow = {
   alternatives: unknown;
   corrections: unknown;
   positive: boolean;
+  progress_status: FeedbackProgressStatus | null;
   dismissed: boolean;
   created_at: string;
 };
@@ -202,7 +203,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         created_at,
         status,
         response_metrics(word_count, unique_word_count, average_wpm, filler_count, filler_words),
-        feedback_items(id, dimension, skill, evidence, title, explanation, alternatives, corrections, positive, dismissed, created_at)
+        feedback_items(id, dimension, skill, evidence, title, explanation, alternatives, corrections, positive, progress_status, dismissed, created_at)
       ),
       exercises(id, answer_text, duration_seconds, completed_at, metrics, coaching, exercise_attempts(id, transcript, duration_seconds, completed_at, metrics)),
       session_summaries(summary, strengths, opportunities)
@@ -283,6 +284,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
           alternatives: stringArray(item.alternatives),
           corrections: correctionArray(item.corrections),
           positive: item.positive,
+          progressStatus: item.progress_status ?? 'baseline',
         };
         allFeedback.push(feedbackItem);
         lessonFeedback.push(feedbackItem);

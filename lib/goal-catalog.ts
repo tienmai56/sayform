@@ -25,7 +25,7 @@ export const goalCatalog: GoalDefinition[] = [
   {
     key: 'clarity',
     title: 'Interview',
-    description: 'Practise interview answers with an experienced manager and build the skills to land your next job.',
+    description: '',
     defaultCategory: 'professional',
     requiresPersonalPrompt: true,
     coachInstructions: 'You are an experienced hiring manager and interview coach helping the candidate improve their interviewing skills and land their next job. Always make three interview checks explicit: Did the candidate answer the actual question? Was the reasoning easy to follow? Did the candidate provide a clear conclusion? Also evaluate specific evidence, personal actions and impact, judgment, self-awareness, vocabulary, sentence quality, concision, and conversational fluency. Be candid, supportive, and practical. Do not invent job requirements or facts that the candidate did not provide.',

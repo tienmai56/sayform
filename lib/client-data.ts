@@ -5,7 +5,7 @@ import { createMockAnalysis } from '@/lib/analysis/mock-provider';
 import { fallbackExercisePrompt, getExerciseTemplate } from '@/lib/exercise-library';
 import { createDemoGoals, getGoalDefinition } from '@/lib/goal-catalog';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
-import type { ExerciseAttemptResult, ExerciseAttemptType, ExerciseCompletionSummary, ExerciseStatus, FeedbackDimension, FeedbackItem, FeedbackProgressStatus, FinishedSession, Goal, GoalDashboard, GoalExercise, PracticeSession, ResponseAnalysis, SessionDetail, SummaryPattern } from '@/lib/types';
+import type { ExerciseAttemptProgress, ExerciseAttemptResult, ExerciseAttemptType, ExerciseCompletionSummary, ExerciseStatus, FeedbackDimension, FeedbackItem, FeedbackProgressStatus, FinishedSession, Goal, GoalDashboard, GoalExercise, PracticeSession, ResponseAnalysis, ResponseAnalysisProgress, ResponseAnalysisStage, SessionDetail, SessionSummaryProgress, SummaryPattern } from '@/lib/types';
 
 const goalStorageKey = 'communication-coach:demo-goals';
 const sessionStorageKey = 'communication-coach:demo-sessions';
@@ -57,7 +57,7 @@ export async function listGoals(): Promise<Goal[]> {
     const stored = readLocal<Goal[]>(goalStorageKey, []);
     const presets = createDemoGoals().map((preset) => {
       const saved = stored.find((goal) => goal.templateKey === preset.templateKey);
-      return saved ? { ...preset, ...saved, skills: preset.skills, defaultCategory: preset.defaultCategory } : preset;
+      return saved ? { ...preset, ...saved, description: preset.description, skills: preset.skills, defaultCategory: preset.defaultCategory } : preset;
     });
     const custom = stored
       .filter((goal) => goal.isCustom || (!goal.templateKey && goal.id.startsWith('demo-goal-')))
@@ -125,7 +125,7 @@ export async function getGoalDashboard(goalId: string): Promise<GoalDashboard> {
     };
   }
 
-  const result = await apiRequest<{ dashboard: GoalDashboard }>(`/api/goals/${goalId}/dashboard`);
+  const result = await apiRequest<{ dashboard: GoalDashboard }>(`/api/goals/${goalId}/dashboard`, { cache: 'no-store' });
   return result.dashboard;
 }
 
@@ -158,7 +158,7 @@ export async function createPracticeSession(input: {
   return result.session;
 }
 
-export async function saveAndAnalyzeResponse(input: {
+export async function startResponseAnalysis(input: {
   sessionId: string;
   prompt: string;
   durationSeconds: number;
@@ -195,22 +195,21 @@ export async function saveAndAnalyzeResponse(input: {
   upload.set('idempotencyKey', idempotencyKey);
   upload.set('generateFollowUp', input.generateInterviewFollowUp ? 'true' : 'false');
   upload.set('audio', input.audio, input.audio.type.includes('mp4') ? 'answer.m4a' : 'answer.webm');
-  const analyzed = await apiRequest<{ analysis?: ResponseAnalysis }>(`/api/responses/${created.response.id}/analyze`, {
+  await apiRequest<{ status: ResponseAnalysisStage }>(`/api/responses/${created.response.id}/analyze`, {
     method: 'POST',
     body: upload,
   });
-  const analysis = analyzed.analysis ?? await getResponseAnalysis(created.response.id);
-  if (!analysis) throw new Error('The completed analysis could not be loaded.');
-  const feedbackIds = Object.fromEntries(analysis.feedback.map((item) => [item.id, item.id]));
-  return { responseId: created.response.id, feedbackIds, analysis };
+  return { responseId: created.response.id };
 }
 
-export async function getResponseAnalysis(responseId: string): Promise<ResponseAnalysis | null> {
-  if (!usesPersistentBackend) return null;
+export async function getResponseAnalysisProgress(responseId: string): Promise<ResponseAnalysisProgress> {
+  if (!usesPersistentBackend) return { stage: 'failed', error: 'Progress polling is unavailable in demo mode.' };
   const result = await apiRequest<{
     response: {
       transcript: string;
       duration_seconds: number;
+      status: string;
+      follow_up_question: string | null;
       response_metrics: Array<{
         word_count: number;
         unique_word_count: number;
@@ -236,24 +235,62 @@ export async function getResponseAnalysis(responseId: string): Promise<ResponseA
         positive: boolean;
         progress_status?: FeedbackProgressStatus;
       }>;
+      analysis_jobs: Array<{ state: ResponseAnalysisStage; last_error: string | null; updated_at: string }> | { state: ResponseAnalysisStage; last_error: string | null; updated_at: string } | null;
     };
-  }>(`/api/responses/${responseId}`);
+  }>(`/api/responses/${responseId}`, { cache: 'no-store' });
   const metricsRelation = Array.isArray(result.response.response_metrics)
     ? result.response.response_metrics[0]
     : result.response.response_metrics;
-  if (!metricsRelation) return null;
+  const metrics = metricsRelation ? {
+    wordCount: metricsRelation.word_count,
+    uniqueWordCount: metricsRelation.unique_word_count,
+    averageWpm: metricsRelation.average_wpm,
+    fillerCount: metricsRelation.filler_count,
+    fillerWords: metricsRelation.filler_words,
+  } : undefined;
+  const jobs = Array.isArray(result.response.analysis_jobs)
+    ? result.response.analysis_jobs
+    : result.response.analysis_jobs ? [result.response.analysis_jobs] : [];
+  const latestJob = [...jobs].sort((first, second) => second.updated_at.localeCompare(first.updated_at))[0];
+  const stage = result.response.status === 'completed'
+    ? 'completed'
+    : result.response.status === 'failed'
+      ? 'failed'
+      : latestJob?.state ?? (result.response.status as ResponseAnalysisStage);
+
+  if (stage === 'completed' && metrics) {
+    const feedback = result.response.feedback_items.map(normalizeFeedbackItem);
+      const analysis: ResponseAnalysis = {
+      transcript: result.response.transcript,
+      durationSeconds: result.response.duration_seconds,
+      metrics,
+      feedback,
+      followUpQuestion: result.response.follow_up_question || undefined,
+    };
+    return {
+      stage,
+      transcript: analysis.transcript,
+      durationSeconds: analysis.durationSeconds,
+      metrics,
+      analysis,
+      feedbackIds: Object.fromEntries(feedback.map((item) => [item.id, item.id])),
+    };
+  }
+
   return {
-    transcript: result.response.transcript,
+    stage,
+    transcript: result.response.transcript || undefined,
     durationSeconds: result.response.duration_seconds,
-    metrics: {
-      wordCount: metricsRelation.word_count,
-      uniqueWordCount: metricsRelation.unique_word_count,
-      averageWpm: metricsRelation.average_wpm,
-      fillerCount: metricsRelation.filler_count,
-      fillerWords: metricsRelation.filler_words,
-    },
-    feedback: result.response.feedback_items.map(normalizeFeedbackItem),
+    metrics,
+    error: stage === 'failed'
+      ? latestJob?.last_error || 'The speech analysis could not be completed. Please try the question again.'
+      : undefined,
   };
+}
+
+export async function getResponseAnalysis(responseId: string): Promise<ResponseAnalysis | null> {
+  if (!usesPersistentBackend) return null;
+  return (await getResponseAnalysisProgress(responseId)).analysis ?? null;
 }
 
 export async function rateFeedback(
@@ -275,9 +312,9 @@ export async function finishPracticeSession(input: {
   prompt: string;
   answerCount: number;
   startedAt: number;
-}) {
+}): Promise<SessionSummaryProgress> {
   if (usesPersistentBackend) {
-    return apiRequest<FinishedSession>(`/api/sessions/${input.sessionId}/finish`, {
+    return apiRequest<SessionSummaryProgress>(`/api/sessions/${input.sessionId}/finish`, {
       method: 'POST',
       body: JSON.stringify({ title: input.goal }),
     });
@@ -285,12 +322,15 @@ export async function finishPracticeSession(input: {
 
   const current = readLocal(sessionStorageKey, seedSessions);
   if (current.some((session) => session.id === input.sessionId)) {
-    return createDemoFinishedSession(
-      input.sessionId,
-      input.answerCount,
-      Math.max(1, Math.round((Date.now() - input.startedAt) / 1000)),
-      input.goalTemplateKey,
-    );
+    return {
+      generationStatus: 'completed',
+      result: createDemoFinishedSession(
+        input.sessionId,
+        input.answerCount,
+        Math.max(1, Math.round((Date.now() - input.startedAt) / 1000)),
+        input.goalTemplateKey,
+      ),
+    };
   }
   const categoryTitles = input.categories.map(
     (category) => categoryOptions.find((option) => option.id === category)?.title ?? category,
@@ -310,12 +350,20 @@ export async function finishPracticeSession(input: {
     hasExercise: false,
   };
   writeLocal(sessionStorageKey, [session, ...current]);
-  return createDemoFinishedSession(
-    input.sessionId,
-    input.answerCount,
-    durationMinutes * 60,
-    input.goalTemplateKey,
-  );
+  return {
+    generationStatus: 'completed',
+    result: createDemoFinishedSession(
+      input.sessionId,
+      input.answerCount,
+      durationMinutes * 60,
+      input.goalTemplateKey,
+    ),
+  };
+}
+
+export async function getPracticeSessionSummary(sessionId: string): Promise<SessionSummaryProgress> {
+  if (!usesPersistentBackend) throw new Error('Session summary polling is unavailable in demo mode.');
+  return apiRequest<SessionSummaryProgress>(`/api/sessions/${sessionId}/finish`, { cache: 'no-store' });
 }
 
 function createDemoFinishedSession(
@@ -397,7 +445,7 @@ export async function completeExerciseAttempt(input: {
   prompt: string;
   guidance: string;
   difficultyLevel: number;
-}): Promise<ExerciseAttemptResult> {
+}): Promise<ExerciseAttemptProgress> {
   if (!usesPersistentBackend || !input.exerciseId) {
     const mock = createMockAnalysis(input.durationSeconds);
     const assessment = input.attemptType === 'transfer' || input.attemptNumber >= 2 ? 'pass' : 'partial';
@@ -418,25 +466,33 @@ export async function completeExerciseAttempt(input: {
             guidance: getExerciseTemplate(input.templateId).levelGuidance[Math.min(2, input.difficultyLevel)],
             difficultyLevel: Math.min(3, input.difficultyLevel + 1),
           };
-    return {
+    const result: ExerciseAttemptResult = {
       attempt: {
-        id: `demo-attempt-${crypto.randomUUID()}`,
-        attemptNumber: input.attemptNumber,
-        attemptType: input.attemptType,
-        prompt: input.prompt,
-        difficultyLevel: input.difficultyLevel,
-        guidanceProvided: input.guidance,
-        transcript: mock.transcript,
-        durationSeconds: input.durationSeconds,
-        metrics: mock.metrics,
-        assessment,
-        whatWorked: 'You stated a measurable outcome: “The operations team reduced manual screening by about 80%.”',
-        whatToImprove: 'The opening delays that outcome with background, so the listener has to infer the main result.',
-        supportingEvidence: 'At my last company, I worked on an evaluation framework',
-        nextGuidance: 'I turned expert feedback into an evaluation framework that reduced manual screening by about 80%.',
-        completedAt: new Date().toISOString(),
-      },
-      next,
+          id: `demo-attempt-${crypto.randomUUID()}`,
+          attemptNumber: input.attemptNumber,
+          attemptType: input.attemptType,
+          prompt: input.prompt,
+          difficultyLevel: input.difficultyLevel,
+          guidanceProvided: input.guidance,
+          transcript: mock.transcript,
+          durationSeconds: input.durationSeconds,
+          metrics: mock.metrics,
+          assessment,
+          whatWorked: 'You stated a measurable outcome: “The operations team reduced manual screening by about 80%.”',
+          whatToImprove: 'The opening delays that outcome with background, so the listener has to infer the main result.',
+          supportingEvidence: 'At my last company, I worked on an evaluation framework',
+          nextGuidance: 'I turned expert feedback into an evaluation framework that reduced manual screening by about 80%.',
+          completedAt: new Date().toISOString(),
+        },
+        next,
+      };
+    return {
+      attemptId: result.attempt.id,
+      stage: 'completed',
+      transcript: result.attempt.transcript,
+      durationSeconds: result.attempt.durationSeconds,
+      metrics: result.attempt.metrics,
+      result,
     };
   }
   const upload = new FormData();
@@ -447,11 +503,20 @@ export async function completeExerciseAttempt(input: {
   upload.set('guidance', input.guidance);
   upload.set('difficultyLevel', String(input.difficultyLevel));
   upload.set('audio', input.audio, input.audio.type.includes('mp4') ? 'exercise.m4a' : 'exercise.webm');
-  const result = await apiRequest<{ result: ExerciseAttemptResult }>(`/api/exercises/${input.exerciseId}/response`, {
+  const result = await apiRequest<{ attemptId: string; status: ExerciseAttemptProgress['stage'] }>(`/api/exercises/${input.exerciseId}/response`, {
     method: 'POST',
     body: upload,
   });
-  return result.result;
+  return { attemptId: result.attemptId, stage: result.status };
+}
+
+export async function getExerciseAttemptProgress(exerciseId: string, attemptId: string): Promise<ExerciseAttemptProgress> {
+  if (!usesPersistentBackend) throw new Error('Exercise progress polling is unavailable in demo mode.');
+  const result = await apiRequest<{ progress: ExerciseAttemptProgress }>(
+    `/api/exercises/${exerciseId}/response?attemptId=${encodeURIComponent(attemptId)}`,
+    { cache: 'no-store' },
+  );
+  return result.progress;
 }
 
 export async function updateExerciseStatus(exerciseId: string | null, status: Extract<ExerciseStatus, 'in_progress' | 'skipped' | 'abandoned'>) {

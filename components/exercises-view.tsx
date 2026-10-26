@@ -33,8 +33,7 @@ export function ExercisesView() {
     async function load() {
       try {
         const goals = await listGoals();
-        const availableGoals = goals.filter((goal) => goal.status === 'active');
-        const goal = availableGoals.find((item) => item.isActive) ?? availableGoals[0] ?? null;
+        const goal = goals.find((item) => item.templateKey === 'clarity' && item.status === 'active') ?? null;
         if (cancelled) return;
         setActiveGoal(goal);
         if (!goal) return;
@@ -88,11 +87,11 @@ export function ExercisesView() {
           <div className="grid min-h-[420px] place-items-center rounded-3xl border border-[var(--line)] bg-[var(--paper)] text-sm text-[var(--muted-ink)]">Loading personalized exercises…</div>
         ) : !activeGoal ? (
           <div className="grid min-h-[420px] place-items-center rounded-3xl border border-dashed border-[#b8c9c4] bg-[var(--paper)] px-8 text-center">
-            <div className="max-w-md"><Target className="mx-auto size-9 text-[var(--teal)]" /><h2 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Choose an active goal first</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Exercises are organized around the communication goal you are currently practising.</p><Button nativeButton={false} render={<Link href="/goals" />} className="mt-5 rounded-xl bg-[var(--navy)]">Go to Goals <ArrowRight className="ml-1 size-4" /></Button></div>
+            <div className="max-w-md"><Target className="mx-auto size-9 text-[var(--teal)]" /><h2 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Choose an active goal first</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Exercises are organized around the communication goal you are currently practising.</p><Button nativeButton={false} render={<Link href="/goals" />} className="mt-5 rounded-xl bg-[var(--navy)]">Go to Home <ArrowRight className="ml-1 size-4" /></Button></div>
           </div>
         ) : !exercises.length ? (
           <div className="grid min-h-[420px] place-items-center rounded-3xl border border-dashed border-[#b8c9c4] bg-[var(--paper)] px-8 text-center">
-            <div className="max-w-md"><span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Dumbbell className="size-5" /></span><h2 className="mt-5 font-display text-xl font-semibold text-[var(--navy)]">No exercises for {activeGoal.title.toLocaleLowerCase()} yet</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Complete a practice session first. Sayform will create an evidence-linked exercise from your feedback.</p><Button nativeButton={false} render={<Link href="/goals" />} className="mt-5 rounded-xl bg-[var(--navy)]">Go to Goals <ArrowRight className="ml-1 size-4" /></Button></div>
+            <div className="max-w-md"><span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Dumbbell className="size-5" /></span><h2 className="mt-5 font-display text-xl font-semibold text-[var(--navy)]">No exercises for {activeGoal.title.toLocaleLowerCase()} yet</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Complete a practice session first. Sayform will create an evidence-linked exercise from your feedback.</p><Button nativeButton={false} render={<Link href="/goals" />} className="mt-5 rounded-xl bg-[var(--navy)]">Go to Home <ArrowRight className="ml-1 size-4" /></Button></div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">

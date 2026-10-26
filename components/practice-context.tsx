@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getGoalDefinition, getPracticeQuestions } from '@/lib/goal-catalog';
-import type { ExerciseAttemptResult, ExerciseCompletionSummary, ExerciseNextStep, ExerciseRecommendation, FeedbackItem, GoalSkill, ResponseAnalysis } from '@/lib/types';
+import type { ExerciseAttemptResult, ExerciseAttemptStage, ExerciseCompletionSummary, ExerciseNextStep, ExerciseRecommendation, FeedbackItem, GoalSkill, ResponseAnalysis, ResponseAnalysisStage } from '@/lib/types';
 
 type PracticeState = {
   goalId: string;
@@ -22,6 +22,8 @@ type PracticeState = {
   sessionStartedAt: number;
   feedbackIds: Record<string, string>;
   currentAnalysis: ResponseAnalysis | null;
+  analysisStatus: ResponseAnalysisStage | 'idle';
+  analysisError: string | null;
   activeExercise: ExerciseRecommendation | null;
   exerciseStage: 'guided' | 'transfer';
   exerciseAttemptNumber: number;
@@ -29,6 +31,9 @@ type PracticeState = {
   exerciseDifficultyLevel: number;
   exerciseResults: ExerciseAttemptResult[];
   currentExerciseResult: ExerciseAttemptResult | null;
+  activeExerciseAttemptId: string | null;
+  exerciseAnalysisStatus: ExerciseAttemptStage | 'idle';
+  exerciseAnalysisError: string | null;
   exerciseCompletion: ExerciseCompletionSummary | null;
 };
 
@@ -41,12 +46,16 @@ type PracticeContextValue = PracticeState & {
   setRecordingUrl: (url: string | null) => void;
   clearRecording: () => void;
   beginSession: (sessionId: string) => void;
+  beginResponse: (responseId: string) => void;
   completeResponse: (responseId: string, feedbackIds: Record<string, string>, analysis: ResponseAnalysis) => void;
+  setAnalysisProgress: (status: ResponseAnalysisStage, error?: string | null) => void;
   setCurrentAnalysis: (analysis: ResponseAnalysis | null) => void;
   resetSession: () => void;
   setActiveExercise: (exercise: ExerciseRecommendation | null) => void;
   startExercise: (exercise: ExerciseRecommendation, nextStep?: Exclude<ExerciseNextStep, { stage: 'summary' }>) => void;
+  beginExerciseAttempt: (attemptId: string) => void;
   completeExerciseAttempt: (result: ExerciseAttemptResult) => void;
+  setExerciseAnalysisProgress: (status: ExerciseAttemptStage | 'idle', error?: string | null) => void;
   advanceExercise: () => void;
   setExerciseCompletion: (summary: ExerciseCompletionSummary) => void;
 };
@@ -71,6 +80,8 @@ const initialState: PracticeState = {
   sessionStartedAt: Date.now(),
   feedbackIds: {},
   currentAnalysis: null,
+  analysisStatus: 'idle',
+  analysisError: null,
   activeExercise: null,
   exerciseStage: 'guided',
   exerciseAttemptNumber: 1,
@@ -78,6 +89,9 @@ const initialState: PracticeState = {
   exerciseDifficultyLevel: 1,
   exerciseResults: [],
   currentExerciseResult: null,
+  activeExerciseAttemptId: null,
+  exerciseAnalysisStatus: 'idle',
+  exerciseAnalysisError: null,
   exerciseCompletion: null,
 };
 
@@ -140,6 +154,8 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           sessionStartedAt: Date.now(),
           feedbackIds: {},
           currentAnalysis: null,
+          analysisStatus: 'idle',
+          analysisError: null,
           activeExercise: null,
           exerciseStage: 'guided',
           exerciseAttemptNumber: 1,
@@ -147,20 +163,45 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           exerciseDifficultyLevel: 1,
           exerciseResults: [],
           currentExerciseResult: null,
+          activeExerciseAttemptId: null,
+          exerciseAnalysisStatus: 'idle',
+          exerciseAnalysisError: null,
           exerciseCompletion: null,
+        }));
+      },
+      beginResponse(responseId) {
+        setState((current) => ({
+          ...current,
+          activeResponseId: responseId,
+          feedbackIds: {},
+          currentAnalysis: null,
+          analysisStatus: 'queued',
+          analysisError: null,
         }));
       },
       completeResponse(responseId, feedbackIds, analysis) {
         setState((current) => ({
           ...current,
           activeResponseId: responseId,
-          answerCount: current.answerCount + 1,
+          answerCount: current.activeResponseId === responseId && current.analysisStatus === 'completed'
+            ? current.answerCount
+            : current.answerCount + 1,
           feedbackIds,
           currentAnalysis: analysis,
+          analysisStatus: 'completed',
+          analysisError: null,
         }));
       },
+      setAnalysisProgress(status, error = null) {
+        setState((current) => ({ ...current, analysisStatus: status, analysisError: error }));
+      },
       setCurrentAnalysis(analysis) {
-        setState((current) => ({ ...current, currentAnalysis: analysis }));
+        setState((current) => ({
+          ...current,
+          currentAnalysis: analysis,
+          analysisStatus: analysis ? 'completed' : 'idle',
+          analysisError: null,
+        }));
       },
       resetSession() {
         setState((current) => ({
@@ -171,6 +212,8 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           sessionStartedAt: Date.now(),
           feedbackIds: {},
           currentAnalysis: null,
+          analysisStatus: 'idle',
+          analysisError: null,
           answerNotes: '',
           redoFeedback: [],
           interviewQuestionType: 'primary',
@@ -181,6 +224,9 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           exerciseDifficultyLevel: 1,
           exerciseResults: [],
           currentExerciseResult: null,
+          activeExerciseAttemptId: null,
+          exerciseAnalysisStatus: 'idle',
+          exerciseAnalysisError: null,
           exerciseCompletion: null,
         }));
       },
@@ -202,13 +248,28 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           exerciseDifficultyLevel: nextStep?.difficultyLevel ?? exercise.difficultyLevel,
           exerciseResults: [],
           currentExerciseResult: null,
+          activeExerciseAttemptId: null,
+          exerciseAnalysisStatus: 'idle',
+          exerciseAnalysisError: null,
           exerciseCompletion: null,
+        }));
+      },
+      beginExerciseAttempt(attemptId) {
+        setState((current) => ({
+          ...current,
+          activeExerciseAttemptId: attemptId,
+          currentExerciseResult: null,
+          exerciseAnalysisStatus: 'queued',
+          exerciseAnalysisError: null,
         }));
       },
       completeExerciseAttempt(result) {
         setState((current) => ({
           ...current,
           currentExerciseResult: result,
+          activeExerciseAttemptId: result.attempt.id,
+          exerciseAnalysisStatus: 'completed',
+          exerciseAnalysisError: null,
           exerciseResults: [
             ...current.exerciseResults.filter((saved) => !(
               saved.attempt.attemptType === result.attempt.attemptType
@@ -217,6 +278,9 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
             result,
           ],
         }));
+      },
+      setExerciseAnalysisProgress(status, error = null) {
+        setState((current) => ({ ...current, exerciseAnalysisStatus: status, exerciseAnalysisError: error }));
       },
       advanceExercise() {
         setState((current) => {
@@ -230,6 +294,9 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
             exerciseGuidance: next.guidance,
             exerciseDifficultyLevel: next.difficultyLevel,
             currentExerciseResult: null,
+            activeExerciseAttemptId: null,
+            exerciseAnalysisStatus: 'idle',
+            exerciseAnalysisError: null,
             currentAnalysis: null,
           };
         });

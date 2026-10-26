@@ -1,41 +1,25 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ChevronRight,
-  Dumbbell,
-  History,
   Settings,
   LogOut,
-  Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth-provider';
 
 const navigation = [
-  { label: 'Goals', href: '/goals', icon: Target },
-  { label: 'Exercises', href: '/exercises', icon: Dumbbell },
-  { label: 'History', href: '/history', icon: History },
+  { label: 'Home', href: '/goals' },
+  { label: 'Exercises', href: '/exercises' },
+  { label: 'History', href: '/history' },
 ];
 
 export function Brand({ inverted = false }: { inverted?: boolean }) {
   return (
     <Link href="/goals" className="inline-flex items-center" aria-label="Sayform home">
-      <span className="relative block h-9 w-[136px] overflow-hidden" aria-hidden="true">
-        <Image
-          src="/sayform-logo.png"
-          alt=""
-          width={1600}
-          height={608}
-          priority
-          className={cn(
-            'absolute -left-8 -top-5 h-auto w-[200px] max-w-none',
-            inverted && 'brightness-0 invert',
-          )}
-        />
-      </span>
+      <span className={cn('font-display text-2xl font-medium tracking-[-0.045em] text-[#6842d8]', inverted && 'text-white')}>sayform</span>
     </Link>
   );
 }
@@ -49,24 +33,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={cn('min-h-screen text-[var(--ink)]', useWhiteCanvas ? 'bg-white' : 'bg-[var(--canvas)]')}>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] border-r border-[var(--line)] bg-[var(--paper)] px-5 py-6 lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[208px] border-r border-[#e6def7] bg-white px-5 py-6 md:flex md:flex-col">
         <Brand />
         <nav className="mt-11 space-y-1" aria-label="Primary navigation">
           {navigation.map((item) => {
             const active = pathname.startsWith(item.href.split('/').slice(0, 2).join('/'));
-            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  'block px-3 py-2.5 text-sm font-medium transition-colors',
                   active
-                    ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]'
-                    : 'text-[var(--muted-ink)] hover:bg-[var(--warm)] hover:text-[var(--ink)]',
+                    ? 'bg-[#faf8ff] text-[#6842d8]'
+                    : 'text-[var(--muted-ink)] hover:bg-[#faf8ff] hover:text-[#4b2aa8]',
                 )}
               >
-                <Icon className="size-[18px]" />
                 {item.label}
               </Link>
             );
@@ -87,14 +69,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[var(--line)] bg-[color:rgba(250,249,246,0.92)] px-5 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-[#e6def7] bg-white/95 px-5 backdrop-blur md:hidden">
         <Brand />
-        <Link href="/goals" className="rounded-lg bg-[var(--navy)] px-3 py-2 text-xs font-semibold text-white">
-          Choose goal
+        <Link href="/goals" className="bg-[#6842d8] px-3 py-2 text-xs font-semibold text-white">
+          Home
         </Link>
       </header>
 
-      <main className={cn('min-h-screen lg:pl-[248px]', useWhiteCanvas && 'bg-white')}>{children}</main>
+      <main className={cn('min-h-screen md:pl-[208px]', useWhiteCanvas && 'bg-white')}>{children}</main>
     </div>
   );
 }

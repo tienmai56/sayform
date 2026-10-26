@@ -11,6 +11,7 @@ type AttemptRow = {
   difficulty_level: number;
   assessment: ExerciseAssessment;
   next_guidance: string;
+  processing_status: 'queued' | 'transcribing' | 'analyzing' | 'completed' | 'failed';
   completed_at: string | null;
   created_at: string;
 };
@@ -87,7 +88,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   const { data, error } = await context.supabase
     .from('exercises')
-    .select('id, exercise_template_id, skill_category, title, target_skill, target_behavior, behavior_code, selection_reason, instructions, estimated_minutes, prompt, guidance, difficulty_level, source_evidence, status, created_at, completed_at, sessions!inner(id, goal_id, title), exercise_attempts(attempt_number, attempt_type, difficulty_level, assessment, next_guidance, completed_at, created_at)')
+    .select('id, exercise_template_id, skill_category, title, target_skill, target_behavior, behavior_code, selection_reason, instructions, estimated_minutes, prompt, guidance, difficulty_level, source_evidence, status, created_at, completed_at, sessions!inner(id, goal_id, title), exercise_attempts(attempt_number, attempt_type, difficulty_level, assessment, next_guidance, processing_status, completed_at, created_at)')
     .eq('user_id', context.userId)
     .eq('sessions.goal_id', goalId)
     .neq('status', 'completed')
@@ -97,7 +98,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   return NextResponse.json({
     exercises: (data ?? []).map((exercise) => {
       const sessionRelation = Array.isArray(exercise.sessions) ? exercise.sessions[0] : exercise.sessions;
-      const attempts = asArray(exercise.exercise_attempts as AttemptRow | AttemptRow[] | null);
+      const attempts = asArray(exercise.exercise_attempts as AttemptRow | AttemptRow[] | null)
+        .filter((attempt) => attempt.processing_status === 'completed');
       const latestAttempt = [...attempts]
         .sort((left, right) => (right.completed_at ?? right.created_at).localeCompare(left.completed_at ?? left.created_at))[0];
       return {

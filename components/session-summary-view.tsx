@@ -6,8 +6,8 @@ import { AlertCircle, ArrowRight, BookOpenCheck, CheckCircle2, Clock3, Dumbbell,
 import { AppShell, Breadcrumbs, MetricCard, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { usePractice } from '@/components/practice-context';
-import { finishPracticeSession, updateExerciseStatus, usesPersistentBackend } from '@/lib/client-data';
-import type { FinishedSession, InterviewCheck, SummaryPattern } from '@/lib/types';
+import { finishPracticeSession, getPracticeSessionSummary, updateExerciseStatus, usesPersistentBackend } from '@/lib/client-data';
+import type { FinishedSession, InterviewCheck, SessionSummaryProgress, SummaryPattern } from '@/lib/types';
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -69,26 +69,63 @@ export function SessionSummaryView() {
   } = usePractice();
   const saveStarted = useRef(false);
   const [result, setResult] = useState<FinishedSession | null>(null);
-  const [saveState, setSaveState] = useState<'saving' | 'saved' | 'error'>('saving');
+  const [pendingSession, setPendingSession] = useState<FinishedSession['session'] | null>(null);
+  const [saveState, setSaveState] = useState<'saving' | 'processing' | 'saved' | 'error'>('saving');
 
   useEffect(() => {
     if (!activeSessionId || saveStarted.current) return;
     saveStarted.current = true;
+    const sessionId = activeSessionId;
+    let cancelled = false;
+    let pollingTimer: ReturnType<typeof setTimeout> | undefined;
+    const summaryStartedAt = Date.now();
+
+    function applyProgress(progress: SessionSummaryProgress) {
+      if (cancelled) return;
+      if (progress.generationStatus === 'completed') {
+        setResult(progress.result);
+        setPendingSession(progress.result.session);
+        setActiveExercise(progress.result.exercise);
+        setSaveState('saved');
+        return;
+      }
+      setPendingSession(progress.session);
+      if (progress.generationStatus === 'failed') {
+        setSaveState('error');
+        return;
+      }
+      if (Date.now() - summaryStartedAt >= 120_000) {
+        setSaveState('error');
+        return;
+      }
+      setSaveState('processing');
+      pollingTimer = setTimeout(() => void pollSummary(), 850);
+    }
+
+    async function pollSummary() {
+      try {
+        applyProgress(await getPracticeSessionSummary(sessionId));
+      } catch {
+        if (!cancelled) setSaveState('error');
+      }
+    }
+
     void finishPracticeSession({
-      sessionId: activeSessionId,
+      sessionId,
       goal: goalTitle,
       goalTemplateKey,
       categories,
       prompt,
       answerCount,
       startedAt: sessionStartedAt,
-    })
-      .then((finished) => {
-        setResult(finished);
-        setActiveExercise(finished.exercise);
-        setSaveState('saved');
-      })
-      .catch(() => setSaveState('error'));
+    }).then(applyProgress).catch(() => {
+      if (!cancelled) setSaveState('error');
+    });
+
+    return () => {
+      cancelled = true;
+      if (pollingTimer) clearTimeout(pollingTimer);
+    };
   }, [activeSessionId, answerCount, categories, goalTemplateKey, goalTitle, prompt, sessionStartedAt, setActiveExercise]);
 
   async function startExercise() {
@@ -103,14 +140,14 @@ export function SessionSummaryView() {
     router.push('/history');
   }
 
-  const metrics = result?.session;
+  const metrics = result?.session ?? pendingSession;
   const summary = result?.summary;
   const exercise = result?.exercise;
 
   return (
     <AppShell>
       <Screen>
-        <Breadcrumbs items={[{ label: 'Goals', href: '/goals' }, { label: 'Session summary' }]} />
+        <Breadcrumbs items={[{ label: 'Home', href: '/goals' }, { label: 'Session summary' }]} />
 
         <div className="rounded-[30px] bg-[var(--navy)] px-9 py-8 text-white shadow-[var(--shadow-lg)]">
           <div className="flex items-start justify-between gap-8">
@@ -155,7 +192,7 @@ export function SessionSummaryView() {
                 <div className="rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-5"><p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Takeaway for your next session</p><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">{summary.takeaway}</p></div>
               </div>
             ) : (
-              <div className="mt-6 grid min-h-64 place-items-center rounded-2xl border border-dashed border-[var(--line)] text-sm text-[var(--muted-ink)]">{saveState === 'error' ? 'The summary could not be saved. Check your connection and reload this page.' : 'Reviewing saved feedback patterns…'}</div>
+              <div className="mt-6 grid min-h-64 place-items-center rounded-2xl border border-dashed border-[var(--line)] text-sm text-[var(--muted-ink)]">{saveState === 'error' ? 'The summary could not be completed. Reload this page to try again.' : 'Reviewing saved feedback patterns…'}</div>
             )}
           </section>
 
@@ -184,7 +221,7 @@ export function SessionSummaryView() {
         </div>
 
         <div className="mt-7 flex items-center justify-between rounded-2xl border border-[var(--line)] bg-[var(--paper)] px-5 py-4">
-          <div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-[var(--warm)] text-[var(--navy)]"><Sparkles className="size-4" /></span><div><p className="text-sm font-semibold text-[var(--navy)]">{saveState === 'saving' ? 'Saving your session…' : saveState === 'error' ? 'This session still needs to be saved' : 'Your session has been added to History'}</p><p className="mt-0.5 text-xs text-[var(--muted-ink)]">{saveState === 'error' ? 'Reload after checking your connection.' : usesPersistentBackend ? 'Transcript, metrics, feedback, and the exercise recommendation are saved. The recording is not.' : 'Demo data is stored only in this browser. The recording is not saved.'}</p></div></div>
+          <div className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-[var(--warm)] text-[var(--navy)]"><Sparkles className="size-4" /></span><div><p className="text-sm font-semibold text-[var(--navy)]">{saveState === 'saving' ? 'Saving your session…' : saveState === 'processing' ? 'Session saved · building your coaching summary…' : saveState === 'error' ? 'Your session was saved, but the summary needs another try' : 'Your session has been added to History'}</p><p className="mt-0.5 text-xs text-[var(--muted-ink)]">{saveState === 'error' ? 'Reload this page to retry the personalized summary.' : usesPersistentBackend ? 'Transcript, metrics, and feedback are saved immediately. The recording is not saved.' : 'Demo data is stored only in this browser. The recording is not saved.'}</p></div></div>
           <Button variant="outline" onClick={() => void finishSession()} className="rounded-xl bg-white">View history</Button>
         </div>
       </Screen>

@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
   Maximize2,
   Minimize2,
   Play,
@@ -21,10 +22,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { getPracticeQuestions } from '@/lib/goal-catalog';
 import { cn } from '@/lib/utils';
 import { usePractice } from '@/components/practice-context';
-import { rateFeedback } from '@/lib/client-data';
+import { getResponseAnalysisProgress, rateFeedback } from '@/lib/client-data';
 import { ExerciseAttemptFeedback } from '@/components/exercise-attempt-feedback';
 import { FeedbackCoachingContent } from '@/components/feedback-coaching-content';
-import type { FeedbackDimension, FeedbackItem } from '@/lib/types';
+import type { FeedbackDimension, FeedbackItem, ResponseAnalysisProgress } from '@/lib/types';
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -68,8 +69,8 @@ function InterviewAnswerCheck({ feedback }: { feedback: FeedbackItem[] }) {
 }
 
 export function FeedbackWorkspace() {
-  const { activeExercise, currentExerciseResult } = usePractice();
-  if (activeExercise && currentExerciseResult) return <ExerciseAttemptFeedback />;
+  const { activeExercise } = usePractice();
+  if (activeExercise) return <ExerciseAttemptFeedback />;
   return <StandardFeedbackWorkspace />;
 }
 
@@ -77,16 +78,21 @@ function StandardFeedbackWorkspace() {
   const router = useRouter();
   const {
     activeExercise,
-    answerCount,
+    activeResponseId,
+    analysisError,
+    analysisStatus,
     clearRecording,
+    completeResponse,
     currentAnalysis,
     feedbackIds,
     goalSkills,
     goalTemplateKey,
     goalTitle,
+    interviewQuestionType,
     prompt,
     recordingUrl,
     resetSession,
+    setAnalysisProgress,
     updateSetup,
   } = usePractice();
   const [fullScreen, setFullScreen] = useState(false);
@@ -95,22 +101,70 @@ function StandardFeedbackWorkspace() {
   const [pendingDismiss, setPendingDismiss] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [note, setNote] = useState('');
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [analysisPreview, setAnalysisPreview] = useState<ResponseAnalysisProgress | null>(null);
   const feedback = useMemo(() => currentAnalysis?.feedback ?? [], [currentAnalysis]);
   const isInterview = goalTemplateKey === 'clarity';
   const interviewFollowUp = currentAnalysis?.followUpQuestion?.trim() ?? '';
-  const canAnswerNextQuestion = !isInterview || (answerCount === 1 && Boolean(interviewFollowUp));
+  const canAnswerFollowUp = isInterview && interviewQuestionType === 'primary' && Boolean(interviewFollowUp);
 
   const activeFeedback = useMemo(
     () => feedback.filter((item) => !dismissed.includes(item.id)),
     [dismissed, feedback],
   );
+  const orderedFeedback = useMemo(
+    () => [...activeFeedback].sort((first, second) => Number(Boolean(second.positive)) - Number(Boolean(first.positive))),
+    [activeFeedback],
+  );
   const effectiveSelectedId = activeFeedback.some((item) => item.id === selectedId)
     ? selectedId
-    : activeFeedback[0]?.id ?? '';
+    : orderedFeedback[0]?.id ?? '';
   const resolvedCount = activeFeedback.filter((item) => item.progressStatus === 'resolved').length;
   const continuingCount = activeFeedback.filter((item) => item.progressStatus === 'still_happening').length;
   const newIssueCount = activeFeedback.filter((item) => item.progressStatus === 'new' && !item.positive).length;
   const hasComparison = resolvedCount + continuingCount + newIssueCount > 0;
+
+  useEffect(() => {
+    if (activeExercise || currentAnalysis || !activeResponseId || analysisStatus === 'failed') return;
+    const responseId = activeResponseId;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const startedAt = Date.now();
+
+    async function poll() {
+      try {
+        const progress = await getResponseAnalysisProgress(responseId);
+        if (cancelled) return;
+        setAnalysisPreview(progress);
+        if (progress.analysis) {
+          completeResponse(responseId, progress.feedbackIds ?? {}, progress.analysis);
+          return;
+        }
+        if (progress.stage === 'failed') {
+          setAnalysisProgress('failed', progress.error);
+          return;
+        }
+        if (Date.now() - startedAt >= 120_000) {
+          setAnalysisProgress('failed', 'Feedback is taking longer than expected. Please try this question again.');
+          return;
+        }
+        timer = setTimeout(() => void poll(), 700);
+      } catch {
+        if (cancelled) return;
+        if (Date.now() - startedAt >= 120_000) {
+          setAnalysisProgress('failed', 'Feedback is taking longer than expected. Please try this question again.');
+          return;
+        }
+        timer = setTimeout(() => void poll(), 1200);
+      }
+    }
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [activeExercise, activeResponseId, analysisStatus, completeResponse, currentAnalysis, setAnalysisProgress]);
 
   function rateHelpful(id: string) {
     setRatings((current) => ({ ...current, [id]: 'helpful' }));
@@ -132,11 +186,17 @@ function StandardFeedbackWorkspace() {
     void rateFeedback(feedbackIds[id], { rating: 'unhelpful', note, dismissed: true });
   }
 
+  function answerFollowUp() {
+    if (!canAnswerFollowUp) return;
+    clearRecording();
+    updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: interviewFollowUp, interviewQuestionType: 'follow-up' });
+    router.push('/practice/session');
+  }
+
   function nextQuestion() {
     clearRecording();
     if (isInterview) {
-      if (!interviewFollowUp) return;
-      updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: interviewFollowUp, interviewQuestionType: 'follow-up' });
+      updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: '', interviewQuestionType: 'primary' });
       router.push('/practice/session');
       return;
     }
@@ -190,6 +250,48 @@ function StandardFeedbackWorkspace() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          {!activeExercise && !currentAnalysis && (
+            <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-center py-8">
+              {analysisStatus === 'failed' ? (
+                <div className="rounded-2xl border border-[#e8c6bf] bg-[var(--rose-soft)] p-6 text-center">
+                  <AlertCircle className="mx-auto size-7 text-[#914435]" />
+                  <h3 className="mt-3 font-display text-xl font-semibold text-[var(--navy)]">Feedback could not be completed</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#765149]">{analysisError ?? 'Please try recording this answer again.'}</p>
+                  <Button onClick={redoQuestion} className="mt-5 rounded-xl bg-[var(--navy)]">Try question again</Button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Sparkles className="size-5 animate-pulse" /></span>
+                    <h3 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Preparing your personalized feedback</h3>
+                    <p className="mt-2 text-sm text-[var(--muted-ink)]">You can stay here while each stage appears as soon as it is ready.</p>
+                  </div>
+                  <div className="mt-6 grid grid-cols-3 gap-2">
+                    {([
+                      ['transcribing', 'Transcribing'],
+                      ['analyzing', 'Evaluating'],
+                      ['completed', 'Finalizing'],
+                    ] as const).map(([stage, label], index) => {
+                      const stageOrder = { queued: 0, transcribing: 0, analyzing: 1, completed: 2, failed: 0 } as const;
+                      const currentStage = analysisPreview?.stage ?? (analysisStatus === 'idle' ? 'queued' : analysisStatus);
+                      const reached = stageOrder[currentStage] >= index;
+                      return <div key={stage} className={cn('rounded-xl border px-3 py-3 text-center text-xs font-semibold', reached ? 'border-[var(--mint)] bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'border-[var(--line)] bg-white text-[var(--muted-ink)]')}>{label}</div>;
+                    })}
+                  </div>
+                  {analysisPreview?.transcript && (
+                    <div className="mt-6 rounded-2xl border border-[var(--line)] bg-white p-5 text-left">
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Transcript ready</p>
+                        {analysisPreview.metrics && <span className="text-xs text-[var(--muted-ink)]">{analysisPreview.metrics.wordCount} words · {analysisPreview.metrics.averageWpm} WPM</span>}
+                      </div>
+                      <p className="mt-3 line-clamp-5 text-sm leading-7 text-[#52666e]">{analysisPreview.transcript}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          <div className={cn(!activeExercise && !currentAnalysis && 'hidden')}>
           {activeExercise && (
             <div className="mb-5 grid grid-cols-[minmax(0,1fr)_minmax(300px,0.7fr)] gap-4 rounded-2xl border border-[var(--mint)] bg-[var(--mint-soft)] p-5">
               <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Skill practised</p><h3 className="mt-1.5 text-base font-semibold text-[var(--navy)]">{activeExercise.targetSkill}</h3><p className="mt-2 text-sm leading-6 text-[#516b6b]">Your response made the target behavior more explicit. Keep the same meaning while making the evidence concrete.</p></div>
@@ -227,76 +329,99 @@ function StandardFeedbackWorkspace() {
             <MetricCard label="Distinct words" value={currentAnalysis ? String(currentAnalysis.metrics.uniqueWordCount) : '—'} detail="Case-normalized word count" />
           </div>
 
-          <div className="mt-7 grid grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)] gap-6">
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-[var(--navy)]">Transcript</h3>
-              <div className="rounded-2xl border border-[var(--line)] bg-white p-5 text-[15px] leading-8 text-[#344b55]">
-                {currentAnalysis?.transcript ?? 'Your transcript is unavailable.'}
+          <div className="mt-7 space-y-5">
+            <section className="rounded-2xl border border-[var(--line)] bg-white px-5 py-4">
+              <button
+                type="button"
+                aria-expanded={transcriptOpen}
+                aria-controls="answer-transcript"
+                onClick={() => setTranscriptOpen((current) => !current)}
+                className="flex w-full items-center justify-between text-sm font-semibold text-[var(--navy)]"
+              >
+                {transcriptOpen ? 'Hide transcript' : 'View transcript'}
+                <ChevronDown className={cn('size-4 text-[var(--muted-ink)] transition-transform', transcriptOpen && 'rotate-180')} />
+              </button>
+              {transcriptOpen && (
+                <p id="answer-transcript" className="mt-4 border-t border-[var(--line)] pt-4 text-[15px] leading-8 text-[#344b55]">
+                  {currentAnalysis?.transcript ?? 'Your transcript is unavailable.'}
+                </p>
+              )}
+            </section>
+
+            {hasComparison && (
+              <div className="rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Compared with your last answer</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {resolvedCount > 0 && <span className="rounded-full bg-[#dff2e9] px-2.5 py-1 text-[11px] font-semibold text-[#286b55]">{resolvedCount} resolved</span>}
+                  {continuingCount > 0 && <span className="rounded-full bg-[#fff0c7] px-2.5 py-1 text-[11px] font-semibold text-[#805b17]">{continuingCount} still happening</span>}
+                  {newIssueCount > 0 && <span className="rounded-full bg-[#e7eef6] px-2.5 py-1 text-[11px] font-semibold text-[#3e6078]">{newIssueCount} new {newIssueCount === 1 ? 'issue' : 'issues'}</span>}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="space-y-3">
-              {hasComparison && (
-                <div className="rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Compared with your last answer</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {resolvedCount > 0 && <span className="rounded-full bg-[#dff2e9] px-2.5 py-1 text-[11px] font-semibold text-[#286b55]">{resolvedCount} resolved</span>}
-                    {continuingCount > 0 && <span className="rounded-full bg-[#fff0c7] px-2.5 py-1 text-[11px] font-semibold text-[#805b17]">{continuingCount} still happening</span>}
-                    {newIssueCount > 0 && <span className="rounded-full bg-[#e7eef6] px-2.5 py-1 text-[11px] font-semibold text-[#3e6078]">{newIssueCount} new {newIssueCount === 1 ? 'issue' : 'issues'}</span>}
-                  </div>
+            <section aria-labelledby="coaching-feedback-title">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 id="coaching-feedback-title" className="text-sm font-semibold text-[var(--navy)]">Coaching feedback</h3>
+                <div className="flex items-center gap-4 text-[11px] font-medium text-[var(--muted-ink)]" aria-label="Feedback types">
+                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#55a887]" />What worked</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#d19a29]" />Needs focus</span>
                 </div>
-              )}
-              {activeFeedback.map((item) => {
-                return (
-                  <article
-                    key={item.id}
-                    className={cn(
-                      'rounded-2xl border bg-white p-5 transition-all',
-                      effectiveSelectedId === item.id ? 'border-[var(--teal)] shadow-[0_0_0_3px_rgb(22_127_118/8%)]' : 'border-[var(--line)]',
-                    )}
-                  >
-                    <button onClick={() => setSelectedId(item.id)} className="w-full text-left">
-                      <FeedbackCoachingContent item={item} />
-                    </button>
+              </div>
 
-                    {pendingDismiss === item.id ? (
-                      <div className="mt-4 border-t border-[var(--line)] pt-4">
-                        <label htmlFor={`note-${item.id}`} className="text-xs font-medium text-[var(--ink)]">What missed the mark? <span className="font-normal text-[var(--muted-ink)]">Optional</span></label>
-                        <Textarea id={`note-${item.id}`} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add a short note for future coaching" className="mt-2 min-h-20 bg-[var(--canvas)] text-xs" />
-                        <div className="mt-3 flex justify-end gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => setPendingDismiss(null)}>Cancel</Button>
-                          <Button size="sm" variant="destructive" onClick={() => dismissSuggestion(item.id)}>Dismiss suggestion</Button>
+              <div className="mt-3 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {orderedFeedback.map((item) => {
+                  return (
+                    <article
+                      key={item.id}
+                      className={cn(
+                        'flex h-full flex-col rounded-2xl border bg-white p-5 transition-all',
+                        effectiveSelectedId === item.id ? 'border-[var(--teal)] shadow-[0_0_0_3px_rgb(22_127_118/8%)]' : 'border-[var(--line)]',
+                      )}
+                    >
+                      <button onClick={() => setSelectedId(item.id)} className="flex-1 text-left">
+                        <FeedbackCoachingContent item={item} />
+                      </button>
+
+                      {pendingDismiss === item.id ? (
+                        <div className="mt-4 border-t border-[var(--line)] pt-4">
+                          <label htmlFor={`note-${item.id}`} className="text-xs font-medium text-[var(--ink)]">What missed the mark? <span className="font-normal text-[var(--muted-ink)]">Optional</span></label>
+                          <Textarea id={`note-${item.id}`} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add a short note for future coaching" className="mt-2 min-h-20 bg-[var(--canvas)] text-xs" />
+                          <div className="mt-3 flex justify-end gap-2">
+                            <Button size="sm" variant="ghost" onClick={() => setPendingDismiss(null)}>Cancel</Button>
+                            <Button size="sm" variant="destructive" onClick={() => dismissSuggestion(item.id)}>Dismiss suggestion</Button>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="mt-4 flex items-center gap-2 border-t border-[var(--line)] pt-3">
-                        <span className="mr-auto text-[11px] text-[var(--muted-ink)]">Was this useful?</span>
-                        <button onClick={() => rateHelpful(item.id)} className={cn('flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium', ratings[item.id] === 'helpful' ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'text-[var(--muted-ink)] hover:bg-[var(--warm)]')}><ThumbsUp className="size-3.5" />Helpful</button>
-                        <button onClick={() => openUnhelpful(item.id)} className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-[var(--muted-ink)] hover:bg-[var(--rose-soft)] hover:text-[#914435]"><ThumbsDown className="size-3.5" />Unhelpful</button>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
+                      ) : (
+                        <div className="mt-4 flex items-center gap-2 border-t border-[var(--line)] pt-3">
+                          <span className="mr-auto text-[11px] text-[var(--muted-ink)]">Was this useful?</span>
+                          <button onClick={() => rateHelpful(item.id)} className={cn('flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium', ratings[item.id] === 'helpful' ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'text-[var(--muted-ink)] hover:bg-[var(--warm)]')}><ThumbsUp className="size-3.5" />Helpful</button>
+                          <button onClick={() => openUnhelpful(item.id)} className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-[var(--muted-ink)] hover:bg-[var(--rose-soft)] hover:text-[#914435]"><ThumbsDown className="size-3.5" />Unhelpful</button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
 
-              {dismissed.length > 0 && (
-                <button onClick={() => setDismissed([])} className="flex w-full items-center justify-center gap-1.5 py-2 text-xs font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">
-                  <RotateCcw className="size-3.5" /> Restore dismissed suggestions
-                </button>
-              )}
+            {dismissed.length > 0 && (
+              <button onClick={() => setDismissed([])} className="flex w-full items-center justify-center gap-1.5 py-2 text-xs font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">
+                <RotateCcw className="size-3.5" /> Restore dismissed suggestions
+              </button>
+            )}
 
-              {isInterview && answerCount === 1 && interviewFollowUp && (
-                <div className="rounded-2xl border border-[#bdd8cf] bg-[var(--mint-soft)] p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Your manager’s follow-up</p>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{interviewFollowUp}</p>
-                  <p className="mt-2 text-xs leading-5 text-[#516b6b]">This question was generated from your interview question and answer.</p>
-                </div>
-              )}
-            </div>
+            {canAnswerFollowUp && (
+              <div className="rounded-2xl border border-[#bdd8cf] bg-[var(--mint-soft)] p-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Your manager’s follow-up</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{interviewFollowUp}</p>
+                <p className="mt-2 text-xs leading-5 text-[#516b6b]">This question was generated from your interview question and answer.</p>
+              </div>
+            )}
+          </div>
           </div>
         </div>
 
-        <footer className="flex items-center justify-between border-t border-[var(--line)] bg-[var(--canvas)] px-6 py-4">
+        {(activeExercise || currentAnalysis) && <footer className="flex items-center justify-between border-t border-[var(--line)] bg-[var(--canvas)] px-6 py-4">
           {activeExercise ? (
             <><span className="text-sm text-[var(--muted-ink)]">Exercise complete · saved with this session</span><Button onClick={finishExercise} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">Finish exercise <ArrowRight className="ml-1 size-4" /></Button></>
           ) : (
@@ -304,11 +429,12 @@ function StandardFeedbackWorkspace() {
               <button onClick={endSession} className="text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">End session</button>
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={redoQuestion} className="h-10 rounded-xl border-[var(--line)] bg-white px-4">Redo question <RotateCcw className="ml-1 size-4" /></Button>
-                {canAnswerNextQuestion && <Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">{isInterview ? 'Answer follow-up' : 'Next question'} <ArrowRight className="ml-1 size-4" /></Button>}
+                {canAnswerFollowUp && <Button variant="outline" onClick={answerFollowUp} className="h-10 rounded-xl border-[var(--line)] bg-white px-4">Answer follow-up <ArrowRight className="ml-1 size-4" /></Button>}
+                <Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">{isInterview ? 'New question' : 'Next question'} <ArrowRight className="ml-1 size-4" /></Button>
               </div>
             </>
           )}
-        </footer>
+        </footer>}
       </div>
     </section>
   );
@@ -317,7 +443,7 @@ function StandardFeedbackWorkspace() {
     <AppShell>
       {fullScreen && <div className="fixed inset-0 z-40 bg-[#0e222d]/55 backdrop-blur-sm" />}
       <Screen wide>
-        <Breadcrumbs items={[{ label: activeExercise ? 'Exercises' : 'Goals', href: activeExercise ? '/exercises' : '/goals' }, { label: activeExercise ? 'Exercise feedback' : 'Answer feedback' }]} />
+        <Breadcrumbs items={[{ label: activeExercise ? 'Exercises' : 'Home', href: activeExercise ? '/exercises' : '/goals' }, { label: activeExercise ? 'Exercise feedback' : 'Answer feedback' }]} />
         <div className="mb-6 flex items-start justify-between gap-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">{activeExercise ? 'Exercise complete' : 'Answer complete'}</p>
