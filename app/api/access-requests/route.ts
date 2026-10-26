@@ -18,7 +18,10 @@ export async function POST(request: Request) {
 
   const email = parsed.data.email.toLowerCase();
   const supabase = await createClient();
-  const { error } = await supabase.from('access_requests').insert({ email });
+  const { error } = await supabase.from('access_requests').insert({
+    email,
+    target_roles: parsed.data.targetRoles,
+  });
 
   // Repeated requests should not reveal whether an email is already registered.
   if (error?.code === '23505') return NextResponse.json({ ok: true });

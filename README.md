@@ -42,7 +42,7 @@ Phase 2 uses Supabase Auth and PostgreSQL. The checked-in migration creates the 
 
 ## Invite-only access
 
-The public `/login` route collects access requests instead of creating accounts. The original account form remains available at `/signin` for people you approve.
+The public `/login` route collects each candidate's email and target roles instead of creating an account. The original account form remains available at `/signin` for people you approve.
 
 Apply the latest migration before accepting requests:
 

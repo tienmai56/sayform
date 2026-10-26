@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const accessRequestSchema = z.object({
   email: z.email().trim().max(254),
+  targetRoles: z.string().trim().min(2).max(160),
 });
 
 export const goalUpdateSchema = z

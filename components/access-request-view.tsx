@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 
 export function AccessRequestView() {
   const [email, setEmail] = useState('');
+  const [targetRoles, setTargetRoles] = useState('');
   const [pending, setPending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState('');
@@ -22,7 +23,7 @@ export function AccessRequestView() {
       const response = await fetch('/api/access-requests', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, targetRoles }),
       });
 
       if (!response.ok) throw new Error('request_failed');
@@ -111,6 +112,25 @@ export function AccessRequestView() {
                 />
               </label>
 
+              <label
+                htmlFor="target-roles"
+                className="block text-sm font-medium text-[var(--navy)]"
+              >
+                What roles are you looking for?
+                <Input
+                  id="target-roles"
+                  type="text"
+                  value={targetRoles}
+                  onChange={(event) => setTargetRoles(event.target.value)}
+                  required
+                  minLength={2}
+                  maxLength={160}
+                  autoComplete="off"
+                  placeholder="e.g. Product Manager, Program Manager"
+                  className="mt-2 h-12 bg-white"
+                />
+              </label>
+
               {message && (
                 <output
                   aria-live="polite"
@@ -131,7 +151,8 @@ export function AccessRequestView() {
             </form>
 
             <p className="mt-5 text-center text-xs leading-5 text-[var(--muted-ink)]">
-              Your email is used only to review and respond to your request.
+              Your information is used only to review and respond to your
+              request.
             </p>
             <p className="mt-6 text-center text-sm text-[var(--muted-ink)]">
               Already invited?{' '}
