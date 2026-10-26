@@ -385,9 +385,9 @@ export function CameraPractice() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0e222d] text-white">
+    <div className="min-h-screen bg-[#2e1065] text-white">
       <div className="grid h-screen grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-        <section className="relative flex min-h-0 items-start justify-center overflow-hidden bg-[#0a1921] px-8 pb-20 pt-7">
+        <section className="relative flex min-h-0 items-start justify-center overflow-hidden bg-[#180a2e] px-8 pb-20 pt-7">
           <div className="w-full max-w-[1120px]">
             {activeExercise ? (
               <section className="mb-4 border-b border-white/10 pb-4" aria-labelledby="exercise-prompt-title">
@@ -428,11 +428,11 @@ export function CameraPractice() {
               </section>
             )}
 
-            <div className="relative h-[calc(100vh-230px)] min-h-[420px] max-h-[700px] w-full overflow-hidden rounded-[20px] bg-[#152c37] ring-1 ring-white/10">
+            <div className="relative h-[calc(100vh-230px)] min-h-[420px] max-h-[700px] w-full overflow-hidden rounded-[20px] bg-[#301851] ring-1 ring-white/10">
             {!activeExercise && <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />}
 
             {(status === 'permission' || status === 'requesting' || status === 'error' || demoMode) && (
-              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#244858_0%,#152c37_42%,#10242e_100%)]">
+              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#6d28d9_0%,#301851_42%,#24123d_100%)]">
                 <div className="max-w-md text-center">
                   <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-white/10 text-[var(--mint)] ring-1 ring-white/10">
                     {activeExercise ? <Mic className="size-7" /> : status === 'error' ? <CameraOff className="size-7" /> : <Camera className="size-7" />}
@@ -467,7 +467,7 @@ export function CameraPractice() {
             )}
 
             {status === 'recording' && demoMode && (
-              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#244858_0%,#152c37_42%,#10242e_100%)]">
+              <div className="absolute inset-0 grid place-items-center bg-[radial-gradient(circle_at_50%_25%,#6d28d9_0%,#301851_42%,#24123d_100%)]">
                 <div className="text-center"><Mic className="mx-auto size-10 text-[var(--mint)]" /><p className="mt-4 text-sm text-white/65">Microphone recording in progress</p></div>
               </div>
             )}
@@ -485,8 +485,8 @@ export function CameraPractice() {
           </div>
 
           {status === 'processing' && (
-            <div className="absolute inset-0 z-20 grid place-items-center bg-[#09171e]/85 backdrop-blur-sm">
-              <div className="w-[420px] rounded-3xl border border-white/10 bg-[#132b36] p-8 text-center shadow-2xl">
+            <div className="absolute inset-0 z-20 grid place-items-center bg-[#180a2e]/85 backdrop-blur-sm">
+              <div className="w-[420px] rounded-3xl border border-white/10 bg-[#2b1745] p-8 text-center shadow-2xl">
                 <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]">
                   <Sparkles className="size-6 animate-pulse" />
                 </div>
@@ -515,7 +515,7 @@ export function CameraPractice() {
           </div>
         </section>
 
-        <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#102630] p-7">
+        <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#24123d] p-7">
           {activeExercise && (
             <>
               <div>

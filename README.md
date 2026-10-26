@@ -38,7 +38,26 @@ Phase 2 uses Supabase Auth and PostgreSQL. The checked-in migration creates the 
    - In Google Auth Platform, create a **Web application** OAuth client. Add your app origin (for example, `http://localhost:3000`) under **Authorized JavaScript origins**.
    - Under **Authorized redirect URIs**, add the Supabase callback shown on the Supabase Google provider page. Hosted projects use `https://<project-ref>.supabase.co/auth/v1/callback`; the local Supabase stack uses `http://127.0.0.1:54321/auth/v1/callback`.
    - In Supabase **Authentication → Sign In / Providers → Google**, enable the provider and add the Google client ID and client secret.
-6. Restart `pnpm dev`, then sign in at `/login` with Google or email and password.
+6. Restart `pnpm dev`. Approved members sign in at `/signin` with Google or email and password.
+
+## Invite-only access
+
+The public `/login` route collects access requests instead of creating accounts. The original account form remains available at `/signin` for people you approve.
+
+Apply the latest migration before accepting requests:
+
+```bash
+pnpm dlx supabase login
+pnpm dlx supabase db push
+```
+
+To approve someone:
+
+1. Open **Supabase → Table Editor → access_requests**.
+2. Change their `status` from `pending` to `approved`.
+3. Send them the `/signin` URL. They must use the same email address they requested access with.
+
+Only an authenticated user whose email has an `approved` row can open product pages or call product APIs. Accounts that existed before the migration are approved automatically.
 
 Do not commit `.env.local`. The publishable key is intended for browser use; row-level security is still responsible for isolating each account’s records.
 

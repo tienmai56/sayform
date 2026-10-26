@@ -22,14 +22,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!configured) return;
     const supabase = createClient();
-    void supabase.auth.getUser().then((result: { data: { user: User | null } }) => {
-      setUser(result.data.user);
-      setLoading(false);
-    });
-    const { data } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    void supabase.auth
+      .getUser()
+      .then((result: { data: { user: User | null } }) => {
+        setUser(result.data.user);
+        setLoading(false);
+      });
+    const { data } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      },
+    );
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -41,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async signOut() {
         if (!configured) return;
         await createClient().auth.signOut({ scope: 'local' });
-        window.location.assign('/login');
+        window.location.assign('/signin');
       },
     }),
     [loading, user],

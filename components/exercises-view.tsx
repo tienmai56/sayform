@@ -85,11 +85,11 @@ export function ExercisesView() {
         {loading ? (
           <div className="grid min-h-[420px] place-items-center rounded-3xl border border-[var(--line)] bg-[var(--paper)] text-sm text-[var(--muted-ink)]">Loading personalized exercises…</div>
         ) : !activeGoal ? (
-          <div className="grid min-h-[420px] place-items-center rounded-3xl border border-dashed border-[#b8c9c4] bg-[var(--paper)] px-8 text-center">
+          <div className="grid min-h-[420px] place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-[var(--paper)] px-8 text-center">
             <div className="max-w-md"><Target className="mx-auto size-9 text-[var(--teal)]" /><h2 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Choose an active goal first</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Exercises are organized around the communication goal you are currently practising.</p><Button nativeButton={false} render={<Link href="/goals" />} className="mt-5 rounded-xl bg-[var(--navy)]">Go to Home <ArrowRight className="ml-1 size-4" /></Button></div>
           </div>
         ) : !exercises.length ? (
-          <div className="grid min-h-[420px] place-items-center rounded-3xl border border-dashed border-[#b8c9c4] bg-[var(--paper)] px-8 text-center">
+          <div className="grid min-h-[420px] place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-[var(--paper)] px-8 text-center">
             <div className="max-w-md"><span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Dumbbell className="size-5" /></span><h2 className="mt-5 font-display text-xl font-semibold text-[var(--navy)]">No exercises for {activeGoal.title.toLocaleLowerCase()} yet</h2><p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">Complete a practice session first. Sayform will create an evidence-linked exercise from your feedback.</p><Button nativeButton={false} render={<Link href="/goals" />} className="mt-5 rounded-xl bg-[var(--navy)]">Go to Home <ArrowRight className="ml-1 size-4" /></Button></div>
           </div>
         ) : (
@@ -107,7 +107,7 @@ export function ExercisesView() {
                     <div className="flex items-center justify-between border-t border-[var(--line)] pt-4 text-xs text-[var(--muted-ink)]"><span><Clock3 className="mr-1 inline size-3.5" />{exercise.estimatedMinutes} min</span><span>{date}</span></div>
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <Link href={`/history/${exercise.sessionId}`} className="text-xs font-semibold text-[#6842d8] hover:underline">View source lesson</Link>
-                      <Button size="sm" disabled={Boolean(startingId)} onClick={() => void startSavedExercise(exercise)} className="rounded-xl bg-[var(--navy)] hover:bg-[#1d4255]">{startingId === exercise.id ? 'Opening…' : exercise.attemptCount ? 'Continue exercise' : 'Start exercise'} <ArrowRight className="ml-1 size-3.5" /></Button>
+                      <Button size="sm" disabled={Boolean(startingId)} onClick={() => void startSavedExercise(exercise)} className="rounded-xl bg-[var(--navy)] hover:bg-[#4c1d95]">{startingId === exercise.id ? 'Opening…' : exercise.attemptCount ? 'Continue exercise' : 'Start exercise'} <ArrowRight className="ml-1 size-3.5" /></Button>
                     </div>
                   </div>
                 </article>

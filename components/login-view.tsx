@@ -4,14 +4,7 @@ import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  ArrowRight,
-  CheckCircle2,
-  Database,
-  LockKeyhole,
-  Sparkles,
-} from 'lucide-react';
-import { Brand } from '@/components/app-shell';
+import { ArrowRight, Database, Sparkles } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
@@ -44,9 +37,11 @@ function GoogleIcon() {
 export function LoginView({
   nextPath,
   initialError,
+  allowSignUp = true,
 }: {
   nextPath: string;
   initialError?: string;
+  allowSignUp?: boolean;
 }) {
   const router = useRouter();
   const configured = isSupabaseConfigured();
@@ -157,151 +152,138 @@ export function LoginView({
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-[minmax(0,0.9fr)_minmax(560px,1.1fr)] bg-[var(--paper)]">
-      <section className="relative flex flex-col overflow-hidden bg-[var(--navy)] px-14 py-10 text-white">
-        <div className="absolute -left-24 top-24 size-80 rounded-full bg-[var(--teal)]/20 blur-3xl" />
-        <div className="relative">
-          <Brand inverted />
-        </div>
-        <div className="relative my-auto max-w-lg py-16">
-          <span className="grid size-12 place-items-center rounded-2xl bg-white/10 text-[var(--mint)]">
-            <LockKeyhole className="size-5" />
-          </span>
-          <h1 className="mt-6 font-display text-5xl font-semibold leading-[1.05] tracking-[-0.05em]">
-            Your practice history, wherever you work.
-          </h1>
-          <p className="mt-5 text-base leading-7 text-white/65">
-            Sign in to keep goals, transcripts, metrics, feedback, and completed
-            exercises together. Recordings remain temporary.
-          </p>
-          <div className="mt-9 space-y-3 text-sm text-white/70">
-            <p className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-[var(--mint)]" />
-              Private records protected per account
-            </p>
-            <p className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-[var(--mint)]" />
-              No saved video or audio in History
-            </p>
-          </div>
-        </div>
-      </section>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(145deg,#faf7ff_0%,#f2edff_50%,#ffffff_100%)] px-6 py-16">
+      <div
+        aria-hidden="true"
+        className="absolute -left-32 -top-36 size-[30rem] rounded-full bg-[#c4b5fd]/35 blur-3xl"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -bottom-44 -right-28 size-[32rem] rounded-full bg-[#e9d5ff]/45 blur-3xl"
+      />
+      <Link
+        href="/"
+        aria-label="Sayform home"
+        className="absolute left-10 top-9 font-display text-2xl font-semibold tracking-[-0.045em] text-[#6842d8]"
+      >
+        sayform
+      </Link>
 
-      <section className="flex items-center justify-center px-16 py-12">
-        <div className="w-full max-w-md">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--teal-dark)]">
-            <Sparkles className="size-4" />
-            Welcome to Sayform
-          </div>
-          <h2 className="mt-3 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">
-            {mode === 'sign-in' ? 'Sign in to practise' : 'Create your account'}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">
-            {mode === 'sign-in'
-              ? 'Continue with your saved goals and session history.'
-              : 'Start with a communication goal—no baseline test required.'}
-          </p>
+      <section className="relative w-full max-w-md rounded-[2rem] border border-[#ddd3f2] bg-white/90 p-9 shadow-[0_28px_80px_rgba(76,29,149,0.14)] backdrop-blur-sm sm:p-11">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.13em] text-[var(--teal-dark)]">
+          <Sparkles className="size-4" />
+          Welcome to Sayform
+        </div>
+        <h2 className="mt-3 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">
+          {mode === 'sign-in' ? 'Sign in to practise' : 'Create your account'}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">
+          {mode === 'sign-in'
+            ? 'Continue with your interview practice and session history.'
+            : 'Create an account and start practicing interview answers.'}
+        </p>
+
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={signInWithGoogle}
+          className="mt-8 h-11 w-full rounded-xl border-[var(--line)] bg-white text-[var(--navy)] shadow-sm hover:bg-[var(--canvas)]"
+        >
+          <GoogleIcon />
+          {pendingMethod === 'google'
+            ? 'Connecting to Google…'
+            : 'Continue with Google'}
+        </Button>
+
+        <div className="my-6 flex items-center gap-3">
+          <hr className="flex-1 border-0 border-t border-[var(--line)]" />
+          <span className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--muted-ink)]">
+            or
+          </span>
+          <hr className="flex-1 border-0 border-t border-[var(--line)]" />
+        </div>
+
+        <form
+          onSubmit={submit}
+          className="space-y-4"
+          aria-busy={pendingMethod === 'password'}
+        >
+          {mode === 'sign-up' && (
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-[var(--navy)]"
+            >
+              Name
+              <Input
+                id="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+                minLength={2}
+                autoComplete="name"
+                className="mt-2 h-11 bg-white"
+              />
+            </label>
+          )}
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-[var(--navy)]"
+          >
+            Email
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              autoComplete="email"
+              className="mt-2 h-11 bg-white"
+            />
+          </label>
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-[var(--navy)]"
+          >
+            Password
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              minLength={8}
+              autoComplete={
+                mode === 'sign-in' ? 'current-password' : 'new-password'
+              }
+              className="mt-2 h-11 bg-white"
+            />
+          </label>
+
+          {message && (
+            <output
+              aria-live="polite"
+              className={`block rounded-xl px-4 py-3 text-sm ${success ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--rose-soft)] text-[#8f4336]'}`}
+            >
+              {message}
+            </output>
+          )}
 
           <Button
-            type="button"
-            variant="outline"
             disabled={pending}
-            onClick={signInWithGoogle}
-            className="mt-8 h-11 w-full rounded-xl border-[var(--line)] bg-white text-[var(--navy)] shadow-sm hover:bg-[var(--canvas)]"
+            type="submit"
+            className="h-11 w-full rounded-xl bg-[linear-gradient(135deg,#8b5cf6,#6d28d9,#5b21b6)] shadow-[0_10px_24px_rgba(109,40,217,0.24)] hover:opacity-92"
           >
-            <GoogleIcon />
-            {pendingMethod === 'google'
-              ? 'Connecting to Google…'
-              : 'Continue with Google'}
+            {pendingMethod === 'password'
+              ? 'Please wait…'
+              : mode === 'sign-in'
+                ? 'Sign in'
+                : 'Create account'}
+            <ArrowRight className="ml-1 size-4" />
           </Button>
+        </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <hr className="flex-1 border-0 border-t border-[var(--line)]" />
-            <span className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--muted-ink)]">
-              or
-            </span>
-            <hr className="flex-1 border-0 border-t border-[var(--line)]" />
-          </div>
-
-          <form
-            onSubmit={submit}
-            className="space-y-4"
-            aria-busy={pendingMethod === 'password'}
-          >
-            {mode === 'sign-up' && (
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-[var(--navy)]"
-              >
-                Name
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
-                  minLength={2}
-                  autoComplete="name"
-                  className="mt-2 h-11 bg-white"
-                />
-              </label>
-            )}
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-[var(--navy)]"
-            >
-              Email
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                autoComplete="email"
-                className="mt-2 h-11 bg-white"
-              />
-            </label>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-[var(--navy)]"
-            >
-              Password
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                minLength={8}
-                autoComplete={
-                  mode === 'sign-in' ? 'current-password' : 'new-password'
-                }
-                className="mt-2 h-11 bg-white"
-              />
-            </label>
-
-            {message && (
-              <output
-                aria-live="polite"
-                className={`block rounded-xl px-4 py-3 text-sm ${success ? 'bg-[var(--mint-soft)] text-[var(--teal-dark)]' : 'bg-[var(--rose-soft)] text-[#8f4336]'}`}
-              >
-                {message}
-              </output>
-            )}
-
-            <Button
-              disabled={pending}
-              type="submit"
-              className="h-11 w-full rounded-xl bg-[var(--navy)] hover:bg-[#1d4255]"
-            >
-              {pendingMethod === 'password'
-                ? 'Please wait…'
-                : mode === 'sign-in'
-                  ? 'Sign in'
-                  : 'Create account'}
-              <ArrowRight className="ml-1 size-4" />
-            </Button>
-          </form>
-
+        {allowSignUp && (
           <button
             type="button"
             disabled={pending}
@@ -317,7 +299,7 @@ export function LoginView({
               ? 'New here? Create an account'
               : 'Already have an account? Sign in'}
           </button>
-        </div>
+        )}
       </section>
     </main>
   );

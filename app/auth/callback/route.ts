@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     if (!error) return NextResponse.redirect(new URL(destination, url.origin));
   }
 
-  const loginUrl = new URL('/login', url.origin);
+  const loginUrl = new URL('/signin', url.origin);
   loginUrl.searchParams.set('next', destination);
   loginUrl.searchParams.set(
     'error',

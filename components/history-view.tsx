@@ -75,7 +75,7 @@ export function HistoryView() {
           title="Your practice sessions"
           description="Revisit questions, transcripts, coaching, and exercises. Recordings are never stored in History."
           action={
-            <Button onClick={() => router.push('/goals')} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">Start a new session</Button>
+            <Button onClick={() => router.push('/goals')} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#4c1d95]">Start a new session</Button>
           }
         />
 
@@ -120,11 +120,11 @@ export function HistoryView() {
         </div>
 
         {loading ? (
-          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#bcc8c4] bg-white/45 text-sm text-[var(--muted-ink)]">Loading session history…</div>
+          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-white/45 text-sm text-[var(--muted-ink)]">Loading session history…</div>
         ) : visibleSessions.length > 0 ? (
           <div className="space-y-4">
             {visibleSessions.map((session) => (
-              <article key={session.id} className="group grid grid-cols-[150px_minmax(0,1fr)_330px_44px] items-center gap-6 rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-5 shadow-[var(--shadow-sm)] transition-all hover:border-[#bcc8c4] hover:shadow-md">
+              <article key={session.id} className="group grid grid-cols-[150px_minmax(0,1fr)_330px_44px] items-center gap-6 rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-5 shadow-[var(--shadow-sm)] transition-all hover:border-[#b9a6df] hover:shadow-md">
                 <div className="border-r border-[var(--line)] pr-5">
                   <p className="flex items-center gap-1.5 text-xs font-medium text-[var(--muted-ink)]"><CalendarDays className="size-3.5" />{session.date.split(' · ')[0]}</p>
                   <p className="mt-2 font-display text-xl font-semibold text-[var(--navy)]">{session.duration}</p>
@@ -154,7 +154,7 @@ export function HistoryView() {
             ))}
           </div>
         ) : (
-          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#bcc8c4] bg-white/45 text-center">
+          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-white/45 text-center">
             <div><HistoryIcon className="mx-auto size-8 text-[var(--teal)]" /><h2 className="mt-4 text-base font-semibold text-[var(--navy)]">No sessions match this view</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Try another goal or clear your search.</p></div>
           </div>
         )}

@@ -42,7 +42,7 @@ function SavedSessionContent({ session }: { session: SessionDetail }) {
                 View transcript
                 <ChevronDown className="size-4 text-[var(--muted-ink)] transition-transform group-open:rotate-180" />
               </summary>
-              <p className="mt-4 border-t border-[var(--line)] pt-4 text-sm leading-7 text-[#52666e]">{response.transcript}</p>
+              <p className="mt-4 border-t border-[var(--line)] pt-4 text-sm leading-7 text-[#6d5b7f]">{response.transcript}</p>
             </details>
           </section>
         );

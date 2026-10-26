@@ -4,9 +4,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<meta content="#fcfbf7" name="theme-color"/>
+<meta content="#f7f3ff" name="theme-color"/>
 <title>Sayform | Say it better. Change what's possible</title>
-<meta content="Build stronger speaking skills for free with personal feedback, focused practice and private recordings" name="description"/>
+<meta content="Practice more with targeted feedback, feel more like yourself and improve how you say what you mean" name="description"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
 <style>
     :root{--navy:#132d3b;--ink:#233c45;--muted:#637780;--teal:#167f76;--darkteal:#0b5f59;--canvas:#fcfbf7;--paper:#fffefa;--line:#e3e7e2;--mint:#e3f0ec;--peach:#f9eadc;--sand:#f1ebdf;--shadow:0 20px 65px rgba(19,45,59,.085);}
@@ -202,13 +202,287 @@
     /* Keep decorative blurred seam glows within the viewport */
     html, body { overflow-x:clip; }
     .goals-section::before,.how::before,.benefits::before,.last-cta::after { left:0;right:0; }
+
+    /* Purple gradient theme */
+    :root {
+      --navy:#2b1745;
+      --ink:#2b1745;
+      --muted:#6d5b7f;
+      --teal:#7c3aed;
+      --darkteal:#5b21b6;
+      --canvas:#f8f5ff;
+      --paper:#fff;
+      --line:#ddd3f2;
+      --mint:#ede9fe;
+      --peach:#f3e8ff;
+      --sand:#f5f3ff;
+      --shadow:0 22px 65px rgba(88,28,135,.13);
+    }
+    body,
+    .main {
+      background:#f8f5ff;
+      color:var(--ink);
+    }
+    body, .brand, .nav-links, .nav-links a:not(.top-cta),
+    .hero h1, .hero-description, .text-link, .section, .section h2,
+    .goal-title, .goal-desc, .goal-note, .step h3, .step p,
+    .benefit h3, .benefit p, .step-count, .step-count span,
+    .question, .mock-head, .wave-label, .tiny-status, .cam-tag,
+    dialog, dialog p, .hint, label, input, textarea, .close-x {
+      color:var(--ink);
+    }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline-color:#8b5cf6;
+    }
+    ::selection { background:#ddd6fe; color:#3b0764; }
+    .hero {
+      background:linear-gradient(118deg,#faf5ff 0%,#ede9fe 36%,#e0e7ff 70%,#fae8ff 100%);
+    }
+    .hero:before {
+      background:
+        radial-gradient(circle at 14% 20%,rgba(255,255,255,.62),transparent 37%),
+        linear-gradient(90deg,rgba(250,245,255,.22),rgba(237,233,254,.02) 55%,rgba(250,232,255,.18));
+    }
+    .brand-dot { color:#a855f7; }
+    .nav-links>a:not(.top-cta):hover { color:#6d28d9; text-decoration:none; }
+    .pill {
+      border-color:transparent;
+      background:linear-gradient(135deg,#8b5cf6 0%,#7c3aed 48%,#5b21b6 100%);
+      color:#fff;
+      box-shadow:0 12px 28px rgba(109,40,217,.25);
+    }
+    .pill:hover { box-shadow:0 18px 35px rgba(109,40,217,.32); }
+    .outline-pill { border-color:#7c3aed; color:#5b21b6; }
+    .outline-pill:hover { background:#f5f3ff; }
+    .eyebrow, .section-label { color:#6d28d9; }
+    .eyebrow .sparkle { color:#a855f7; }
+    .hero-description { color:#5f4f72; }
+    .play-circle {
+      color:#6d28d9;
+      background:rgba(255,255,255,.72);
+      box-shadow:0 8px 24px rgba(88,28,135,.12);
+    }
+    .mock-window {
+      border:1.5px solid rgba(124,58,237,.28);
+      background:rgba(255,255,255,.88);
+      box-shadow:0 32px 85px rgba(76,29,149,.22);
+      backdrop-filter:blur(10px);
+    }
+    .window-bar span { background:#c084fc; }
+    .window-bar span:nth-child(2) { background:#a78bfa; }
+    .window-bar span:nth-child(3) { background:#818cf8; }
+    .question-box { background:linear-gradient(145deg,#faf7ff,#f1edff); }
+    .tiny-status { color:#6d28d9; }
+    .tiny-status .dot {
+      background:#8b5cf6;
+      box-shadow:0 0 0 4px #ede9fe;
+    }
+    .wave i { background:#8b5cf6; }
+    .camera { background:radial-gradient(circle at 50% 38%,#ede9fe 0,#ddd6fe 38%,#c4b5fd 100%); }
+    .camera:after { background:radial-gradient(ellipse at 100% 0,rgba(255,255,255,.72),transparent 57%); }
+    .cam-tag { color:#5b21b6; }
+    .cam-tag:before { background:#8b5cf6; }
+    .self-illustration:before { background:#a78bfa; }
+    .self-illustration:after { background:#7c3aed; }
+    .self-label { color:#4c1d95; }
+    .control { background:#4c1d95; }
+    .control.stop { color:#7c3aed; }
+    .goals-section {
+      background:linear-gradient(180deg,#f8f5ff 0%,#fbf9ff 100%);
+    }
+    .how {
+      background:linear-gradient(145deg,#f3efff 0%,#f8f5ff 52%,#f0edff 100%);
+    }
+    .benefits {
+      background:linear-gradient(155deg,#fdfbff 0%,#f7f2ff 54%,#faf5ff 100%);
+    }
+    .goals-section::before, .how::before, .benefits::before, .last-cta::after {
+      opacity:.82;
+      background:
+        radial-gradient(ellipse at 18% 42%,rgba(167,139,250,.34),transparent 49%),
+        radial-gradient(ellipse at 76% 39%,rgba(217,70,239,.22),transparent 52%);
+    }
+    .how::before {
+      background:radial-gradient(ellipse at 14% 50%,rgba(139,92,246,.31),transparent 53%),radial-gradient(ellipse at 82% 50%,rgba(192,132,252,.31),transparent 52%);
+    }
+    .benefits::before {
+      background:radial-gradient(ellipse at 20% 50%,rgba(196,181,253,.42),transparent 55%),radial-gradient(ellipse at 84% 45%,rgba(232,121,249,.24),transparent 51%);
+    }
+    .goal-card, .step, .benefit {
+      border:1.5px solid #d9cff0;
+      box-shadow:0 8px 28px rgba(76,29,149,.055);
+    }
+    .goal-card { background:rgba(255,255,255,.78); }
+    .goal-card:hover, .step:hover, .benefit:hover {
+      border-color:#b9a6df;
+      box-shadow:0 18px 42px rgba(88,28,135,.11);
+    }
+    .goal-card[aria-pressed=true] {
+      border:1.5px solid #7c3aed;
+      background:linear-gradient(145deg,#f5f3ff,#ede9fe);
+      box-shadow:inset 0 0 0 1px rgba(124,58,237,.15),0 16px 36px rgba(109,40,217,.12);
+    }
+    .goal-icon { background:#ede9fe; color:#5b21b6; }
+    .goal-card:nth-child(2) .goal-icon { background:#f3e8ff; }
+    .goal-card:nth-child(3) .goal-icon { background:#e0e7ff; }
+    .goal-card:nth-child(4) .goal-icon { background:#f5f3ff; }
+    .tick { background:linear-gradient(135deg,#8b5cf6,#5b21b6); }
+    .step { background:rgba(255,255,255,.78); }
+    .step-count { color:#765b91; }
+    .step-count span { background:#ede9fe; color:#5b21b6; }
+    .step-art { background:linear-gradient(135deg,#f5f3ff,#ede9fe); }
+    .step:nth-child(2) .step-art { background:linear-gradient(135deg,#faf5ff,#f3e8ff); }
+    .step:nth-child(3) .step-art { background:linear-gradient(135deg,#eef2ff,#e9d5ff); }
+    .plan-row { background:#f1edfa; }
+    .plan-row:before { color:#7c3aed; }
+    .plan-row:nth-child(2) { background:#e9ddfb; }
+    .step-art:after { color:#a855f7; }
+    .art-top { background:linear-gradient(125deg,#ede9fe,#c4b5fd); color:#6d28d9; }
+    .art-line { background:#ece7f5; }
+    .art-record { background:#8b5cf6; }
+    .benefit, .benefit-free, .benefit:nth-child(2), .benefit:nth-child(3), .benefit:nth-child(4) {
+      background:linear-gradient(145deg,rgba(255,255,255,.9),rgba(245,243,255,.86));
+    }
+    .benefit-icon, .benefit-free .benefit-icon,
+    .benefit:nth-child(2) .benefit-icon,
+    .benefit:nth-child(3) .benefit-icon,
+    .benefit:nth-child(4) .benefit-icon {
+      background:linear-gradient(135deg,#ede9fe,#ddd6fe);
+    }
+    .benefit svg { stroke:#6d28d9; }
+    .free-access-note { color:#5b21b6; background:#f5f3ff; border-color:#ddd6fe; }
+    .last-cta {
+      background:linear-gradient(120deg,#2e1065 0%,#581c87 48%,#312e81 100%);
+      color:#fff;
+    }
+    .last-cta:before {
+      width:650px;
+      height:650px;
+      background:#c084fc;
+      opacity:.3;
+      filter:blur(125px);
+    }
+    .last-cta::after {
+      background:radial-gradient(ellipse at 25% 45%,rgba(196,181,253,.34),transparent 58%),radial-gradient(ellipse at 80% 35%,rgba(232,121,249,.28),transparent 56%);
+    }
+    .last-cta h2, .last-cta p { color:#fff; }
+    .last-cta .pill {
+      background:#fff;
+      color:#5b21b6;
+      border:1px solid rgba(255,255,255,.7);
+      box-shadow:0 16px 34px rgba(30,12,59,.24);
+    }
+    .site-footer {
+      background:#26123f;
+      color:#ede9fe;
+      border-top:1px solid rgba(255,255,255,.14);
+    }
+    .footer-inner .brand, .foot-note { color:#ede9fe; }
+    dialog {
+      border-color:#d8cced;
+      background:#fdfbff;
+      box-shadow:0 40px 120px rgba(46,16,101,.3);
+    }
+    dialog::backdrop { background:rgba(30,12,59,.46); }
+    input, textarea { border-color:#d8cced; }
+    .toast { background:#4c1d95; }
+    .why-created {
+      position:relative;
+      overflow:hidden;
+      padding:78px 0;
+      background:linear-gradient(160deg,#fbf9ff 0%,#f3efff 58%,#f8f5ff 100%);
+    }
+    .why-created:before {
+      content:"";
+      position:absolute;
+      width:520px;
+      height:520px;
+      top:-280px;
+      right:-130px;
+      border-radius:50%;
+      background:#c4b5fd;
+      filter:blur(105px);
+      opacity:.34;
+      pointer-events:none;
+    }
+    .why-created-card {
+      position:relative;
+      display:grid;
+      grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr);
+      align-items:center;
+      gap:70px;
+      overflow:hidden;
+      padding:56px 60px;
+      border:1.5px solid #d8cced;
+      border-radius:28px;
+      background:linear-gradient(135deg,rgba(255,255,255,.9),rgba(242,236,255,.86));
+      box-shadow:0 22px 60px rgba(76,29,149,.09);
+    }
+    .why-created-card:after {
+      content:"";
+      position:absolute;
+      width:230px;
+      height:230px;
+      left:-120px;
+      bottom:-150px;
+      border-radius:50%;
+      background:#a78bfa;
+      filter:blur(60px);
+      opacity:.2;
+      pointer-events:none;
+    }
+    .why-created-heading, .why-created-copy { position:relative; z-index:1; }
+    .why-created-kicker {
+      margin-bottom:17px;
+      color:#6d28d9;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+    }
+    .why-created h2 {
+      max-width:470px;
+      margin:0;
+      font-size:clamp(42px,4.5vw,62px);
+      line-height:1.06;
+      letter-spacing:-.052em;
+      color:#2b1745;
+    }
+    .why-created p {
+      max-width:660px;
+      margin:0;
+      color:#514161;
+      font-size:18px;
+      line-height:1.75;
+    }
+    .why-created-copy p + p {
+      margin-top:18px;
+      padding-top:18px;
+      border-top:1px solid #d8cced;
+    }
+    .why-created .privacy-note {
+      color:#5b4770;
+      font-size:15px;
+      line-height:1.65;
+    }
+    @media(max-width:760px) {
+      .why-created { padding:54px 0; }
+      .why-created-card {
+        grid-template-columns:1fr;
+        gap:27px;
+        padding:36px 29px;
+        border-radius:23px;
+      }
+      .why-created h2 { font-size:clamp(38px,10vw,50px); }
+      .why-created p { font-size:16px; line-height:1.7; }
+    }
 </style>
 </head>
 <body>
 <header class="site-header"><div class="container nav">
 <a aria-label="Sayform home" class="brand" href="#top">sayform</a>
 <nav aria-label="Main navigation" class="nav-links">
-<a href="#how-it-works">How it works</a><a href="#benefits">Benefits</a><a href="/login">Sign in</a>
+<a href="#how-it-works">How it works</a><a href="#benefits">Benefits</a><a href="/login">Request access</a>
 
 </nav>
 </div></header>
@@ -216,31 +490,31 @@
 <!-- Custom SVG landscape, kept intentionally atmospheric and minimal. No external image dependencies. -->
 <svg aria-hidden="true" class="landscape" preserveaspectratio="xMidYMid slice" viewbox="0 0 1600 740" xmlns="http://www.w3.org/2000/svg">
 <defs>
-<lineargradient id="sky" x1="0" x2="1" y1="0" y2=".8"><stop stop-color="#cee7ed"></stop><stop offset=".43" stop-color="#e9f0e8"></stop><stop offset=".77" stop-color="#fbe1ca"></stop><stop offset="1" stop-color="#efc6b1"></stop></lineargradient>
-<lineargradient id="hill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#8fac9b"></stop><stop offset="1" stop-color="#3e756b"></stop></lineargradient>
-<lineargradient id="hill2" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#7c9e8e"></stop><stop offset="1" stop-color="#164d52"></stop></lineargradient>
-<lineargradient id="lake" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#b5cbbe"></stop><stop offset="1" stop-color="#91b6ab"></stop></lineargradient>
-<radialgradient id="sun"><stop stop-color="#fff7da" stop-opacity=".96"></stop><stop offset="1" stop-color="#fff1d1" stop-opacity="0"></stop></radialgradient>
+<lineargradient id="sky" x1="0" x2="1" y1="0" y2=".8"><stop stop-color="#ede9fe"></stop><stop offset=".43" stop-color="#ddd6fe"></stop><stop offset=".77" stop-color="#e9d5ff"></stop><stop offset="1" stop-color="#f5d0fe"></stop></lineargradient>
+<lineargradient id="hill" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a78bfa"></stop><stop offset="1" stop-color="#6d28d9"></stop></lineargradient>
+<lineargradient id="hill2" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#8b5cf6"></stop><stop offset="1" stop-color="#4c1d95"></stop></lineargradient>
+<lineargradient id="lake" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#c4b5fd"></stop><stop offset="1" stop-color="#a78bfa"></stop></lineargradient>
+<radialgradient id="sun"><stop stop-color="#fae8ff" stop-opacity=".96"></stop><stop offset="1" stop-color="#f5d0fe" stop-opacity="0"></stop></radialgradient>
 <filter id="cloudblur"><fegaussianblur stddeviation="13"></fegaussianblur></filter>
 </defs>
 <rect fill="url(#sky)" height="740" width="1600"></rect>
-<circle cx="1110" cy="390" fill="url(#sun)" r="230"></circle><circle cx="1106" cy="405" fill="#fff0d3" opacity=".73" r="68"></circle>
-<g fill="#fff5e6" filter="url(#cloudblur)" opacity=".35"><ellipse cx="147" cy="232" rx="168" ry="34"></ellipse><ellipse cx="94" cy="212" rx="90" ry="46"></ellipse><ellipse cx="900" cy="200" rx="140" ry="30"></ellipse><ellipse cx="953" cy="181" rx="75" ry="39"></ellipse><ellipse cx="1488" cy="163" rx="165" ry="43"></ellipse></g>
-<g fill="#fff4e7" opacity=".46"><ellipse cx="174" cy="224" rx="92" ry="19"></ellipse><ellipse cx="218" cy="214" rx="83" ry="16"></ellipse><ellipse cx="902" cy="205" rx="115" ry="19"></ellipse><ellipse cx="964" cy="197" rx="67" ry="23"></ellipse><ellipse cx="1450" cy="180" rx="125" ry="22"></ellipse></g>
-<path d="M0 572Q120 520 215 540Q355 491 470 557Q612 504 743 540Q863 493 990 528Q1160 475 1300 518Q1440 473 1600 526V740H0Z" fill="#b5c3b8" opacity=".43"></path>
-<path d="M0 614L188 530 319 603 463 521 642 614 812 524 1020 614 1190 539 1414 608 1600 557V740H0Z" fill="#9fb6aa" opacity=".39"></path>
+<circle cx="1110" cy="390" fill="url(#sun)" r="230"></circle><circle cx="1106" cy="405" fill="#f5d0fe" opacity=".68" r="68"></circle>
+<g fill="#faf5ff" filter="url(#cloudblur)" opacity=".38"><ellipse cx="147" cy="232" rx="168" ry="34"></ellipse><ellipse cx="94" cy="212" rx="90" ry="46"></ellipse><ellipse cx="900" cy="200" rx="140" ry="30"></ellipse><ellipse cx="953" cy="181" rx="75" ry="39"></ellipse><ellipse cx="1488" cy="163" rx="165" ry="43"></ellipse></g>
+<g fill="#fff" opacity=".42"><ellipse cx="174" cy="224" rx="92" ry="19"></ellipse><ellipse cx="218" cy="214" rx="83" ry="16"></ellipse><ellipse cx="902" cy="205" rx="115" ry="19"></ellipse><ellipse cx="964" cy="197" rx="67" ry="23"></ellipse><ellipse cx="1450" cy="180" rx="125" ry="22"></ellipse></g>
+<path d="M0 572Q120 520 215 540Q355 491 470 557Q612 504 743 540Q863 493 990 528Q1160 475 1300 518Q1440 473 1600 526V740H0Z" fill="#c4b5fd" opacity=".37"></path>
+<path d="M0 614L188 530 319 603 463 521 642 614 812 524 1020 614 1190 539 1414 608 1600 557V740H0Z" fill="#a78bfa" opacity=".34"></path>
 <path d="M0 632Q240 598 470 632Q790 591 1090 626Q1370 582 1600 610V740H0Z" fill="url(#lake)" opacity=".65"></path>
 <path d="M0 677Q210 605 360 645Q480 627 635 678Q837 632 950 662Q1130 604 1294 658Q1450 613 1600 650V740H0Z" fill="url(#hill)" opacity=".55"></path>
 <path d="M0 662Q85 582 224 631Q352 685 461 671Q589 642 760 710V740H0Z" fill="url(#hill2)" opacity=".73"></path>
 <path d="M1260 740Q1360 653 1478 627Q1540 611 1600 612V740Z" fill="url(#hill2)" opacity=".71"></path>
-<g opacity=".5" stroke="#567868" stroke-linecap="round" stroke-width="3"><path d="M45 736l-4-54m4 31-18-24m18 32 20-28M93 740v-72m0 47 23-31M156 742v-51m0 37-16-22M1485 742v-64m0 42 16-22M1540 740v-71m0 47-20-25"></path></g>
-<g fill="#ffd4b8" opacity=".72"><circle cx="33" cy="689" r="7"></circle><circle cx="95" cy="674" r="6"></circle><circle cx="1470" cy="701" r="7"></circle><circle cx="1533" cy="681" r="5"></circle></g>
+<g opacity=".48" stroke="#6d28d9" stroke-linecap="round" stroke-width="3"><path d="M45 736l-4-54m4 31-18-24m18 32 20-28M93 740v-72m0 47 23-31M156 742v-51m0 37-16-22M1485 742v-64m0 42 16-22M1540 740v-71m0 47-20-25"></path></g>
+<g fill="#e879f9" opacity=".7"><circle cx="33" cy="689" r="7"></circle><circle cx="95" cy="674" r="6"></circle><circle cx="1470" cy="701" r="7"></circle><circle cx="1533" cy="681" r="5"></circle></g>
 </svg>
 <div class="container hero-content">
 <div class="hero-copy">
 <h1>Say it better.<br/>Change what's<br/>possible</h1>
-<p class="hero-description">Practice speaking on camera, get personal feedback after every answer and improve with targeted exercises</p>
-<div class="hero-actions"><a class="pill" href="/goals">Explore your goals <span aria-hidden="true">↗</span></a><a class="text-link" href="#how-it-works"><span class="play-circle">▶</span> See how it works</a></div>
+<p class="hero-description">Practice more with targeted feedback, feel more like yourself and improve how you say what you mean</p>
+<div class="hero-actions"><a class="pill" href="/login">Request access</a></div>
 </div>
 <div aria-label="Illustration of the Sayform recording experience" class="mock-window">
 <div class="window-bar"><span></span><span></span><span></span></div><div class="mock-head">sayform</div>
@@ -252,11 +526,17 @@
 </div>
 </section>
 <main class="main">
+<section class="section why-created" id="why-sayform"><div class="container">
+<div class="why-created-card" data-reveal="">
+<div class="why-created-heading"><div class="why-created-kicker">A note from the creator</div><h2>Why I created Sayform</h2></div>
+<div class="why-created-copy"><p>AI is reshaping the hiring market and raising the bar for every role. Interviews are getting harder, while thoughtful human coaching remains too expensive for many people. I created Sayform while going through interview after interview myself, and I want to share this tool for free with those navigating the same uncertain process.</p><p class="privacy-note"><strong>Your privacy matters:</strong> Your data is never used to train AI models. Audio and video recordings are not saved—they are deleted immediately after each practice session.</p></div>
+</div>
+</div></section>
 <section class="section how" id="how-it-works"><div class="container">
 <div class="section-row" data-reveal=""><div class="section-heading"><h2>How it works</h2></div></div>
 <div class="steps">
-<article class="step" data-reveal=""><div class="step-count"><span>01</span></div><div class="step-art"><div class="plan-paper"><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div></div></div><h3>Choose a goal</h3><p>Choose the speaking skill you want to improve or create your own goal</p></article>
-<article class="step" data-reveal=""><div class="step-count"><span>02</span></div><div class="step-art"><div class="plan-paper"><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div></div></div><h3>Get a personalized plan</h3><p>Get practice questions based on your selected goal</p></article>
+<article class="step" data-reveal=""><div class="step-count"><span>01</span></div><div class="step-art"><div class="plan-paper"><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div></div></div><h3>Sign up and practice interviews</h3><p>Create a free account and start practicing realistic interview questions</p></article>
+<article class="step" data-reveal=""><div class="step-count"><span>02</span></div><div class="step-art"><div class="plan-paper"><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div></div></div><h3>Get tailored feedback</h3><p>Respond to unscripted follow-up questions, then get tailored feedback and targeted exercises</p></article>
 <article class="step" data-reveal=""><div class="step-count"><span>03</span></div><div class="step-art"><div class="art-camera"><div class="art-top">◉</div><div class="art-line"></div><div class="art-line"></div></div><span class="art-record"></span></div><h3>Practice and improve</h3><p>Record an answer, review personal feedback and try a targeted exercise</p></article>
 </div>
 </div></section>
@@ -264,12 +544,12 @@
 <div class="section-heading" data-reveal=""><h2>Why Sayform</h2></div>
 <div class="benefits-grid">
 <article class="benefit benefit-free" data-reveal=""><span class="benefit-icon"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M14.8 8.6c-.7-.8-1.8-1.1-3-1.1-1.8 0-3 .8-3 2.2 0 3.1 5.9 1.2 5.9 4.3 0 1.4-1.2 2.3-3 2.3-1.3 0-2.5-.5-3.3-1.3M12 5.8v12.4"></path></svg></span><h3>Free to use</h3><p>Practice your speaking and get personal feedback at no cost</p></article>
-<article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><path d="M5 19V12m5 7V6m5 13v-9m5 9V4"></path><path d="M3 21h19"></path></svg></span><h3>Personalized feedback</h3><p>Get feedback on your word choices, pace and reasoning after every answer</p></article>
+<article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><path d="M5 19V12m5 7V6m5 13v-9m5 9V4"></path><path d="M3 21h19"></path></svg></span><h3>Targeted feedback</h3><p>Get feedback on your word choices, pace and reasoning after every answer</p></article>
 <article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="4.5"></circle><path d="m12 12 8-8"></path></svg></span><h3>Personalized exercises</h3><p>Practice with exercises based on the skills you need to improve</p></article>
 <article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><rect height="11" rx="2" width="14" x="5" y="10"></rect><path d="M8 10V7a4 4 0 1 1 8 0v3m-4 5v2"></path></svg></span><h3>Protected privacy</h3><p>Your audio and video recordings are temporary and never saved in your history</p></article>
 </div>
 </div></section>
-<section class="last-cta"><div class="container" style="position:relative"><h2 data-reveal="">Your next opportunity starts with how you say it</h2><a class="pill" href="/goals">Choose your goal <span aria-hidden="true">↗</span></a></div></section>
+<section class="last-cta"><div class="container" style="position:relative"><h2 data-reveal="">Your next opportunity starts with how you say it</h2></div></section>
 </main>
 <footer class="site-footer"><div class="container footer-inner"><a class="brand" href="#top">sayform</a><div class="foot-note">© 2026 Sayform</div></div></footer>
 <script>

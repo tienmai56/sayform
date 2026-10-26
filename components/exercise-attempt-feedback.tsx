@@ -117,7 +117,7 @@ export function ExerciseAttemptFeedback() {
                   {analysisPreview?.transcript && (
                     <div className="mt-6 rounded-2xl border border-[var(--line)] bg-white p-5">
                       <div className="flex items-center justify-between gap-4"><p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Transcript ready</p>{analysisPreview.metrics && <span className="text-xs text-[var(--muted-ink)]">{analysisPreview.metrics.wordCount} words · {analysisPreview.metrics.averageWpm} WPM</span>}</div>
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#52666e]">{analysisPreview.transcript}</p>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#6d5b7f]">{analysisPreview.transcript}</p>
                     </div>
                   )}
                 </>
@@ -226,9 +226,9 @@ export function ExerciseAttemptFeedback() {
             <div className="flex items-center gap-3">
               {next.stage !== 'summary' && <button onClick={() => void showSummary()} disabled={finishing} className="px-2 py-2 text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">Finish for now</button>}
               {next.stage === 'summary' ? (
-                <Button onClick={() => void showSummary()} disabled={finishing} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">{finishing ? 'Preparing results…' : 'View exercise results'} <ArrowRight className="ml-1 size-4" /></Button>
+                <Button onClick={() => void showSummary()} disabled={finishing} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#4c1d95]">{finishing ? 'Preparing results…' : 'View exercise results'} <ArrowRight className="ml-1 size-4" /></Button>
               ) : (
-                <Button onClick={continueExercise} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">{next.stage === 'transfer' ? 'Start independent test' : 'Next attempt'} <ArrowRight className="ml-1 size-4" /></Button>
+                <Button onClick={continueExercise} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#4c1d95]">{next.stage === 'transfer' ? 'Start independent test' : 'Next attempt'} <ArrowRight className="ml-1 size-4" /></Button>
               )}
             </div>
           </div>

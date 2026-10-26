@@ -2,10 +2,18 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseConfig, isSupabaseConfigured } from '@/lib/supabase/config';
 
-const protectedPrefixes = ['/goals', '/practice', '/history', '/session'];
+const protectedPrefixes = [
+  '/goals',
+  '/practice',
+  '/history',
+  '/session',
+  '/exercises',
+];
 
 function isProtectedPath(pathname: string) {
-  return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return protectedPrefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 function copyAuthState(source: NextResponse, target: NextResponse) {
@@ -26,32 +34,79 @@ export async function updateSession(request: NextRequest) {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        cookiesToSet.forEach(({ name, value }) =>
+          request.cookies.set(name, value),
+        );
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options),
+        );
       },
     },
   });
 
   const { data } = await supabase.auth.getClaims();
   const isSignedIn = Boolean(data?.claims?.sub);
+  const pathname = request.nextUrl.pathname;
 
-  if (!isSignedIn && isProtectedPath(request.nextUrl.pathname)) {
+  let hasApprovedAccess = false;
+  const shouldCheckAccess =
+    isSignedIn &&
+    (isProtectedPath(pathname) ||
+      pathname === '/login' ||
+      pathname === '/signin' ||
+      pathname === '/');
+
+  if (shouldCheckAccess) {
+    const email =
+      typeof data?.claims?.email === 'string'
+        ? data.claims.email.toLowerCase()
+        : '';
+    if (email) {
+      const { data: accessRequest } = await supabase
+        .from('access_requests')
+        .select('status')
+        .eq('email', email)
+        .maybeSingle();
+      hasApprovedAccess = accessRequest?.status === 'approved';
+    }
+  }
+
+  if (!isSignedIn && isProtectedPath(pathname)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.search = '';
-    loginUrl.searchParams.set('next', `${request.nextUrl.pathname}${request.nextUrl.search}`);
+    loginUrl.searchParams.set(
+      'next',
+      `${request.nextUrl.pathname}${request.nextUrl.search}`,
+    );
     return copyAuthState(response, NextResponse.redirect(loginUrl));
   }
 
-  if (isSignedIn && request.nextUrl.pathname === '/login') {
+  if (
+    isSignedIn &&
+    !hasApprovedAccess &&
+    (isProtectedPath(pathname) || pathname === '/signin')
+  ) {
+    const requestAccessUrl = request.nextUrl.clone();
+    requestAccessUrl.pathname = '/login';
+    requestAccessUrl.search = '';
+    requestAccessUrl.searchParams.set('state', 'pending');
+    return copyAuthState(response, NextResponse.redirect(requestAccessUrl));
+  }
+
+  if (
+    isSignedIn &&
+    hasApprovedAccess &&
+    (pathname === '/login' || pathname === '/signin')
+  ) {
     const goalsUrl = request.nextUrl.clone();
     goalsUrl.pathname = '/goals';
     goalsUrl.search = '';
     return copyAuthState(response, NextResponse.redirect(goalsUrl));
   }
 
-  if (isSignedIn && request.nextUrl.pathname === '/') {
+  if (isSignedIn && hasApprovedAccess && pathname === '/') {
     const goalsUrl = request.nextUrl.clone();
     goalsUrl.pathname = '/goals';
     return copyAuthState(response, NextResponse.redirect(goalsUrl));

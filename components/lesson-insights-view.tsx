@@ -47,7 +47,7 @@ function FeedbackGroupCard({ group, tone }: { group: FeedbackGroup; tone: 'posit
   return (
     <article className="rounded-2xl border border-[var(--line)] bg-white p-5">
       <div className="flex items-center gap-2">
-        <span className={cn('h-5 w-1.5 shrink-0 rounded-full', tone === 'positive' ? 'bg-[#55a887]' : 'bg-[#c88a18]')} />
+        <span className={cn('h-5 w-1.5 shrink-0 rounded-full', tone === 'positive' ? 'bg-[#8b5cf6]' : 'bg-[#c88a18]')} />
         <h4 className="text-xs font-semibold text-[var(--muted-ink)]">{group.label}</h4>
         {group.items.length > 1 && <span className="ml-auto rounded-full bg-[#f0ecff] px-2.5 py-1 text-[10px] font-semibold text-[#6842d8]">{group.items.length} examples</span>}
       </div>
@@ -92,7 +92,7 @@ function FeedbackColumns({ strengths, improvements, emptyMessage }: { strengths:
   const strengthGroups = groupFeedback(strengths);
   const improvementGroups = groupFeedback(improvements);
   if (!strengths.length && !improvements.length) {
-    return <div className="rounded-2xl border border-dashed border-[#b8c9c4] bg-white px-6 py-12 text-center text-sm text-[var(--muted-ink)]">{emptyMessage}</div>;
+    return <div className="rounded-2xl border border-dashed border-[#d8cced] bg-white px-6 py-12 text-center text-sm text-[var(--muted-ink)]">{emptyMessage}</div>;
   }
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

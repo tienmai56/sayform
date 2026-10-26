@@ -298,7 +298,7 @@ function StandardFeedbackWorkspace() {
                         <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Transcript ready</p>
                         {analysisPreview.metrics && <span className="text-xs text-[var(--muted-ink)]">{analysisPreview.metrics.wordCount} words · {analysisPreview.metrics.averageWpm} WPM</span>}
                       </div>
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#52666e]">{analysisPreview.transcript}</p>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#6d5b7f]">{analysisPreview.transcript}</p>
                     </div>
                   )}
                 </>
@@ -308,23 +308,23 @@ function StandardFeedbackWorkspace() {
           <div className={cn(!activeExercise && !currentAnalysis && 'hidden')}>
           {activeExercise && (
             <div className="mb-5 grid grid-cols-[minmax(0,1fr)_minmax(300px,0.7fr)] gap-4 rounded-2xl border border-[var(--mint)] bg-[var(--mint-soft)] p-5">
-              <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Skill practised</p><h3 className="mt-1.5 text-base font-semibold text-[var(--navy)]">{activeExercise.targetSkill}</h3><p className="mt-2 text-sm leading-6 text-[#516b6b]">Your response made the target behavior more explicit. Keep the same meaning while making the evidence concrete.</p></div>
-              <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Compared with the session evidence</p><p className="mt-2 text-xs italic leading-5 text-[#52666d]">“{activeExercise.sourceEvidence}”</p></div>
+              <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Skill practised</p><h3 className="mt-1.5 text-base font-semibold text-[var(--navy)]">{activeExercise.targetSkill}</h3><p className="mt-2 text-sm leading-6 text-[#5f4f72]">Your response made the target behavior more explicit. Keep the same meaning while making the evidence concrete.</p></div>
+              <div className="rounded-xl bg-white/75 p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Compared with the session evidence</p><p className="mt-2 text-xs italic leading-5 text-[#6d5b7f]">“{activeExercise.sourceEvidence}”</p></div>
             </div>
           )}
           {!activeExercise && goalTemplateKey === 'storytelling' && (
-            <div className="mb-5 rounded-2xl border border-[#bdd8cf] bg-[var(--mint-soft)] p-5">
+            <div className="mb-5 rounded-2xl border border-[#cfc3e6] bg-[var(--mint-soft)] p-5">
               <div className="flex items-start gap-3">
                 <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-[var(--teal-dark)]"><Sparkles className="size-4" /></span>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Story structure review</p>
                   <h3 className="mt-1 font-display text-lg font-semibold text-[var(--navy)]">Matthew Dicks’ Storyworthy framework</h3>
-                  <p className="mt-1.5 text-sm leading-6 text-[#516b6b]">This feedback evaluates only what appears in your transcript: the five-second moment, an opening close to the action, meaningful stakes, and a clear beginning-to-ending contrast.</p>
+                  <p className="mt-1.5 text-sm leading-6 text-[#5f4f72]">This feedback evaluates only what appears in your transcript: the five-second moment, an opening close to the action, meaningful stakes, and a clear beginning-to-ending contrast.</p>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {['Five-second moment', 'Start close to the action', 'Meaningful stakes', 'Beginning-to-ending contrast'].map((criterion) => (
-                  <span key={criterion} className="rounded-full border border-[#a9cfc3] bg-white/75 px-3 py-1 text-[11px] font-semibold text-[var(--teal-dark)]">{criterion}</span>
+                  <span key={criterion} className="rounded-full border border-[#c4b5fd] bg-white/75 px-3 py-1 text-[11px] font-semibold text-[var(--teal-dark)]">{criterion}</span>
                 ))}
               </div>
             </div>
@@ -356,7 +356,7 @@ function StandardFeedbackWorkspace() {
                 <ChevronDown className={cn('size-4 text-[var(--muted-ink)] transition-transform', transcriptOpen && 'rotate-180')} />
               </button>
               {transcriptOpen && (
-                <p id="answer-transcript" className="mt-4 border-t border-[var(--line)] pt-4 text-[15px] leading-8 text-[#344b55]">
+                <p id="answer-transcript" className="mt-4 border-t border-[var(--line)] pt-4 text-[15px] leading-8 text-[#5f4f72]">
                   {currentAnalysis?.transcript ?? 'Your transcript is unavailable.'}
                 </p>
               )}
@@ -366,7 +366,7 @@ function StandardFeedbackWorkspace() {
               <div className="rounded-2xl border border-[var(--line)] bg-[var(--canvas)] p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">Compared with your last answer</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {resolvedCount > 0 && <span className="rounded-full bg-[#dff2e9] px-2.5 py-1 text-[11px] font-semibold text-[#286b55]">{resolvedCount} resolved</span>}
+                  {resolvedCount > 0 && <span className="rounded-full bg-[#ede9fe] px-2.5 py-1 text-[11px] font-semibold text-[#5b21b6]">{resolvedCount} resolved</span>}
                   {continuingCount > 0 && <span className="rounded-full bg-[#fff0c7] px-2.5 py-1 text-[11px] font-semibold text-[#805b17]">{continuingCount} still happening</span>}
                   {newIssueCount > 0 && <span className="rounded-full bg-[#e7eef6] px-2.5 py-1 text-[11px] font-semibold text-[#3e6078]">{newIssueCount} new {newIssueCount === 1 ? 'issue' : 'issues'}</span>}
                 </div>
@@ -416,10 +416,10 @@ function StandardFeedbackWorkspace() {
             )}
 
             {canAnswerFollowUp && (
-              <div className="rounded-2xl border border-[#bdd8cf] bg-[var(--mint-soft)] p-5">
+              <div className="rounded-2xl border border-[#cfc3e6] bg-[var(--mint-soft)] p-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Your manager’s follow-up</p>
                 <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{interviewFollowUp}</p>
-                <p className="mt-2 text-xs leading-5 text-[#516b6b]">This question was generated from your interview question and answer.</p>
+                <p className="mt-2 text-xs leading-5 text-[#5f4f72]">This question was generated from your interview question and answer.</p>
               </div>
             )}
           </div>
@@ -428,14 +428,14 @@ function StandardFeedbackWorkspace() {
 
         {(activeExercise || currentAnalysis) && <footer className="flex items-center justify-between border-t border-[var(--line)] bg-[var(--canvas)] px-6 py-4">
           {activeExercise ? (
-            <><span className="text-sm text-[var(--muted-ink)]">Exercise complete · saved with this session</span><Button onClick={finishExercise} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">Finish exercise <ArrowRight className="ml-1 size-4" /></Button></>
+            <><span className="text-sm text-[var(--muted-ink)]">Exercise complete · saved with this session</span><Button onClick={finishExercise} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#4c1d95]">Finish exercise <ArrowRight className="ml-1 size-4" /></Button></>
           ) : (
             <>
               <button onClick={endSession} className="text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">End session</button>
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={redoQuestion} className="h-10 rounded-xl border-[var(--line)] bg-white px-4">Redo question <RotateCcw className="ml-1 size-4" /></Button>
                 {canAnswerFollowUp && <Button variant="outline" onClick={answerFollowUp} className="h-10 rounded-xl border-[var(--line)] bg-white px-4">Answer follow-up <ArrowRight className="ml-1 size-4" /></Button>}
-                <Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#1d4255]">{isInterview ? 'New question' : 'Next question'} <ArrowRight className="ml-1 size-4" /></Button>
+                <Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#4c1d95]">{isInterview ? 'New question' : 'Next question'} <ArrowRight className="ml-1 size-4" /></Button>
               </div>
             </>
           )}
@@ -446,7 +446,7 @@ function StandardFeedbackWorkspace() {
 
   return (
     <AppShell>
-      {fullScreen && <div className="fixed inset-0 z-40 bg-[#0e222d]/55 backdrop-blur-sm" />}
+      {fullScreen && <div className="fixed inset-0 z-40 bg-[#2e1065]/55 backdrop-blur-sm" />}
       <Screen wide>
         <Breadcrumbs items={[{ label: activeExercise ? 'Exercises' : 'Home', href: activeExercise ? '/exercises' : '/goals' }, { label: activeExercise ? 'Exercise feedback' : 'Answer feedback' }]} />
         <div className="mb-6 flex items-start justify-between gap-6">
@@ -458,12 +458,12 @@ function StandardFeedbackWorkspace() {
         </div>
 
         <div className={cn('grid h-[calc(100vh-190px)] min-h-[720px] gap-5', recordingOpen ? 'grid-cols-[minmax(380px,0.62fr)_minmax(620px,1.38fr)]' : 'grid-cols-1')}>
-          {recordingOpen && <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-[#243e49] bg-[#102630] shadow-[var(--shadow-sm)]">
+          {recordingOpen && <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-[#4c1d95] bg-[#24123d] shadow-[var(--shadow-sm)]">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-white">
               <div className="flex items-center gap-2"><Play className="size-4 text-[var(--mint)]" /><span className="text-sm font-semibold">Your recording</span></div>
               <span className="text-xs text-white/45">Paused · play when ready</span>
             </div>
-            <div className="flex min-h-0 flex-1 items-center justify-center bg-[#09191f] p-5">
+            <div className="flex min-h-0 flex-1 items-center justify-center bg-[#160a29] p-5">
               {recordingUrl ? (
                 <>
                   {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- user-recorded prototype media has no caption asset */}

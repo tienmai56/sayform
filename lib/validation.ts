@@ -1,12 +1,19 @@
 import { z } from 'zod';
 
+export const accessRequestSchema = z.object({
+  email: z.email().trim().max(254),
+});
+
 export const goalUpdateSchema = z
   .object({
     title: z.string().trim().min(3).max(120).optional(),
     description: z.string().trim().max(500).optional(),
     status: z.enum(['active', 'completed', 'archived']).optional(),
   })
-  .refine((value) => Object.keys(value).length > 0, 'At least one field is required.');
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    'At least one field is required.',
+  );
 
 export const sessionCreateSchema = z.object({
   goalId: z.uuid().nullable().optional(),

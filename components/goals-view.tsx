@@ -104,11 +104,11 @@ function SpeakingSpeedGauge({ wordsPerMinute }: { wordsPerMinute: number }) {
             : 'Speaking speed gauge. Complete a recorded answer to see your average. The comfortable reference range is 100 to 165 words per minute.'}
         </title>
         <path d={paceGaugeArc(PACE_MIN, 96)} fill="none" stroke="#e8e6e1" strokeLinecap="round" strokeWidth="17" />
-        <path d={paceGaugeArc(PACE_RANGE_START, PACE_RANGE_END)} fill="none" stroke="#43c6b5" strokeLinecap="round" strokeWidth="17" />
+        <path d={paceGaugeArc(PACE_RANGE_START, PACE_RANGE_END)} fill="none" stroke="#8b5cf6" strokeLinecap="round" strokeWidth="17" />
         <path d={paceGaugeArc(169, PACE_MAX)} fill="none" stroke="#e8e6e1" strokeLinecap="round" strokeWidth="17" />
-        {hasPace && <circle cx={marker.x} cy={marker.y} r="6" fill="#132d3b" stroke="white" strokeWidth="3" />}
-        <text x="110" y="72" textAnchor="middle" fill="#6c7b80" fontFamily="var(--font-sans-ui)" fontSize="9" fontWeight="700" letterSpacing="0.08em">REFERENCE RANGE</text>
-        <text x="110" y="91" textAnchor="middle" fill="#132d3b" fontFamily="var(--font-display-ui)" fontSize="15" fontWeight="600">100–165 WPM</text>
+        {hasPace && <circle cx={marker.x} cy={marker.y} r="6" fill="#2b1745" stroke="white" strokeWidth="3" />}
+        <text x="110" y="72" textAnchor="middle" fill="#6d5b7f" fontFamily="var(--font-sans-ui)" fontSize="9" fontWeight="700" letterSpacing="0.08em">REFERENCE RANGE</text>
+        <text x="110" y="91" textAnchor="middle" fill="#2b1745" fontFamily="var(--font-display-ui)" fontSize="15" fontWeight="600">100–165 WPM</text>
       </svg>
       <figcaption className="-mt-1 grid grid-cols-3 text-[10px] font-semibold text-[var(--muted-ink)]">
         <span>Slower</span>
@@ -447,9 +447,9 @@ export function GoalsView() {
         {error && <div role="alert" className="mb-5 flex items-center justify-between rounded-xl border border-[#e8c6bf] bg-[var(--rose-soft)] px-4 py-3 text-sm text-[#8f4336]"><span>{error}</span><button onClick={() => setError('')} className="text-xs font-semibold hover:underline">Dismiss</button></div>}
 
         {loading ? (
-          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#bcc8c4] bg-white text-sm text-[var(--muted-ink)]">Loading your dashboard…</div>
+          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-white text-sm text-[var(--muted-ink)]">Loading your dashboard…</div>
         ) : !activeGoal ? (
-          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#bcc8c4] bg-white text-center"><div><Target className="mx-auto size-8 text-[var(--teal)]" /><h2 className="mt-4 text-base font-semibold text-[var(--navy)]">No active goal</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">No practice goals are currently available.</p></div></div>
+          <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-[#d8cced] bg-white text-center"><div><Target className="mx-auto size-8 text-[var(--teal)]" /><h2 className="mt-4 text-base font-semibold text-[var(--navy)]">No active goal</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">No practice goals are currently available.</p></div></div>
         ) : (
           <>
             <section className="overflow-hidden rounded-3xl bg-[#6842d8] px-6 py-7 text-white md:px-8 md:py-8" aria-labelledby="active-goal-title">

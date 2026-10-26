@@ -27,7 +27,7 @@ function PatternCard({ pattern, kind }: { pattern: SummaryPattern; kind: 'streng
           <p className={`text-xs font-semibold uppercase tracking-[0.1em] ${strength ? 'text-[var(--teal-dark)]' : 'text-[#87601d]'}`}>{strength ? 'Recurring strength' : 'Primary opportunity'}</p>
           <h3 className="mt-1.5 text-base font-semibold text-[var(--navy)]">{pattern.title}</h3>
           <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">{pattern.detail}</p>
-          {pattern.evidence && <blockquote className="mt-3 border-l-2 border-[var(--mint)] pl-3 text-xs italic leading-5 text-[#52666d]">“{pattern.evidence}”</blockquote>}
+          {pattern.evidence && <blockquote className="mt-3 border-l-2 border-[var(--mint)] pl-3 text-xs italic leading-5 text-[#6d5b7f]">“{pattern.evidence}”</blockquote>}
         </div>
       </div>
     </article>
@@ -202,7 +202,7 @@ export function SessionSummaryView() {
               <div className="flex items-center justify-between"><span className="grid size-11 place-items-center rounded-2xl bg-white text-[var(--teal-dark)] shadow-sm"><Dumbbell className="size-5" /></span><span className="rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">After-session exercise</span></div>
               <p className="mt-5 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">{exercise ? `Let’s work on ${exercise.targetSkill.toLocaleLowerCase()}` : 'Selecting one focused exercise…'}</p>
               <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{exercise?.title ?? 'Personalized practice'}</h2>
-              {exercise && <p className="mt-2 flex items-center gap-1.5 text-sm text-[#516b6b]"><Clock3 className="size-4" />About {exercise.estimatedMinutes} minutes</p>}
+              {exercise && <p className="mt-2 flex items-center gap-1.5 text-sm text-[#5f4f72]"><Clock3 className="size-4" />About {exercise.estimatedMinutes} minutes</p>}
             </div>
 
             <div className="p-6">
@@ -211,11 +211,11 @@ export function SessionSummaryView() {
                   <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Why this exercise</p>
                   <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">{exercise.selectionReason}</p>
                   <div className="mt-4 rounded-xl bg-[var(--canvas)] p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--muted-ink)]">Evidence from your session</p><p className="mt-2 text-sm font-medium leading-6 text-[var(--ink)]">“{exercise.sourceEvidence}”</p></div>
-                  <div className="mt-4 rounded-xl border border-[var(--line)] p-4"><p className="flex items-center gap-2 text-xs font-semibold text-[var(--navy)]"><Target className="size-4 text-[var(--teal)]" />What you’ll practise</p><p className="mt-2 text-sm leading-6 text-[#53666e]">{exercise.targetBehavior}</p><ul className="mt-3 space-y-1.5">{exercise.instructions.map((instruction) => <li key={instruction} className="flex gap-2 text-xs leading-5 text-[var(--muted-ink)]"><span className="text-[var(--teal)]">•</span>{instruction}</li>)}</ul></div>
+                  <div className="mt-4 rounded-xl border border-[var(--line)] p-4"><p className="flex items-center gap-2 text-xs font-semibold text-[var(--navy)]"><Target className="size-4 text-[var(--teal)]" />What you’ll practise</p><p className="mt-2 text-sm leading-6 text-[#6d5b7f]">{exercise.targetBehavior}</p><ul className="mt-3 space-y-1.5">{exercise.instructions.map((instruction) => <li key={instruction} className="flex gap-2 text-xs leading-5 text-[var(--muted-ink)]"><span className="text-[var(--teal)]">•</span>{instruction}</li>)}</ul></div>
                 </>
               ) : <div className="grid min-h-48 place-items-center text-center text-sm leading-6 text-[var(--muted-ink)]">Finish saving the session to reveal its evidence-linked exercise.</div>}
 
-              <Button disabled={!exercise || saveState !== 'saved'} onClick={() => void startExercise()} className="mt-5 h-11 w-full rounded-xl bg-[var(--navy)] hover:bg-[#1d4255]">Practice this skill <ArrowRight className="ml-1 size-4" /></Button>
+              <Button disabled={!exercise || saveState !== 'saved'} onClick={() => void startExercise()} className="mt-5 h-11 w-full rounded-xl bg-[var(--navy)] hover:bg-[#4c1d95]">Practice this skill <ArrowRight className="ml-1 size-4" /></Button>
               <button onClick={() => void finishSession()} className="mt-3 w-full py-2 text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">Finish session</button>
             </div>
           </aside>

@@ -38,13 +38,13 @@ export function FeedbackCoachingContent({ item }: { item: FeedbackItem }) {
   return (
     <>
       <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.09em] text-[var(--muted-ink)]">
-        <span className={cn('size-2 rounded-full', item.positive ? 'bg-[#55a887]' : 'bg-[#d19a29]')} />
+        <span className={cn('size-2 rounded-full', item.positive ? 'bg-[#8b5cf6]' : 'bg-[#d19a29]')} />
         {item.dimension}
         {progressLabel && (
           <span className={cn(
             'ml-auto rounded-full px-2 py-1 text-[9px] tracking-[0.06em]',
             item.progressStatus === 'resolved'
-              ? 'bg-[#dff2e9] text-[#286b55]'
+              ? 'bg-[#ede9fe] text-[#5b21b6]'
               : item.progressStatus === 'still_happening'
                 ? 'bg-[#fff0c7] text-[#805b17]'
                 : 'bg-[#e7eef6] text-[#3e6078]',

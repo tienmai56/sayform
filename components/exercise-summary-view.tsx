@@ -92,7 +92,7 @@ export function ExerciseSummaryView() {
 
           <div className="mt-4 flex items-center justify-between gap-5 rounded-2xl border border-[var(--line)] bg-white p-4">
             <div className="flex gap-2 text-xs leading-5 text-[var(--muted-ink)]"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--teal)]" />When you end the exercise, these results are removed. Sayform keeps only the learning signal needed to recommend your next exercise.</div>
-            <Button onClick={() => void finish()} disabled={ending} className="h-11 shrink-0 rounded-xl bg-[var(--navy)] px-6 hover:bg-[#1d4255]">{ending ? 'Ending…' : 'End exercise'} <ArrowRight className="ml-1 size-4" /></Button>
+            <Button onClick={() => void finish()} disabled={ending} className="h-11 shrink-0 rounded-xl bg-[var(--navy)] px-6 hover:bg-[#4c1d95]">{ending ? 'Ending…' : 'End exercise'} <ArrowRight className="ml-1 size-4" /></Button>
           </div>
           {endError && <p role="alert" className="mt-3 text-right text-xs text-[#9a493c]">{endError}</p>}
         </div>
