@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { apiError, databaseError, requireApiUser } from '@/lib/api-response';
 import { getGoalDefinition } from '@/lib/goal-catalog';
-import type { DashboardFeedbackItem, FeedbackCorrection, FeedbackDimension, FeedbackProgressStatus, GoalDashboard, GoalLessonInsight, ResponseMetrics, SummaryPattern } from '@/lib/types';
+import type { DashboardFeedbackItem, FeedbackCorrection, FeedbackDimension, FeedbackProgressStatus, GoalDashboard, GoalSessionInsight, ResponseMetrics, SummaryPattern } from '@/lib/types';
 
 type RouteParams = { params: Promise<{ goalId: string }> };
 
@@ -222,54 +222,54 @@ export async function GET(_request: Request, { params }: RouteParams) {
     .order('completed_at', { ascending: true });
   if (error) return databaseError(error);
 
-  const sessions = (data ?? []) as unknown as SessionRow[];
+  const sessionRows = (data ?? []) as unknown as SessionRow[];
   const allFeedback: DashboardFeedbackItem[] = [];
   const speakingActivity: GoalDashboard['speakingActivity'] = [];
   const fillerTotals = new Map<string, number>();
   const openingTotals = new Map<string, number>();
   const allWords: string[] = [];
   const wordsBySession = new Map<string, string[]>();
-  const lessons: GoalLessonInsight[] = [];
-  const previouslyObservedLessonWords = new Set<string>();
+  const sessionInsights: GoalSessionInsight[] = [];
+  const previouslyObservedSessionWords = new Set<string>();
   const cumulativeVocabularyWords = new Set<string>();
-  const vocabularySizeHistory: GoalLessonInsight['vocabulary']['sizeHistory'] = [];
+  const vocabularySizeHistory: GoalSessionInsight['vocabulary']['sizeHistory'] = [];
   const timeToMainPointValues: number[] = [];
-  let completedLessonsSeen = 0;
+  let completedSessionsSeen = 0;
   let completedAnswerCount = 0;
 
-  for (const session of sessions) {
+  for (const session of sessionRows) {
     const sessionWords: string[] = [];
-    const lessonWords: string[] = [];
-    const lessonPrompts: string[] = [];
-    const lessonFeedback: DashboardFeedbackItem[] = [];
-    const lessonFillerTotals = new Map<string, number>();
-    const lessonOpeningTotals = new Map<string, number>();
-    let lessonAnswerCount = 0;
-    let lessonSpeakingSeconds = 0;
-    let lessonFillerCount = 0;
-    const lessonTimeToMainPointValues: number[] = [];
+    const sessionInsightWords: string[] = [];
+    const sessionPrompts: string[] = [];
+    const sessionFeedback: DashboardFeedbackItem[] = [];
+    const sessionFillerTotals = new Map<string, number>();
+    const sessionOpeningTotals = new Map<string, number>();
+    let sessionAnswerCount = 0;
+    let sessionSpeakingSeconds = 0;
+    let sessionFillerCount = 0;
+    const sessionTimeToMainPointValues: number[] = [];
     for (const response of asArray(session.responses).sort((a, b) => a.sequence_number - b.sequence_number)) {
       if (response.status !== 'completed') continue;
       completedAnswerCount += 1;
-      lessonAnswerCount += 1;
+      sessionAnswerCount += 1;
       const words = wordsFrom(response.transcript);
       const responseMetrics = asArray(response.response_metrics);
       const responseFillerCount = responseMetrics.reduce((sum, metric) => sum + metric.filler_count, 0);
       const responseTimeToMainPoint = responseMetrics.find((metric) => metric.time_to_main_point_seconds !== null)?.time_to_main_point_seconds;
       if (typeof responseTimeToMainPoint === 'number') {
         timeToMainPointValues.push(responseTimeToMainPoint);
-        lessonTimeToMainPointValues.push(responseTimeToMainPoint);
+        sessionTimeToMainPointValues.push(responseTimeToMainPoint);
       }
       allWords.push(...words);
       sessionWords.push(...words);
-      lessonWords.push(...words);
-      lessonSpeakingSeconds += response.duration_seconds;
-      lessonFillerCount += responseFillerCount;
-      if (response.prompt && !lessonPrompts.includes(response.prompt)) lessonPrompts.push(response.prompt);
+      sessionInsightWords.push(...words);
+      sessionSpeakingSeconds += response.duration_seconds;
+      sessionFillerCount += responseFillerCount;
+      if (response.prompt && !sessionPrompts.includes(response.prompt)) sessionPrompts.push(response.prompt);
       if (words.length >= 2) {
         const opening = words.slice(0, Math.min(3, words.length)).join(' ');
         openingTotals.set(opening, (openingTotals.get(opening) ?? 0) + 1);
-        lessonOpeningTotals.set(opening, (lessonOpeningTotals.get(opening) ?? 0) + 1);
+        sessionOpeningTotals.set(opening, (sessionOpeningTotals.get(opening) ?? 0) + 1);
       }
       if (response.duration_seconds > 0) {
         speakingActivity.push({
@@ -283,7 +283,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       for (const metric of responseMetrics) {
         for (const [phrase, count] of Object.entries(recordOfNumbers(metric.filler_words))) {
           fillerTotals.set(phrase, (fillerTotals.get(phrase) ?? 0) + count);
-          lessonFillerTotals.set(phrase, (lessonFillerTotals.get(phrase) ?? 0) + count);
+          sessionFillerTotals.set(phrase, (sessionFillerTotals.get(phrase) ?? 0) + count);
         }
       }
       for (const item of asArray(response.feedback_items)) {
@@ -304,93 +304,93 @@ export async function GET(_request: Request, { params }: RouteParams) {
           progressStatus: item.progress_status ?? 'baseline',
         };
         allFeedback.push(feedbackItem);
-        lessonFeedback.push(feedbackItem);
+        sessionFeedback.push(feedbackItem);
       }
     }
 
-    if (lessonAnswerCount > 0) {
-      lessonFeedback.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      const lessonWordCounts = new Map<string, number>();
-      const lessonMeaningfulWords = new Set<string>();
-      for (const word of lessonWords) {
+    if (sessionAnswerCount > 0) {
+      sessionFeedback.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const sessionWordCounts = new Map<string, number>();
+      const sessionMeaningfulWords = new Set<string>();
+      for (const word of sessionInsightWords) {
         if (word.length < 3 || stopWords.has(word)) continue;
-        lessonMeaningfulWords.add(word);
-        lessonWordCounts.set(word, (lessonWordCounts.get(word) ?? 0) + 1);
+        sessionMeaningfulWords.add(word);
+        sessionWordCounts.set(word, (sessionWordCounts.get(word) ?? 0) + 1);
       }
-      const newlyObservedLessonWords = previouslyObservedLessonWords.size > 0 && lessonMeaningfulWords.size > 0
-        ? [...lessonMeaningfulWords].filter((word) => !previouslyObservedLessonWords.has(word)).length
+      const newlyObservedSessionWords = previouslyObservedSessionWords.size > 0 && sessionMeaningfulWords.size > 0
+        ? [...sessionMeaningfulWords].filter((word) => !previouslyObservedSessionWords.has(word)).length
         : null;
-      lessonMeaningfulWords.forEach((word) => previouslyObservedLessonWords.add(word));
+      sessionMeaningfulWords.forEach((word) => previouslyObservedSessionWords.add(word));
 
-      const lessonVocabularyFeedback = lessonFeedback.filter((item) => item.dimension === 'Vocabulary');
-      const lessonGrammarFeedback = lessonFeedback.filter((item) => item.dimension === 'Sentence structure');
-      const lessonFluencyFeedback = lessonFeedback.filter((item) => (
+      const sessionVocabularyFeedback = sessionFeedback.filter((item) => item.dimension === 'Vocabulary');
+      const sessionGrammarFeedback = sessionFeedback.filter((item) => item.dimension === 'Sentence structure');
+      const sessionFluencyFeedback = sessionFeedback.filter((item) => (
         /fluenc|pace|filler|verbal|repeat|opening|hesitat/i.test(`${item.skill ?? ''} ${item.title} ${item.explanation}`)
       ));
       const savedSummary = asArray(session.session_summaries).at(-1)?.summary ?? null;
-      const lessonTitle = lessonPrompts[0] ?? session.title;
-      lessonWords.filter(isVocabularyWord).forEach((word) => cumulativeVocabularyWords.add(word));
+      const sessionTitle = sessionPrompts[0] ?? session.title;
+      sessionInsightWords.filter(isVocabularyWord).forEach((word) => cumulativeVocabularyWords.add(word));
       vocabularySizeHistory.push({
         sessionId: session.id,
         completedAt: session.completed_at ?? '',
         uniqueWords: cumulativeVocabularyWords.size,
       });
 
-      lessons.push({
+      sessionInsights.push({
         id: session.id,
-        title: lessonTitle,
+        title: sessionTitle,
         completedAt: session.completed_at ?? '',
-        prompts: lessonPrompts,
-        answerCount: lessonAnswerCount,
-        speakingSeconds: lessonSpeakingSeconds,
+        prompts: sessionPrompts,
+        answerCount: sessionAnswerCount,
+        speakingSeconds: sessionSpeakingSeconds,
         summary: savedSummary,
         vocabulary: {
-          totalWords: lessonWords.length,
-          uniqueWords: new Set(lessonWords.filter(isVocabularyWord)).size,
+          totalWords: sessionInsightWords.length,
+          uniqueWords: new Set(sessionInsightWords.filter(isVocabularyWord)).size,
           vocabularySize: cumulativeVocabularyWords.size,
           sizeHistory: [...vocabularySizeHistory],
-          newlyObservedWords: newlyObservedLessonWords,
-          comparisonLabel: newlyObservedLessonWords === null
+          newlyObservedWords: newlyObservedSessionWords,
+          comparisonLabel: newlyObservedSessionWords === null
             ? null
-            : `Compared with ${completedLessonsSeen} earlier ${completedLessonsSeen === 1 ? 'lesson' : 'lessons'}`,
-          repeatedWords: [...lessonWordCounts.entries()]
+            : `Compared with ${completedSessionsSeen} earlier ${completedSessionsSeen === 1 ? 'session' : 'sessions'}`,
+          repeatedWords: [...sessionWordCounts.entries()]
             .filter(([, count]) => count >= 2)
             .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
             .slice(0, 8)
             .map(([word, count]) => ({ word, count })),
-          strengths: lessonVocabularyFeedback.filter((item) => item.positive),
-          improvements: lessonVocabularyFeedback.filter((item) => !item.positive),
+          strengths: sessionVocabularyFeedback.filter((item) => item.positive),
+          improvements: sessionVocabularyFeedback.filter((item) => !item.positive),
         },
         grammar: {
-          strengths: lessonGrammarFeedback.filter((item) => item.positive),
-          improvements: lessonGrammarFeedback.filter((item) => !item.positive),
+          strengths: sessionGrammarFeedback.filter((item) => item.positive),
+          improvements: sessionGrammarFeedback.filter((item) => !item.positive),
         },
         fluency: {
-          averageWpm: lessonSpeakingSeconds > 0 ? Math.round((lessonWords.length * 60) / lessonSpeakingSeconds) : 0,
-          averageTimeToMainPointSeconds: lessonTimeToMainPointValues.length
-            ? Math.round(lessonTimeToMainPointValues.reduce((sum, seconds) => sum + seconds, 0) / lessonTimeToMainPointValues.length)
+          averageWpm: sessionSpeakingSeconds > 0 ? Math.round((sessionInsightWords.length * 60) / sessionSpeakingSeconds) : 0,
+          averageTimeToMainPointSeconds: sessionTimeToMainPointValues.length
+            ? Math.round(sessionTimeToMainPointValues.reduce((sum, seconds) => sum + seconds, 0) / sessionTimeToMainPointValues.length)
             : null,
-          timeToMainPointAnswerCount: lessonTimeToMainPointValues.length,
-          fillerCount: lessonFillerCount,
-          fillerRatePer100Words: lessonWords.length > 0 ? Number(((lessonFillerCount / lessonWords.length) * 100).toFixed(1)) : 0,
-          commonFillers: [...lessonFillerTotals.entries()]
+          timeToMainPointAnswerCount: sessionTimeToMainPointValues.length,
+          fillerCount: sessionFillerCount,
+          fillerRatePer100Words: sessionInsightWords.length > 0 ? Number(((sessionFillerCount / sessionInsightWords.length) * 100).toFixed(1)) : 0,
+          commonFillers: [...sessionFillerTotals.entries()]
             .sort((a, b) => b[1] - a[1])
             .slice(0, 8)
             .map(([phrase, count]) => ({ phrase, count })),
-          repeatedOpenings: [...lessonOpeningTotals.entries()]
+          repeatedOpenings: [...sessionOpeningTotals.entries()]
             .filter(([, count]) => count >= 2)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5)
             .map(([phrase, count]) => ({ phrase, count })),
-          feedback: lessonFluencyFeedback,
+          feedback: sessionFluencyFeedback,
         },
-        communicationFeedback: lessonFeedback.filter((item) => (
+        communicationFeedback: sessionFeedback.filter((item) => (
           item.dimension === 'What worked'
           || item.dimension === 'Communication effectiveness'
           || item.dimension === 'Critical thinking'
         )),
       });
-      completedLessonsSeen += 1;
+      completedSessionsSeen += 1;
     }
 
     for (const exercise of asArray(session.exercises)) {
@@ -477,15 +477,15 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   let newlyObservedWords: number | null = null;
   let comparisonLabel: string | null = null;
-  const latestSession = sessions.at(-1);
-  if (latestSession && sessions.length >= 2) {
+  const latestSession = sessionRows.at(-1);
+  if (latestSession && sessionRows.length >= 2) {
     const earlierWords = new Set(
-      sessions.slice(0, -1).flatMap((session) => wordsBySession.get(session.id) ?? []).filter((word) => word.length >= 3 && !stopWords.has(word)),
+      sessionRows.slice(0, -1).flatMap((session) => wordsBySession.get(session.id) ?? []).filter((word) => word.length >= 3 && !stopWords.has(word)),
     );
     const latestWords = new Set((wordsBySession.get(latestSession.id) ?? []).filter((word) => word.length >= 3 && !stopWords.has(word)));
     if (earlierWords.size > 0 && latestWords.size > 0) {
       newlyObservedWords = [...latestWords].filter((word) => !earlierWords.has(word)).length;
-      comparisonLabel = `Compared with ${sessions.length - 1} earlier ${sessions.length === 2 ? 'session' : 'sessions'}`;
+      comparisonLabel = `Compared with ${sessionRows.length - 1} earlier ${sessionRows.length === 2 ? 'session' : 'sessions'}`;
     }
   }
 
@@ -496,21 +496,21 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const improvement = summaryFeedback.find((item) => !item.positive) ?? allFeedback.find((item) => !item.positive) ?? null;
   const recurringStrength = findRecurring(summaryFeedback.filter((item) => item.positive));
   const recurringImprovement = findRecurring(summaryFeedback.filter((item) => !item.positive));
-  const summaries = sessions.flatMap((session) => asArray(session.session_summaries).map((summary) => ({ ...summary, sessionId: session.id })));
+  const summaries = sessionRows.flatMap((session) => asArray(session.session_summaries).map((summary) => ({ ...summary, sessionId: session.id })));
   const latestSummary = summaries.at(-1);
   let overviewText: string | null = null;
   if (recurringStrength || recurringImprovement) {
-    const parts = [`Across ${sessions.length} completed ${sessions.length === 1 ? 'session' : 'sessions'}, your saved coaching`];
+    const parts = [`Across ${sessionRows.length} completed ${sessionRows.length === 1 ? 'session' : 'sessions'}, your saved coaching`];
     if (recurringStrength) parts.push(`repeatedly recognizes ${recurringStrength.label.toLocaleLowerCase()}`);
     if (recurringImprovement) parts.push(`${recurringStrength ? 'and' : 'repeatedly'} identifies ${recurringImprovement.label.toLocaleLowerCase()} as a useful next focus`);
     overviewText = `${parts.join(' ')}.`;
   } else if (latestSummary?.summary) {
-    overviewText = sessions.length === 1
+    overviewText = sessionRows.length === 1
       ? `Your first completed session gives an initial picture: ${latestSummary.summary}`
       : `Your most recent saved coaching notes: ${latestSummary.summary}`;
   } else if (strength || improvement) {
     overviewText = [
-      sessions.length === 1 ? 'Your first completed answer gives an initial picture.' : `This view is based on ${completedAnswerCount} completed answers.`,
+      sessionRows.length === 1 ? 'Your first completed answer gives an initial picture.' : `This view is based on ${completedAnswerCount} completed answers.`,
       strength ? `${strength.title}: ${strength.explanation}` : null,
       improvement ? `Next focus — ${improvement.title}: ${improvement.explanation}` : null,
     ].filter(Boolean).join(' ');
@@ -578,9 +578,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   const dashboard: GoalDashboard = {
     goalId,
-    sessionCount: sessions.length,
+    sessionCount: sessionRows.length,
     completedAnswerCount,
-    lastPractised: sessions.at(-1)?.completed_at ?? null,
+    lastPractised: sessionRows.at(-1)?.completed_at ?? null,
     totalSpeakingSeconds,
     speakingActivity,
     overview: {
@@ -627,7 +627,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         .map(([phrase, count]) => ({ phrase, count })),
       feedback: fluencyFeedback,
     },
-    lessons: lessons.sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
+    sessions: sessionInsights.sort((a, b) => b.completedAt.localeCompare(a.completedAt)),
   };
 
   return NextResponse.json({ dashboard });

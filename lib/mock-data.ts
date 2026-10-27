@@ -4,7 +4,7 @@ export const categories = [
   {
     id: 'storytelling',
     title: 'Personal storytelling',
-    description: 'Experiences, lessons, and moments that changed your mind.',
+    description: 'Experiences, takeaways, and moments that changed your mind.',
   },
   {
     id: 'persuasion',

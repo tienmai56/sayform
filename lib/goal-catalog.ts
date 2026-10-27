@@ -113,7 +113,7 @@ export const goalCatalog: GoalDefinition[] = [
       },
       {
         skillId: 'beginning-ending-contrast',
-        prompt: 'Tell a story about a mistake that changed how you work today, and finish with the lesson you carried forward.',
+        prompt: 'Tell a story about a mistake that changed how you work today, and finish with the takeaway you carried forward.',
       },
     ],
   },

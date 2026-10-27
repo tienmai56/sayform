@@ -102,6 +102,7 @@ export function CameraPractice() {
     goalId,
     goalTemplateKey,
     goalTitle,
+    interviewPrimaryResponse,
     interviewQuestionType,
     prompt,
     redoFeedback,
@@ -136,6 +137,7 @@ export function CameraPractice() {
   const practiceCategories = categories.length > 0 ? categories : ['spontaneous'];
   const goalDefinition = getGoalDefinition(goalTemplateKey);
   const requiresPersonalPrompt = !activeExercise && goalDefinition?.requiresPersonalPrompt === true;
+  const isInterviewFollowUp = !activeExercise && goalTemplateKey === 'clarity' && interviewQuestionType === 'follow-up';
   const savedCustomPrompt = customTopic.trim();
   const savedFollowUpPrompt = interviewQuestionType === 'follow-up' ? prompt.trim() : '';
   const [promptDraft, setPromptDraft] = useState(savedCustomPrompt || savedFollowUpPrompt);
@@ -235,6 +237,11 @@ export function CameraPractice() {
   async function startSpeaking() {
     setStarting(true);
     setSetupError('');
+    if (isInterviewFollowUp && !interviewPrimaryResponse) {
+      setSetupError('The main interview answer is missing. Return to Home and start a new interview.');
+      setStarting(false);
+      return;
+    }
     if (!promptReady) {
       setPromptValidationActive(true);
       setStarting(false);
@@ -338,6 +345,7 @@ export function CameraPractice() {
       audio,
       goalTemplateKey,
       generateInterviewFollowUp: goalTemplateKey === 'clarity' && interviewQuestionType === 'primary',
+      interviewPrimaryResponseId: isInterviewFollowUp ? interviewPrimaryResponse?.responseId : null,
     });
     beginResponse(result.responseId);
     if (result.analysis) completeResponse(result.responseId, result.feedbackIds ?? {}, result.analysis);
@@ -402,6 +410,11 @@ export function CameraPractice() {
               <section className="mb-4 border-b border-[var(--line)] pb-4" aria-labelledby="exercise-prompt-title">
                 <p id="exercise-prompt-title" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Exercise prompt</p>
                 <p className="mt-2 max-w-5xl text-sm font-medium leading-6 text-[var(--ink)]">{visiblePrompt}</p>
+              </section>
+            ) : isInterviewFollowUp ? (
+              <section className="mb-4 rounded-2xl border border-[#d7ccef] bg-[#faf8ff] p-4" aria-labelledby="follow-up-prompt-title">
+                <p id="follow-up-prompt-title" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Unscripted follow-up</p>
+                <p className="mt-2 max-w-5xl text-base font-semibold leading-7 text-[var(--navy)]">{visiblePrompt}</p>
               </section>
             ) : (
               <section
@@ -499,7 +512,7 @@ export function CameraPractice() {
 
             <div className="absolute inset-x-0 top-0 flex items-center justify-between p-5">
               <span className="rounded-full bg-black/45 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
-                {activeExercise ? (exerciseStage === 'transfer' ? 'Independent test' : `Guided attempt ${exerciseAttemptNumber}`) : `Question ${answerCount + 1}`}
+                {activeExercise ? (exerciseStage === 'transfer' ? 'Independent test' : `Guided attempt ${exerciseAttemptNumber}`) : isInterviewFollowUp ? 'Unscripted follow-up' : `Question ${answerCount + 1}`}
               </span>
               <span className="flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-medium text-white backdrop-blur">
                 {status === 'recording' ? <><span className="size-2 animate-pulse rounded-full bg-[#ff7668]" />Recording · {formatTime(elapsed)}</> : <><span className="size-2 rounded-full bg-white/45" />Recording off</>}
@@ -526,7 +539,7 @@ export function CameraPractice() {
             {setupError && <p role="alert" className="mb-2 rounded-xl bg-[#8f4336]/90 px-3 py-2 text-center text-xs leading-5 text-[#ffd3cc] shadow-lg backdrop-blur">{setupError}</p>}
             {status === 'ready' && (
               <Button onClick={() => void startSpeaking()} disabled={starting} size="lg" className="mx-auto h-12 min-w-56 rounded-xl bg-[var(--navy)] px-7 text-white shadow-xl hover:bg-[#4c1d95] disabled:bg-[var(--line)] disabled:text-[var(--muted-ink)]">
-                <Mic className="size-4" /> {starting ? 'Preparing session…' : 'Start speaking'}
+                <Mic className="size-4" /> {starting ? 'Preparing session…' : isInterviewFollowUp ? 'Start follow-up' : 'Start speaking'}
               </Button>
             )}
             {status === 'recording' && (
@@ -579,6 +592,15 @@ export function CameraPractice() {
                   </div>
                 )}
               </>
+            ) : isInterviewFollowUp ? (
+              <div className="flex min-h-0 flex-1 flex-col justify-center">
+                <div className="rounded-2xl border border-[#d7ccef] bg-[#faf8ff] p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.11em] text-[var(--teal-dark)]">Answer in the moment</p>
+                  <h2 className="mt-3 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">Treat it like a real interviewer follow-up</h2>
+                  <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">Respond naturally without scripting. Start with the direct answer, then add the most relevant evidence or reflection.</p>
+                  <p className="mt-5 rounded-xl bg-white px-4 py-3 text-xs leading-5 text-[#5f4f72]">Your final feedback will evaluate this follow-up together with your main answer.</p>
+                </div>
+              </div>
             ) : (
               <div className="flex min-h-0 flex-1 flex-col">
                 {redoFeedback.length > 0 && (
@@ -644,7 +666,7 @@ export function CameraPractice() {
 
           <div className="mt-5 flex items-center justify-end gap-3">
             {activeExercise && <button onClick={() => void leaveExercise()} disabled={status === 'recording' || status === 'processing'} className="w-full py-2 text-xs font-medium text-[var(--muted-ink)] hover:text-[var(--ink)] disabled:opacity-40">Stop exercise</button>}
-            {!activeExercise && activeSessionId && answerCount > 0 && <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-[var(--muted-ink)] hover:text-[var(--ink)] disabled:opacity-40">End session <ChevronRight className="size-3.5" /></button>}
+            {!activeExercise && !isInterviewFollowUp && activeSessionId && answerCount > 0 && <button onClick={() => router.push('/session/summary')} disabled={status === 'recording' || status === 'processing'} className="flex w-full items-center justify-center gap-1 py-2 text-xs font-medium text-[var(--muted-ink)] hover:text-[var(--ink)] disabled:opacity-40">End session <ChevronRight className="size-3.5" /></button>}
             {!activeExercise && (
               <Link href="/goals" className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-[var(--line)] px-4 text-xs font-semibold text-[var(--ink)] transition-colors hover:border-[#b9a6df] hover:bg-[var(--mint-soft)]">
                 <X className="size-3.5" /> Exit interview

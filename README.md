@@ -75,7 +75,7 @@ Restart `pnpm dev` after changing the file. The API key must never use a `NEXT_P
 
 ## Prototype walkthrough
 
-1. Your active goal appears at the top of `/goals` with its own Summary and Lesson insights dashboard. Use **Change goal** or **Set as active goal** to switch explicitly; Sayform never changes it based on recent practice.
+1. Your active goal appears at the top of `/goals` with its own Summary and Session insights dashboard. Use **Change goal** or **Set as active goal** to switch explicitly; Sayform never changes it based on recent practice.
 2. Choose **Practise this goal** for the active goal, or create a custom goal.
 3. Enter the practice room. The coach evaluates every skill inside the chosen goal after each answer.
 4. For the Interview goal, paste the interview question you want to practise. An experienced-manager coach evaluates the answer and generates one grounded follow-up question from your prompt and response.

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AlertCircle, ArrowLeft, CheckCircle2, Gauge, MessageSquareText, Repeat2 } from 'lucide-react';
 import { AppShell, Screen } from '@/components/app-shell';
-import type { DashboardFeedbackItem, GoalDashboard, GoalLessonInsight } from '@/lib/types';
+import type { DashboardFeedbackItem, GoalDashboard, GoalSessionInsight } from '@/lib/types';
 import { getGoalDashboard } from '@/lib/client-data';
 import { conciseOverallFeedback, getInterviewEvaluation } from '@/lib/feedback-copy';
 import { cn } from '@/lib/utils';
@@ -160,19 +160,19 @@ function InterviewEvaluationCard({ question, item }: { question: string; item?: 
           )}
         </>
       ) : (
-        <p className="mt-4 text-base leading-7 text-[var(--muted-ink)]">This evaluation was not available for the saved lesson.</p>
+        <p className="mt-4 text-base leading-7 text-[var(--muted-ink)]">This evaluation was not available for the saved session.</p>
       )}
     </article>
   );
 }
 
-function InterviewCoaching({ lesson }: { lesson: GoalLessonInsight }) {
-  const strengths = lesson.communicationFeedback.filter((item) => item.positive);
-  const improvements = lesson.communicationFeedback.filter((item) => !item.positive);
+function InterviewCoaching({ session }: { session: GoalSessionInsight }) {
+  const strengths = session.communicationFeedback.filter((item) => item.positive);
+  const improvements = session.communicationFeedback.filter((item) => !item.positive);
   const interviewFeedback = [
-    ...lesson.communicationFeedback,
-    ...lesson.grammar.strengths,
-    ...lesson.grammar.improvements,
+    ...session.communicationFeedback,
+    ...session.grammar.strengths,
+    ...session.grammar.improvements,
   ];
   return (
     <div className="space-y-8">
@@ -188,18 +188,18 @@ function InterviewCoaching({ lesson }: { lesson: GoalLessonInsight }) {
           ))}
         </div>
       </section>
-      <SpeakingPaceGuide wordsPerMinute={lesson.fluency.averageWpm} />
+      <SpeakingPaceGuide wordsPerMinute={session.fluency.averageWpm} />
       <div className="border-t border-[var(--line)] pt-7">
         <h3 className="mb-4 font-display text-lg font-semibold text-[var(--navy)]">Additional coaching</h3>
-      <FeedbackColumns strengths={strengths} improvements={improvements} emptyMessage="No interview-specific coaching was saved for this lesson." />
+      <FeedbackColumns strengths={strengths} improvements={improvements} emptyMessage="No interview-specific coaching was saved for this session." />
       </div>
     </div>
   );
 }
 
-function VocabularyAndFluencyInsights({ lesson }: { lesson: GoalLessonInsight }) {
-  const vocabulary = lesson.vocabulary;
-  const fluency = lesson.fluency;
+function VocabularyAndFluencyInsights({ session }: { session: GoalSessionInsight }) {
+  const vocabulary = session.vocabulary;
+  const fluency = session.fluency;
   const strengths = [
     ...vocabulary.strengths,
     ...fluency.feedback.filter((item) => item.positive),
@@ -211,15 +211,15 @@ function VocabularyAndFluencyInsights({ lesson }: { lesson: GoalLessonInsight })
 
   return (
     <div className="space-y-9">
-      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Vocabulary &amp; fluency</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Word choice, vocabulary growth, fillers, and repetition from this lesson</p></div>
+      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Vocabulary &amp; fluency</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Word choice, vocabulary growth, fillers, and repetition from this session</p></div>
 
       <section aria-labelledby="word-choice-range-title">
         <h3 id="word-choice-range-title" className="font-display text-lg font-semibold text-[var(--navy)]">Word choice and range</h3>
         <div className="mt-4"><VocabularySizeCard vocabulary={vocabulary} /></div>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric label="Total words spoken" value={vocabulary.totalWords.toLocaleString()} detail={`Across ${lesson.answerCount} ${lesson.answerCount === 1 ? 'answer' : 'answers'}`} />
-          <Metric label="Distinct words used" value={vocabulary.uniqueWords.toLocaleString()} detail="Observed in this lesson" />
-          <Metric label="First observed" value={vocabulary.newlyObservedWords === null ? '—' : vocabulary.newlyObservedWords.toLocaleString()} detail={vocabulary.comparisonLabel ?? 'Complete another lesson to compare'} />
+          <Metric label="Total words spoken" value={vocabulary.totalWords.toLocaleString()} detail={`Across ${session.answerCount} ${session.answerCount === 1 ? 'answer' : 'answers'}`} />
+          <Metric label="Distinct words used" value={vocabulary.uniqueWords.toLocaleString()} detail="Observed in this session" />
+          <Metric label="First observed" value={vocabulary.newlyObservedWords === null ? '—' : vocabulary.newlyObservedWords.toLocaleString()} detail={vocabulary.comparisonLabel ?? 'Complete another session to compare'} />
           <Metric label="Repeated words" value={vocabulary.repeatedWords.length.toLocaleString()} detail="Meaningful words used repeatedly" />
         </div>
         <div className="mt-5 rounded-2xl bg-[#f8f6fc] p-5">
@@ -240,12 +240,12 @@ function VocabularyAndFluencyInsights({ lesson }: { lesson: GoalLessonInsight })
         </div>
       </section>
 
-      <FeedbackColumns strengths={strengths} improvements={improvements} emptyMessage="No vocabulary or fluency feedback was saved for this lesson." />
+      <FeedbackColumns strengths={strengths} improvements={improvements} emptyMessage="No vocabulary or fluency feedback was saved for this session." />
     </div>
   );
 }
 
-function VocabularySizeCard({ vocabulary }: { vocabulary: GoalLessonInsight['vocabulary'] }) {
+function VocabularySizeCard({ vocabulary }: { vocabulary: GoalSessionInsight['vocabulary'] }) {
   const width = 190;
   const height = 74;
   const padding = 7;
@@ -298,8 +298,8 @@ function SpeakingPaceGuide({ wordsPerMinute }: { wordsPerMinute: number }) {
   );
 }
 
-function SpeakingSpeedInsights({ lesson }: { lesson: GoalLessonInsight }) {
-  const fluency = lesson.fluency;
+function SpeakingSpeedInsights({ session }: { session: GoalSessionInsight }) {
+  const fluency = session.fluency;
 
   return (
     <div className="space-y-7">
@@ -311,23 +311,23 @@ function SpeakingSpeedInsights({ lesson }: { lesson: GoalLessonInsight }) {
           value={fluency.averageTimeToMainPointSeconds !== null ? `${fluency.averageTimeToMainPointSeconds} sec` : '—'}
           detail={fluency.timeToMainPointAnswerCount > 0 ? `Average across ${fluency.timeToMainPointAnswerCount} direct ${fluency.timeToMainPointAnswerCount === 1 ? 'answer' : 'answers'}` : 'No measured main point yet'}
         />
-        <Metric label="Speaking time" value={minutesLabel(lesson.speakingSeconds)} detail="Recorded speech in this lesson" />
+        <Metric label="Speaking time" value={minutesLabel(session.speakingSeconds)} detail="Recorded speech in this session" />
       </div>
       <SpeakingPaceGuide wordsPerMinute={fluency.averageWpm} />
     </div>
   );
 }
 
-function GrammarInsights({ lesson }: { lesson: GoalLessonInsight }) {
+function GrammarInsights({ session }: { session: GoalSessionInsight }) {
   return (
     <div className="space-y-6">
-      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Grammar &amp; sentence structure</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Sentence-level patterns and specific corrections from this lesson</p></div>
-      <FeedbackColumns strengths={lesson.grammar.strengths} improvements={lesson.grammar.improvements} emptyMessage="No grammar or sentence-structure feedback was saved for this lesson." />
+      <div><h2 className="font-display text-2xl font-semibold text-[var(--navy)]">Grammar &amp; sentence structure</h2><p className="mt-1 text-sm text-[var(--muted-ink)]">Sentence-level patterns and specific corrections from this session</p></div>
+      <FeedbackColumns strengths={session.grammar.strengths} improvements={session.grammar.improvements} emptyMessage="No grammar or sentence-structure feedback was saved for this session." />
     </div>
   );
 }
 
-export function LessonInsightsView({ goalId, lessonId }: { goalId: string; lessonId: string }) {
+export function SessionInsightsView({ goalId, sessionId }: { goalId: string; sessionId: string }) {
   const [dashboard, setDashboard] = useState<GoalDashboard | null>(null);
   const [tab, setTab] = useState<InsightTab>('interview');
   const [error, setError] = useState('');
@@ -336,11 +336,11 @@ export function LessonInsightsView({ goalId, lessonId }: { goalId: string; lesso
     let cancelled = false;
     void getGoalDashboard(goalId)
       .then((result) => { if (!cancelled) setDashboard(result); })
-      .catch((caught) => { if (!cancelled) setError(caught instanceof Error ? caught.message : 'Lesson insights could not be loaded.'); });
+      .catch((caught) => { if (!cancelled) setError(caught instanceof Error ? caught.message : 'Session insights could not be loaded.'); });
     return () => { cancelled = true; };
   }, [goalId]);
 
-  const lesson = dashboard?.lessons.find((item) => item.id === lessonId) ?? null;
+  const session = dashboard?.sessions.find((item) => item.id === sessionId) ?? null;
 
   return (
     <AppShell>
@@ -349,18 +349,18 @@ export function LessonInsightsView({ goalId, lessonId }: { goalId: string; lesso
         {error ? (
           <div role="alert" className="mt-8 rounded-2xl border border-[#e8c6bf] bg-[var(--rose-soft)] p-5 text-sm text-[#8f4336]">{error}</div>
         ) : !dashboard ? (
-          <div className="grid min-h-96 place-items-center text-sm text-[var(--muted-ink)]">Loading lesson insights…</div>
-        ) : !lesson ? (
-          <div className="mt-8 grid min-h-96 place-items-center rounded-3xl border border-dashed border-[var(--line)] text-center"><div><h1 className="font-display text-2xl font-semibold text-[var(--navy)]">Lesson not found</h1><p className="mt-2 text-sm text-[var(--muted-ink)]">This lesson may no longer be available for this goal.</p></div></div>
+          <div className="grid min-h-96 place-items-center text-sm text-[var(--muted-ink)]">Loading session insights…</div>
+        ) : !session ? (
+          <div className="mt-8 grid min-h-96 place-items-center rounded-3xl border border-dashed border-[var(--line)] text-center"><div><h1 className="font-display text-2xl font-semibold text-[var(--navy)]">Session not found</h1><p className="mt-2 text-sm text-[var(--muted-ink)]">This session may no longer be available for this goal.</p></div></div>
         ) : (
           <>
             <header className="mt-8 border-b border-[var(--line)] pb-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Lesson insights</p>
-              <h1 className="mt-3 max-w-4xl font-display text-4xl font-semibold leading-tight tracking-[-0.04em] text-[var(--navy)]">{lesson.title}</h1>
-              <p className="mt-3 text-sm text-[var(--muted-ink)]">{new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(lesson.completedAt))} · {lesson.answerCount} {lesson.answerCount === 1 ? 'answer' : 'answers'} · {minutesLabel(lesson.speakingSeconds)} of recorded speech · {lesson.fluency.averageWpm > 0 ? `${lesson.fluency.averageWpm} WPM` : 'Speaking speed unavailable'}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Session insights</p>
+              <h1 className="mt-3 max-w-4xl font-display text-4xl font-semibold leading-tight tracking-[-0.04em] text-[var(--navy)]">{session.title}</h1>
+              <p className="mt-3 text-sm text-[var(--muted-ink)]">{new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(session.completedAt))} · {session.answerCount} {session.answerCount === 1 ? 'answer' : 'answers'} · {minutesLabel(session.speakingSeconds)} of recorded speech · {session.fluency.averageWpm > 0 ? `${session.fluency.averageWpm} WPM` : 'Speaking speed unavailable'}</p>
             </header>
 
-            <div className="flex items-center gap-8 overflow-x-auto border-b border-[var(--line)]" role="tablist" aria-label="Lesson evaluation dimensions">
+            <div className="flex items-center gap-8 overflow-x-auto border-b border-[var(--line)]" role="tablist" aria-label="Session evaluation dimensions">
               {([
                 ['interview', 'Interview coaching'],
                 ['vocabulary-fluency', 'Vocabulary & fluency'],
@@ -372,10 +372,10 @@ export function LessonInsightsView({ goalId, lessonId }: { goalId: string; lesso
             </div>
 
             <main className="py-9">
-              {tab === 'interview' && <InterviewCoaching lesson={lesson} />}
-              {tab === 'vocabulary-fluency' && <VocabularyAndFluencyInsights lesson={lesson} />}
-              {tab === 'speaking-speed' && <SpeakingSpeedInsights lesson={lesson} />}
-              {tab === 'grammar' && <GrammarInsights lesson={lesson} />}
+              {tab === 'interview' && <InterviewCoaching session={session} />}
+              {tab === 'vocabulary-fluency' && <VocabularyAndFluencyInsights session={session} />}
+              {tab === 'speaking-speed' && <SpeakingSpeedInsights session={session} />}
+              {tab === 'grammar' && <GrammarInsights session={session} />}
             </main>
           </>
         )}

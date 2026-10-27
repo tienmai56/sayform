@@ -33,6 +33,7 @@ export const responseCreateSchema = z.object({
 
 export const analyzeResponseSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(200),
+  interviewPrimaryResponseId: z.uuid().nullable().optional(),
 });
 
 export const feedbackRatingSchema = z.object({

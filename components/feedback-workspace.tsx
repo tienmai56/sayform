@@ -28,12 +28,41 @@ import { FeedbackCoachingContent } from '@/components/feedback-coaching-content'
 import { FeedbackProgressSteps } from '@/components/feedback-progress-steps';
 import { SpeakingPaceIllustration, speakingPaceComment } from '@/components/speaking-pace-illustration';
 import { getInterviewEvaluation } from '@/lib/feedback-copy';
-import type { FeedbackDimension, FeedbackItem, ResponseAnalysisProgress } from '@/lib/types';
+import type { FeedbackDimension, FeedbackItem, ResponseAnalysis, ResponseAnalysisProgress } from '@/lib/types';
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return minutes ? `${minutes} min ${seconds} sec` : `${seconds} sec`;
+}
+
+function combineInterviewAnalysis(primary: ResponseAnalysis, followUp: ResponseAnalysis): ResponseAnalysis {
+  const transcript = `${primary.transcript}\n\n${followUp.transcript}`;
+  const words = transcript.toLocaleLowerCase().match(/[\p{L}\p{N}']+/gu) ?? [];
+  const durationSeconds = primary.durationSeconds + followUp.durationSeconds;
+  const fillerWords = { ...primary.metrics.fillerWords };
+  Object.entries(followUp.metrics.fillerWords).forEach(([phrase, count]) => {
+    fillerWords[phrase] = (fillerWords[phrase] ?? 0) + count;
+  });
+  const mainPointTimes = [primary.metrics.timeToMainPointSeconds, followUp.metrics.timeToMainPointSeconds]
+    .filter((seconds): seconds is number => typeof seconds === 'number');
+
+  return {
+    ...followUp,
+    transcript,
+    durationSeconds,
+    metrics: {
+      wordCount: words.length,
+      uniqueWordCount: new Set(words).size,
+      averageWpm: durationSeconds > 0 ? Math.round((words.length * 60) / durationSeconds) : 0,
+      fillerCount: primary.metrics.fillerCount + followUp.metrics.fillerCount,
+      fillerWords,
+      timeToMainPointSeconds: mainPointTimes.length
+        ? Math.round(mainPointTimes.reduce((total, seconds) => total + seconds, 0) / mainPointTimes.length)
+        : null,
+      mainPointEvidence: followUp.metrics.mainPointEvidence || primary.metrics.mainPointEvidence,
+    },
+  };
 }
 
 const interviewCheckDefinitions: Array<{
@@ -118,6 +147,7 @@ function StandardFeedbackWorkspace() {
     goalSkills,
     goalTemplateKey,
     goalTitle,
+    interviewPrimaryResponse,
     interviewQuestionType,
     prompt,
     recordingUrl,
@@ -135,9 +165,16 @@ function StandardFeedbackWorkspace() {
   const feedback = useMemo(() => currentAnalysis?.feedback ?? [], [currentAnalysis]);
   const isInterview = goalTemplateKey === 'clarity';
   const interviewFollowUp = currentAnalysis?.followUpQuestion?.trim() ?? '';
-  const canAnswerFollowUp = isInterview && interviewQuestionType === 'primary' && Boolean(interviewFollowUp);
-  const primaryFiller = currentAnalysis
-    ? Object.entries(currentAnalysis.metrics.fillerWords ?? {})
+  const requiredFollowUpReady = isInterview && interviewQuestionType === 'primary' && Boolean(interviewFollowUp);
+  const isCompletedInterviewSequence = isInterview && interviewQuestionType === 'follow-up' && Boolean(interviewPrimaryResponse);
+  const displayAnalysis = useMemo(
+    () => currentAnalysis && isCompletedInterviewSequence && interviewPrimaryResponse
+      ? combineInterviewAnalysis(interviewPrimaryResponse.analysis, currentAnalysis)
+      : currentAnalysis,
+    [currentAnalysis, interviewPrimaryResponse, isCompletedInterviewSequence],
+  );
+  const primaryFiller = displayAnalysis
+    ? Object.entries(displayAnalysis.metrics.fillerWords ?? {})
       .filter(([phrase, count]) => phrase.trim() && count > 0)
       .sort(([leftPhrase, leftCount], [rightPhrase, rightCount]) => rightCount - leftCount || leftPhrase.localeCompare(rightPhrase))[0] ?? null
     : null;
@@ -220,7 +257,7 @@ function StandardFeedbackWorkspace() {
   }
 
   function answerFollowUp() {
-    if (!canAnswerFollowUp) return;
+    if (!requiredFollowUpReady) return;
     clearRecording();
     updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: interviewFollowUp, interviewQuestionType: 'follow-up' });
     router.push('/practice/session');
@@ -229,7 +266,7 @@ function StandardFeedbackWorkspace() {
   function nextQuestion() {
     clearRecording();
     if (isInterview) {
-      updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: '', interviewQuestionType: 'primary' });
+      updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: '', interviewQuestionType: 'primary', interviewPrimaryResponse: null });
       router.push('/practice/session');
       return;
     }
@@ -256,6 +293,31 @@ function StandardFeedbackWorkspace() {
     router.push('/history');
   }
 
+  if (requiredFollowUpReady) {
+    return (
+      <AppShell>
+        <Screen>
+          <Breadcrumbs items={[{ label: 'Home', href: '/goals' }, { label: 'Unscripted follow-up' }]} />
+          <div className="mx-auto max-w-3xl py-8">
+            <div className="text-center">
+              <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Sparkles className="size-5" /></span>
+              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Main answer complete</p>
+              <h1 className="mt-2 font-display text-3xl font-semibold tracking-[-0.035em] text-[var(--navy)]">One unscripted follow-up</h1>
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[var(--muted-ink)]">A real interviewer would naturally probe one point from your answer before giving feedback.</p>
+            </div>
+
+            <section className="mt-8 rounded-3xl border border-[#d7ccef] bg-white p-8 shadow-[var(--shadow-sm)]" aria-labelledby="required-follow-up-question">
+              <p className="text-xs font-semibold uppercase tracking-[0.11em] text-[var(--teal-dark)]">Your interviewer asks</p>
+              <h2 id="required-follow-up-question" className="mt-3 font-display text-2xl font-semibold leading-9 tracking-[-0.025em] text-[var(--navy)]">{interviewFollowUp}</h2>
+              <p className="mt-4 text-sm leading-6 text-[var(--muted-ink)]">Answer naturally without scripting. Your personalized feedback will evaluate this response together with your main answer.</p>
+              <Button onClick={answerFollowUp} className="mt-7 h-11 rounded-xl bg-[var(--navy)] px-5 hover:bg-[#4c1d95]">Answer follow-up <ArrowRight className="ml-1 size-4" /></Button>
+            </section>
+          </div>
+        </Screen>
+      </AppShell>
+    );
+  }
+
   const report = (
     <section
       className={cn(
@@ -268,9 +330,17 @@ function StandardFeedbackWorkspace() {
           <div>
             <div className="flex items-center gap-2">
               <Sparkles className="size-4 text-[var(--teal)]" />
-              <h2 className="font-display text-lg font-semibold tracking-[-0.02em] text-[var(--navy)]">{activeExercise ? 'Targeted exercise feedback' : 'Personalized feedback'}</h2>
+              <h2 className="font-display text-lg font-semibold tracking-[-0.02em] text-[var(--navy)]">{activeExercise ? 'Targeted exercise feedback' : isInterview && interviewQuestionType === 'primary' ? 'Preparing your follow-up' : 'Personalized feedback'}</h2>
             </div>
-            <p className="mt-1 text-xs text-[var(--muted-ink)]">{activeExercise ? `Focused on ${activeExercise.targetSkill}` : goalSkills.length ? `Evaluated across all ${goalSkills.length} goal skills, based only on this response` : 'Evaluated across all coaching dimensions, based only on this response'}</p>
+            <p className="mt-1 text-xs text-[var(--muted-ink)]">{activeExercise
+              ? `Focused on ${activeExercise.targetSkill}`
+              : isInterview && interviewQuestionType === 'primary'
+                ? 'Reviewing your main answer to create one natural interviewer follow-up'
+                : isCompletedInterviewSequence
+                  ? `Evaluated across all ${goalSkills.length || 5} goal skills using your main answer and follow-up`
+                  : goalSkills.length
+                    ? `Evaluated across all ${goalSkills.length} goal skills, based only on this response`
+                    : 'Evaluated across all coaching dimensions, based only on this response'}</p>
           </div>
           <div className="flex items-center gap-2">
             {!fullScreen && (
@@ -303,13 +373,28 @@ function StandardFeedbackWorkspace() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
-          {transcriptOpen && currentAnalysis && (
+          {transcriptOpen && displayAnalysis && (
             <section id="answer-transcript" className="mb-7 border-b border-[var(--line)] bg-[#faf8ff] px-5 pb-6 pt-5" aria-labelledby="answer-transcript-title">
               <div className="flex items-center justify-between gap-4">
-                <h3 id="answer-transcript-title" className="font-display text-lg font-semibold text-[var(--navy)]">Your transcript</h3>
-                <span className="text-xs text-[var(--muted-ink)]">{currentAnalysis.metrics.wordCount} words · {formatDuration(currentAnalysis.durationSeconds)}</span>
+                <h3 id="answer-transcript-title" className="font-display text-lg font-semibold text-[var(--navy)]">{isCompletedInterviewSequence ? 'Your interview transcripts' : 'Your transcript'}</h3>
+                <span className="text-xs text-[var(--muted-ink)]">{displayAnalysis.metrics.wordCount} words · {formatDuration(displayAnalysis.durationSeconds)}</span>
               </div>
-              <p className="mt-3 whitespace-pre-wrap text-base leading-8 text-[#5f4f72]">{currentAnalysis.transcript}</p>
+              {isCompletedInterviewSequence && interviewPrimaryResponse && currentAnalysis ? (
+                <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                  <article className="rounded-2xl bg-white p-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Main answer</p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{interviewPrimaryResponse.prompt}</p>
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#5f4f72]">{interviewPrimaryResponse.analysis.transcript}</p>
+                  </article>
+                  <article className="rounded-2xl bg-white p-5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Unscripted follow-up</p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{prompt}</p>
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#5f4f72]">{currentAnalysis.transcript}</p>
+                  </article>
+                </div>
+              ) : (
+                <p className="mt-3 whitespace-pre-wrap text-base leading-8 text-[#5f4f72]">{displayAnalysis.transcript}</p>
+              )}
             </section>
           )}
           {!activeExercise && !currentAnalysis && (
@@ -325,8 +410,8 @@ function StandardFeedbackWorkspace() {
                 <>
                   <div className="text-center">
                     <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Sparkles className="size-5 animate-pulse" /></span>
-                    <h3 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Preparing your personalized feedback</h3>
-                    <p className="mt-2 text-sm text-[var(--muted-ink)]">You can stay here while each stage appears as soon as it is ready.</p>
+                    <h3 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">{isInterview && interviewQuestionType === 'primary' ? 'Preparing your unscripted follow-up' : 'Preparing your personalized feedback'}</h3>
+                    <p className="mt-2 text-sm text-[var(--muted-ink)]">{isInterview && interviewQuestionType === 'primary' ? 'We’re reviewing your answer to choose the most useful point to probe next.' : 'You can stay here while each stage appears as soon as it is ready.'}</p>
                   </div>
                   <FeedbackProgressSteps stage={analysisPreview?.stage ?? (analysisStatus === 'idle' ? 'queued' : analysisStatus)} />
                   {analysisPreview?.transcript && (
@@ -459,24 +544,24 @@ function StandardFeedbackWorkspace() {
             <h3 id="response-metrics-title" className="sr-only">Response metrics</h3>
             <div className="grid items-center gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(560px,1fr)]">
               <div className="flex min-w-0 items-center gap-5">
-                {currentAnalysis ? <SpeakingPaceIllustration wordsPerMinute={currentAnalysis.metrics.averageWpm} /> : <div className="h-28 w-44 shrink-0 rounded-2xl bg-white" />}
+                {displayAnalysis ? <SpeakingPaceIllustration wordsPerMinute={displayAnalysis.metrics.averageWpm} /> : <div className="h-28 w-44 shrink-0 rounded-2xl bg-white" />}
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Average speaking pace</p>
-                  <p className="mt-2 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.averageWpm : '—'} <span className="text-base tracking-normal text-[var(--muted-ink)]">WPM</span></p>
-                  <p className="mt-2 max-w-lg text-sm leading-6 text-[var(--muted-ink)]">{currentAnalysis ? speakingPaceComment(currentAnalysis.metrics.averageWpm) : 'Calculated from this recording'}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">{isCompletedInterviewSequence ? 'Combined speaking pace' : 'Average speaking pace'}</p>
+                  <p className="mt-2 font-display text-4xl font-semibold tracking-[-0.04em] text-[var(--navy)]">{displayAnalysis ? displayAnalysis.metrics.averageWpm : '—'} <span className="text-base tracking-normal text-[var(--muted-ink)]">WPM</span></p>
+                  <p className="mt-2 max-w-lg text-sm leading-6 text-[var(--muted-ink)]">{displayAnalysis ? speakingPaceComment(displayAnalysis.metrics.averageWpm) : 'Calculated from this recording'}</p>
                 </div>
               </div>
               <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="rounded-xl bg-white p-3.5">
                   <dt className="text-xs font-medium text-[var(--muted-ink)]">Time to main point</dt>
                   <dd className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">
-                    {currentAnalysis?.metrics.timeToMainPointSeconds !== null && currentAnalysis?.metrics.timeToMainPointSeconds !== undefined
-                      ? `${currentAnalysis.metrics.timeToMainPointSeconds} sec`
+                    {displayAnalysis?.metrics.timeToMainPointSeconds !== null && displayAnalysis?.metrics.timeToMainPointSeconds !== undefined
+                      ? `${displayAnalysis.metrics.timeToMainPointSeconds} sec`
                       : '—'}
                   </dd>
                   <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">
-                    {currentAnalysis
-                      ? currentAnalysis.metrics.mainPointEvidence
+                    {displayAnalysis
+                      ? displayAnalysis.metrics.mainPointEvidence
                         ? 'From first spoken word'
                         : 'Main answer not reached'
                       : 'From this answer'}
@@ -484,36 +569,29 @@ function StandardFeedbackWorkspace() {
                 </div>
                 <div className="rounded-xl bg-white p-3.5">
                   <dt className="text-xs font-medium text-[var(--muted-ink)]">Most-used filler</dt>
-                  <dd className="mt-2 break-words font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? primaryFiller ? `“${primaryFiller[0]}”` : 'None' : '—'}</dd>
+                  <dd className="mt-2 break-words font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{displayAnalysis ? primaryFiller ? `“${primaryFiller[0]}”` : 'None' : '—'}</dd>
                   <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">
-                    {currentAnalysis
+                    {displayAnalysis
                       ? primaryFiller
-                        ? `Used ${primaryFiller[1]} ${primaryFiller[1] === 1 ? 'time' : 'times'} · ${currentAnalysis.metrics.fillerCount} total`
+                        ? `Used ${primaryFiller[1]} ${primaryFiller[1] === 1 ? 'time' : 'times'} · ${displayAnalysis.metrics.fillerCount} total`
                         : 'No filler words detected'
                       : 'From the transcript'}
                   </p>
                 </div>
                 <div className="rounded-xl bg-white p-3.5">
                   <dt className="text-xs font-medium text-[var(--muted-ink)]">Total words</dt>
-                  <dd className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.wordCount : '—'}</dd>
-                  <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">{currentAnalysis ? formatDuration(currentAnalysis.durationSeconds) : 'From the transcript'}</p>
+                  <dd className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{displayAnalysis ? displayAnalysis.metrics.wordCount : '—'}</dd>
+                  <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">{displayAnalysis ? formatDuration(displayAnalysis.durationSeconds) : 'From the transcript'}</p>
                 </div>
                 <div className="rounded-xl bg-white p-3.5">
                   <dt className="text-xs font-medium text-[var(--muted-ink)]">Distinct words</dt>
-                  <dd className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{currentAnalysis ? currentAnalysis.metrics.uniqueWordCount : '—'}</dd>
+                  <dd className="mt-2 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">{displayAnalysis ? displayAnalysis.metrics.uniqueWordCount : '—'}</dd>
                   <p className="mt-1.5 text-[11px] leading-4 text-[var(--muted-ink)]">Case-normalized</p>
                 </div>
               </dl>
             </div>
           </section>
 
-          {canAnswerFollowUp && (
-            <div className="mt-5 rounded-2xl border border-[#cfc3e6] bg-[var(--mint-soft)] p-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--teal-dark)]">Your manager’s follow-up</p>
-              <p className="mt-2 text-sm font-semibold leading-6 text-[var(--navy)]">{interviewFollowUp}</p>
-              <p className="mt-2 text-xs leading-5 text-[#5f4f72]">This question was generated from your interview question and answer.</p>
-            </div>
-          )}
           </div>
         </div>
 
@@ -525,7 +603,6 @@ function StandardFeedbackWorkspace() {
               <button onClick={endSession} className="text-sm font-medium text-[var(--muted-ink)] hover:text-[var(--ink)]">End session</button>
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={redoQuestion} className="h-10 rounded-xl border-[var(--line)] bg-white px-4">Redo question <RotateCcw className="ml-1 size-4" /></Button>
-                {canAnswerFollowUp && <Button variant="outline" onClick={answerFollowUp} className="h-10 rounded-xl border-[var(--line)] bg-white px-4">Answer follow-up <ArrowRight className="ml-1 size-4" /></Button>}
                 <Button onClick={nextQuestion} className="h-10 rounded-xl bg-[var(--navy)] px-4 hover:bg-[#4c1d95]">{isInterview ? 'New question' : 'Next question'} <ArrowRight className="ml-1 size-4" /></Button>
               </div>
             </>
@@ -542,10 +619,10 @@ function StandardFeedbackWorkspace() {
         <Breadcrumbs items={[{ label: activeExercise ? 'Exercises' : 'Home', href: activeExercise ? '/exercises' : '/goals' }, { label: activeExercise ? 'Exercise feedback' : 'Answer feedback' }]} />
         <div className="mb-6 flex items-start justify-between gap-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">{activeExercise ? 'Exercise complete' : 'Answer complete'}</p>
-            <h1 className="mt-2 max-w-4xl font-display text-2xl font-semibold leading-8 tracking-[-0.03em] text-[var(--navy)]">{prompt}</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">{activeExercise ? 'Exercise complete' : isCompletedInterviewSequence ? 'Interview complete' : 'Answer complete'}</p>
+            <h1 className="mt-2 max-w-4xl font-display text-2xl font-semibold leading-8 tracking-[-0.03em] text-[var(--navy)]">{isCompletedInterviewSequence && interviewPrimaryResponse ? interviewPrimaryResponse.prompt : prompt}</h1>
           </div>
-          <span className="shrink-0 rounded-full bg-[var(--mint-soft)] px-3 py-1.5 text-xs font-medium text-[var(--teal-dark)]">{activeExercise ? `Skill · ${activeExercise.targetSkill}` : `Goal · ${goalTitle}`}</span>
+          <span className="shrink-0 rounded-full bg-[var(--mint-soft)] px-3 py-1.5 text-xs font-medium text-[var(--teal-dark)]">{activeExercise ? `Skill · ${activeExercise.targetSkill}` : isCompletedInterviewSequence ? 'Main answer + follow-up' : `Goal · ${goalTitle}`}</span>
         </div>
 
         <div className={cn('grid h-[calc(100vh-190px)] min-h-[720px] gap-5', recordingOpen ? 'grid-cols-[minmax(380px,0.62fr)_minmax(620px,1.38fr)]' : 'grid-cols-1')}>

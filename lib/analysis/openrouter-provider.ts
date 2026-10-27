@@ -582,6 +582,10 @@ export async function generateResponseFeedback(input: {
   generateFollowUp?: boolean;
   transcript: string;
   metrics: ResponseMetrics;
+  interviewContext?: {
+    mainQuestion: string;
+    mainTranscript: string;
+  };
   previousAttempts?: Array<{
     transcript: string;
     metrics: ResponseMetrics;
@@ -590,6 +594,13 @@ export async function generateResponseFeedback(input: {
 }) {
   const hasPreviousAttempts = Boolean(input.previousAttempts?.length);
   const isInterviewGoal = input.goalTitle.trim().toLocaleLowerCase() === 'interview';
+  const isInterviewFollowUp = isInterviewGoal && Boolean(input.interviewContext);
+  const evaluationQuestion = isInterviewFollowUp
+    ? `Main interview question: ${input.interviewContext?.mainQuestion}\nUnscripted follow-up: ${input.prompt}`
+    : input.prompt;
+  const evaluationTranscript = isInterviewFollowUp
+    ? `Main answer:\n${input.interviewContext?.mainTranscript}\n\nFollow-up answer:\n${input.transcript}`
+    : input.transcript;
   const result = await requestStructuredOutput({
     name: 'communication_feedback',
     schema: feedbackJsonSchema,
@@ -603,12 +614,15 @@ export async function generateResponseFeedback(input: {
           ? 'Return exactly one item per dimension. The What worked item must be positive. Mark each other item positive when its criterion is satisfied and corrective when it is not; do not manufacture a problem merely to fill a card.'
           : 'Return exactly one item per dimension. The What worked item must be positive. On a first answer, the other four should identify the most useful improvement for that dimension.',
       input.goalFramework
-        ? 'Use the supplied framework as the primary story-structure rubric. For each of its four criteria, evaluate the whole transcript, use the criterion title exactly as the feedback skill, and place it in its assigned feedback dimension. The What worked item should name the strongest demonstrated framework criterion. Do not treat a generic lesson as a five-second moment unless the story builds to a specific realization or change in perspective. Do not treat background as an effective opening unless it begins close to consequential action. Stakes must state or strongly establish why the outcome mattered. Beginning-to-ending contrast must show a concrete change in situation, understanding, or self.'
+        ? 'Use the supplied framework as the primary story-structure rubric. For each of its four criteria, evaluate the whole transcript, use the criterion title exactly as the feedback skill, and place it in its assigned feedback dimension. The What worked item should name the strongest demonstrated framework criterion. Do not treat a generic takeaway as a five-second moment unless the story builds to a specific realization or change in perspective. Do not treat background as an effective opening unless it begins close to consequential action. Stakes must state or strongly establish why the outcome mattered. Beginning-to-ending contrast must show a concrete change in situation, understanding, or self.'
         : isInterviewGoal
-          ? 'For the Interview goal, make these three checks explicit and evaluate each against the exact question and the whole transcript: (1) Communication effectiveness must answer “Did the candidate answer the actual question?” and its skill must be exactly “Answer the actual question”; (2) Critical thinking must answer “Was the candidate’s reasoning easy to follow?” and its skill must be exactly “Make the reasoning easy to follow”; (3) Sentence structure must answer “Did the candidate provide a clear conclusion?” and its skill must be exactly “Provide a clear conclusion”. The Vocabulary item should still evaluate precise, credible word choice. The What worked item should identify the strongest transcript-grounded interview behavior. A conclusion must state a final answer, result, lesson, or takeaway rather than merely stop speaking.'
+          ? 'For the Interview goal, make these three checks explicit and evaluate each against the exact question and the whole transcript: (1) Communication effectiveness must answer “Did the candidate answer the actual question?” and its skill must be exactly “Answer the actual question”; (2) Critical thinking must answer “Was the candidate’s reasoning easy to follow?” and its skill must be exactly “Make the reasoning easy to follow”; (3) Sentence structure must answer “Did the candidate provide a clear conclusion?” and its skill must be exactly “Provide a clear conclusion”. The Vocabulary item should still evaluate precise, credible word choice. The What worked item should identify the strongest transcript-grounded interview behavior. A conclusion must state a final answer, result, or takeaway rather than merely stop speaking.'
           : 'Use the active goal skills to make every observation relevant to the user’s communication goal.',
       isInterviewGoal
         ? 'Before judging Communication effectiveness, decompose the exact interview question into all explicit answer constraints: requested answer type, requested number of items, priority or sequence such as “first”, scope, and whether the answer must be measurable, numeric, comparative, or conditional. Judge the transcript against every constraint. Topical relevance alone is not enough. Every Communication effectiveness correction must be a standalone, ready-to-say answer opening that fulfills those same constraints. If the question asks for one or a single item, name exactly one—not a list of steps, options, scenarios, or remediations. If it asks for a measurable signal, name an observable metric or signal and explain how it would be read. If it asks what comes first, lead with that first choice. For Communication effectiveness, Critical thinking, and Sentence structure, begin the explanation with exactly “Yes —”, “Partially —”, or “No —” to directly answer its assigned interview check, then state why. Use Yes only when the criterion is fully met, Partially when it is demonstrated but incomplete or inconsistent, and No when it is absent. Keep positive true only for Yes.'
+        : '',
+      isInterviewFollowUp
+        ? 'This is the final evaluation of a two-turn interview exchange. Evaluate the main answer and the unscripted follow-up together as one conversation. The follow-up may add evidence, clarify reasoning, or reveal a gap, and the final feedback must explicitly account for that contribution. Judge whether the candidate answered both questions while keeping the main question as the primary goal. Use evidence from either answer, never use the “Main answer” or “Follow-up answer” section labels as evidence, and make any correction clear enough to improve the full exchange.'
         : '',
       'Every evidence field must be a short exact quote copied verbatim from the transcript.',
       'Also identify the earliest main point: the first concise claim, choice, recommendation, result, or takeaway that directly answers the central question. Background, restating the prompt, throat-clearing, and supporting detail do not count. Set mainPoint.found false with empty evidence when the transcript never reaches a direct answer. Otherwise copy the shortest exact quote that marks where the direct answer begins.',
@@ -626,9 +640,13 @@ export async function generateResponseFeedback(input: {
     ].join(' '),
     user: JSON.stringify({
       goal: { title: input.goalTitle, description: input.goalDescription ?? '', skills: input.goalSkills, evaluationFramework: input.goalFramework ?? null },
-      question: input.prompt,
+      question: evaluationQuestion,
       objectiveMetrics: input.metrics,
-      transcript: input.transcript,
+      transcript: evaluationTranscript,
+      interviewTurns: isInterviewFollowUp ? [
+        { type: 'main', question: input.interviewContext?.mainQuestion, transcript: input.interviewContext?.mainTranscript },
+        { type: 'follow-up', question: input.prompt, transcript: input.transcript },
+      ] : undefined,
       previousAttempts: input.previousAttempts ?? [],
     }),
     parse: (value) => feedbackResultSchema.parse(value),
@@ -640,8 +658,8 @@ export async function generateResponseFeedback(input: {
     const communicationFeedback = result.feedback.find((item) => item.dimension === 'Communication effectiveness');
     if (communicationFeedback && !communicationFeedback.positive && communicationFeedback.corrections.length > 0) {
       const alignmentReview = await reviewInterviewQuestionAlignment({
-        question: input.prompt,
-        transcript: input.transcript,
+        question: evaluationQuestion,
+        transcript: evaluationTranscript,
         communicationFeedback: {
           evidence: communicationFeedback.evidence,
           title: communicationFeedback.title,
@@ -672,9 +690,9 @@ export async function generateResponseFeedback(input: {
 
   const usedCorrectionEvidence = new Set<string>();
   const feedback = reviewedFeedback.map((item, index): FeedbackItem => {
-    const evidence = exactEvidence(input.transcript, item.evidence);
+    const evidence = exactEvidence(evaluationTranscript, item.evidence);
     let corrections = item.positive ? [] : item.corrections.flatMap((correction) => {
-      const correctionEvidence = exactCorrectionEvidence(input.transcript, correction.evidence);
+      const correctionEvidence = exactCorrectionEvidence(evaluationTranscript, correction.evidence);
       if (!correctionEvidence) return [];
       const evidenceKey = correctionEvidence.toLocaleLowerCase().replace(/\s+/g, ' ').trim();
       if (usedCorrectionEvidence.has(evidenceKey)) return [];
@@ -707,9 +725,12 @@ export async function generateResponseFeedback(input: {
   });
   const generatedFollowUp = result.followUpQuestion.trim();
   const firstQuestionEnd = generatedFollowUp.indexOf('?');
-  const followUpQuestion = firstQuestionEnd >= 0
+  const normalizedFollowUpQuestion = firstQuestionEnd >= 0
     ? generatedFollowUp.slice(0, firstQuestionEnd + 1)
     : generatedFollowUp;
+  const followUpQuestion = input.generateFollowUp
+    ? normalizedFollowUpQuestion || 'What was the most important decision you personally made in that situation?'
+    : '';
   const mainPointEvidence = result.mainPoint.found
     ? exactEvidence(input.transcript, result.mainPoint.evidence)
     : '';
@@ -719,7 +740,7 @@ export async function generateResponseFeedback(input: {
       found: Boolean(mainPointEvidence),
       evidence: mainPointEvidence,
     },
-    followUpQuestion: input.generateFollowUp ? followUpQuestion : '',
+    followUpQuestion,
   };
 }
 

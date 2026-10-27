@@ -15,6 +15,11 @@ type PracticeState = {
   redoFeedback: FeedbackItem[];
   prompt: string;
   interviewQuestionType: 'primary' | 'follow-up';
+  interviewPrimaryResponse: {
+    responseId: string;
+    prompt: string;
+    analysis: ResponseAnalysis;
+  } | null;
   recordingUrl: string | null;
   activeSessionId: string | null;
   activeResponseId: string | null;
@@ -40,7 +45,7 @@ type PracticeState = {
 type PracticeContextValue = PracticeState & {
   updateSetup: (
     next: Partial<
-      Pick<PracticeState, 'goalId' | 'goalTitle' | 'goalTemplateKey' | 'goalSkills' | 'categories' | 'customTopic' | 'answerNotes' | 'redoFeedback' | 'prompt' | 'interviewQuestionType'>
+      Pick<PracticeState, 'goalId' | 'goalTitle' | 'goalTemplateKey' | 'goalSkills' | 'categories' | 'customTopic' | 'answerNotes' | 'redoFeedback' | 'prompt' | 'interviewQuestionType' | 'interviewPrimaryResponse'>
     >,
   ) => void;
   setRecordingUrl: (url: string | null) => void;
@@ -73,6 +78,7 @@ const initialState: PracticeState = {
   redoFeedback: [],
   prompt: getPracticeQuestions('clarity')[0] ?? '',
   interviewQuestionType: 'primary',
+  interviewPrimaryResponse: null,
   recordingUrl: null,
   activeSessionId: null,
   activeResponseId: null,
@@ -156,6 +162,7 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           currentAnalysis: null,
           analysisStatus: 'idle',
           analysisError: null,
+          interviewPrimaryResponse: null,
           activeExercise: null,
           exerciseStage: 'guided',
           exerciseAttemptNumber: 1,
@@ -190,6 +197,9 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           currentAnalysis: analysis,
           analysisStatus: 'completed',
           analysisError: null,
+          interviewPrimaryResponse: current.goalTemplateKey === 'clarity' && current.interviewQuestionType === 'primary'
+            ? { responseId, prompt: current.prompt, analysis }
+            : current.interviewPrimaryResponse,
         }));
       },
       setAnalysisProgress(status, error = null) {
@@ -217,6 +227,7 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
           answerNotes: '',
           redoFeedback: [],
           interviewQuestionType: 'primary',
+          interviewPrimaryResponse: null,
           activeExercise: null,
           exerciseStage: 'guided',
           exerciseAttemptNumber: 1,

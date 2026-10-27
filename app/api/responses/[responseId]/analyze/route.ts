@@ -49,6 +49,15 @@ type PreviousResponseRow = {
   feedback_items: PreviousFeedbackRow | PreviousFeedbackRow[] | null;
 };
 
+type InterviewPrimaryResponseRow = {
+  id: string;
+  prompt: string;
+  transcript: string;
+  duration_seconds: number;
+  follow_up_question: string | null;
+  status: string;
+};
+
 function asArray<T>(value: T | T[] | null | undefined): T[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
@@ -66,7 +75,13 @@ function feedbackCorrections(value: unknown): FeedbackCorrection[] {
 }
 
 function parseUpload(formData: FormData) {
-  const body = analyzeResponseSchema.safeParse({ idempotencyKey: formData.get('idempotencyKey') });
+  const primaryResponseId = formData.get('interviewPrimaryResponseId');
+  const body = analyzeResponseSchema.safeParse({
+    idempotencyKey: formData.get('idempotencyKey'),
+    interviewPrimaryResponseId: typeof primaryResponseId === 'string' && primaryResponseId.trim()
+      ? primaryResponseId.trim()
+      : null,
+  });
   if (!body.success) return { error: apiError(400, 'invalid_request', 'The analysis request is missing its identifier.') } as const;
   const audio = formData.get('audio');
   if (!(audio instanceof File) || audio.size === 0) {
@@ -79,7 +94,14 @@ function parseUpload(formData: FormData) {
   if (audio.size > maximumAudioBytes) {
     return { error: apiError(413, 'audio_too_large', 'Keep each answer under the 15 MB recording limit.') } as const;
   }
-  return { data: { idempotencyKey: body.data.idempotencyKey, audio, generateFollowUp: formData.get('generateFollowUp') === 'true' } } as const;
+  return {
+    data: {
+      idempotencyKey: body.data.idempotencyKey,
+      audio,
+      generateFollowUp: formData.get('generateFollowUp') === 'true',
+      interviewPrimaryResponseId: body.data.interviewPrimaryResponseId ?? null,
+    },
+  } as const;
 }
 
 function analysisFailureMessage(error: unknown) {
@@ -124,6 +146,26 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   if (responseError) return databaseError(responseError);
   if (!response) return apiError(404, 'response_not_found', 'Response not found.');
+
+  let interviewPrimaryResponse: InterviewPrimaryResponseRow | null = null;
+  if (upload.data.interviewPrimaryResponseId) {
+    const { data: primaryResponse, error: primaryResponseError } = await context.supabase
+      .from('responses')
+      .select('id, prompt, transcript, duration_seconds, follow_up_question, status')
+      .eq('id', upload.data.interviewPrimaryResponseId)
+      .eq('session_id', response.session_id)
+      .eq('user_id', context.userId)
+      .maybeSingle();
+    if (primaryResponseError) return databaseError(primaryResponseError);
+    if (!primaryResponse) return apiError(400, 'primary_response_not_found', 'The main interview answer could not be found.');
+    if (primaryResponse.status !== 'completed' || !primaryResponse.transcript.trim()) {
+      return apiError(409, 'primary_response_incomplete', 'Complete the main interview answer before recording its follow-up.');
+    }
+    if (primaryResponse.follow_up_question?.trim() !== response.prompt.trim()) {
+      return apiError(400, 'follow_up_mismatch', 'This follow-up does not belong to the selected main interview answer.');
+    }
+    interviewPrimaryResponse = primaryResponse as InterviewPrimaryResponseRow;
+  }
 
   const { data: existingJob, error: existingJobError } = await context.supabase
     .from('analysis_jobs')
@@ -309,6 +351,12 @@ export async function POST(request: Request, { params }: RouteParams) {
 
       const goalRelation = Array.isArray(session.goals) ? session.goals[0] : session.goals;
       const goalDefinition = getGoalDefinition(goalRelation?.template_key);
+      const feedbackMetrics = interviewPrimaryResponse
+        ? createSpeechMetrics(
+            `${interviewPrimaryResponse.transcript}\n\n${transcript}`,
+            interviewPrimaryResponse.duration_seconds + response.duration_seconds,
+          )
+        : metrics;
       const generatedFeedback = await measure(
         'feedbackGenerationMs',
         generateResponseFeedback({
@@ -320,8 +368,12 @@ export async function POST(request: Request, { params }: RouteParams) {
           coachInstructions: goalDefinition?.coachInstructions,
           generateFollowUp: goalRelation?.template_key === 'clarity' && upload.data.generateFollowUp,
           transcript,
-          metrics,
+          interviewContext: interviewPrimaryResponse ? {
+            mainQuestion: interviewPrimaryResponse.prompt,
+            mainTranscript: interviewPrimaryResponse.transcript,
+          } : undefined,
           previousAttempts,
+          metrics: feedbackMetrics,
         }),
         timings,
       );
@@ -366,12 +418,25 @@ export async function POST(request: Request, { params }: RouteParams) {
         );
       if (feedbackError) throw new Error(`Could not save feedback: ${feedbackError.message}`);
 
+      if (interviewPrimaryResponse) {
+        const { error: primaryFeedbackError } = await context.supabase
+          .from('feedback_items')
+          .delete()
+          .eq('response_id', interviewPrimaryResponse.id)
+          .eq('user_id', context.userId);
+        if (primaryFeedbackError) throw new Error(`Could not consolidate interview feedback: ${primaryFeedbackError.message}`);
+      }
+
       timings.persistenceMs = Math.round(performance.now() - persistenceStartedAt);
       timings.totalMs = Math.round(performance.now() - processingStartedAt);
       const [completedResponse, completedJob] = await Promise.all([
         context.supabase
           .from('responses')
-          .update({ transcript, status: 'completed' })
+          .update({
+            transcript,
+            status: 'completed',
+            follow_up_question: generatedFeedback.followUpQuestion || null,
+          })
           .eq('id', response.id)
           .eq('user_id', context.userId),
         context.supabase
@@ -386,19 +451,11 @@ export async function POST(request: Request, { params }: RouteParams) {
       if (completedResponse.error) throw new Error(`Could not finish the response: ${completedResponse.error.message}`);
       if (completedJob.error) throw new Error(`Could not finish the analysis job: ${completedJob.error.message}`);
 
-      const [followUpUpdate, timingUpdate] = await Promise.all([
-        context.supabase
-          .from('responses')
-          .update({ follow_up_question: generatedFeedback.followUpQuestion ?? null })
-          .eq('id', response.id)
-          .eq('user_id', context.userId),
-        context.supabase
+      const timingUpdate = await context.supabase
           .from('analysis_jobs')
           .update({ timings })
           .eq('id', analysisJobId)
-          .eq('user_id', context.userId),
-      ]);
-      if (followUpUpdate.error) console.warn('Follow-up question metadata was not saved', { responseId, message: followUpUpdate.error.message });
+          .eq('user_id', context.userId);
       if (timingUpdate.error) console.warn('Analysis timing metadata was not saved', { responseId, message: timingUpdate.error.message });
 
       console.info('Response analysis timing', { responseId, ...timings });

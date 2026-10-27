@@ -261,7 +261,7 @@ export type DashboardFeedbackItem = FeedbackItem & {
   createdAt: string;
 };
 
-export type GoalLessonInsight = {
+export type GoalSessionInsight = {
   id: string;
   title: string;
   completedAt: string;
@@ -354,5 +354,5 @@ export type GoalDashboard = {
     repeatedOpenings: Array<{ phrase: string; count: number }>;
     feedback: DashboardFeedbackItem[];
   };
-  lessons: GoalLessonInsight[];
+  sessions: GoalSessionInsight[];
 };

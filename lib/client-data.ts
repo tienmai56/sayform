@@ -121,7 +121,7 @@ export async function getGoalDashboard(goalId: string): Promise<GoalDashboard> {
       vocabulary: { totalWords: 0, uniqueWords: 0, newlyObservedWords: null, comparisonLabel: null, repeatedWords: [], strengths: [], improvements: [] },
       grammar: { strengths: [], improvements: [] },
       fluency: { averageWpm: 0, averageTimeToMainPointSeconds: null, timeToMainPointAnswerCount: 0, fillerCount: 0, fillerRatePer100Words: 0, commonFillers: [], repeatedOpenings: [], feedback: [] },
-      lessons: [],
+      sessions: [],
     };
   }
 
@@ -166,6 +166,7 @@ export async function startResponseAnalysis(input: {
   audio: Blob;
   goalTemplateKey?: string | null;
   generateInterviewFollowUp?: boolean;
+  interviewPrimaryResponseId?: string | null;
 }) {
   if (!usesPersistentBackend) {
     const responseId = `demo-response-${crypto.randomUUID()}`;
@@ -175,7 +176,7 @@ export async function startResponseAnalysis(input: {
       durationSeconds: input.durationSeconds,
       metrics: mock.metrics,
       feedback: mock.feedback,
-      followUpQuestion: input.goalTemplateKey === 'clarity'
+      followUpQuestion: input.goalTemplateKey === 'clarity' && input.generateInterviewFollowUp
         ? 'What was the most difficult decision you personally made in that situation, and what did you learn from it?'
         : undefined,
     };
@@ -194,6 +195,7 @@ export async function startResponseAnalysis(input: {
   const upload = new FormData();
   upload.set('idempotencyKey', idempotencyKey);
   upload.set('generateFollowUp', input.generateInterviewFollowUp ? 'true' : 'false');
+  if (input.interviewPrimaryResponseId) upload.set('interviewPrimaryResponseId', input.interviewPrimaryResponseId);
   upload.set('audio', input.audio, input.audio.type.includes('mp4') ? 'answer.m4a' : 'answer.webm');
   await apiRequest<{ status: ResponseAnalysisStage }>(`/api/responses/${created.response.id}/analyze`, {
     method: 'POST',

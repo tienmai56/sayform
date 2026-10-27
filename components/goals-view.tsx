@@ -125,7 +125,7 @@ function compactMinutesLabel(seconds: number) {
 }
 
 type ChartMode = 'day' | 'week';
-const LESSONS_PER_PAGE = 5;
+const SESSIONS_PER_PAGE = 5;
 
 function localDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -200,7 +200,6 @@ type CoachingPattern = {
   kind: 'focus' | 'strength';
   title: string;
   detail: string;
-  meta: string;
   priority: number;
 };
 
@@ -244,13 +243,13 @@ function feedbackPatternDetail(item: DashboardFeedbackItem, supportCount: number
 
 function buildCoachingPatterns(dashboard: GoalDashboard) {
   const feedbackById = new Map<string, DashboardFeedbackItem>();
-  const feedbackSources = dashboard.lessons.flatMap((lesson) => [
-    ...lesson.communicationFeedback,
-    ...lesson.vocabulary.strengths,
-    ...lesson.vocabulary.improvements,
-    ...lesson.grammar.strengths,
-    ...lesson.grammar.improvements,
-    ...lesson.fluency.feedback,
+  const feedbackSources = dashboard.sessions.flatMap((session) => [
+    ...session.communicationFeedback,
+    ...session.vocabulary.strengths,
+    ...session.vocabulary.improvements,
+    ...session.grammar.strengths,
+    ...session.grammar.improvements,
+    ...session.fluency.feedback,
   ]);
   feedbackSources.forEach((item) => feedbackById.set(item.id, item));
 
@@ -280,7 +279,6 @@ function buildCoachingPatterns(dashboard: GoalDashboard) {
       kind: 'focus',
       title: 'Your speaking pace trends slower than conversational',
       detail: `Your average is ${pace} WPM. Build a little more momentum while keeping the structure and wording clear.`,
-      meta: `Across ${answerCount} ${answerCount === 1 ? 'answer' : 'answers'}`,
       priority: 130,
     });
   } else if (pace > PACE_RANGE_END) {
@@ -289,7 +287,6 @@ function buildCoachingPatterns(dashboard: GoalDashboard) {
       kind: 'focus',
       title: 'Your speaking pace trends faster than conversational',
       detail: `Your average is ${pace} WPM. Add brief pauses between ideas so the evidence and conclusion have time to land.`,
-      meta: `Across ${answerCount} ${answerCount === 1 ? 'answer' : 'answers'}`,
       priority: 130,
     });
   } else if (pace > 0 && answerCount >= 2) {
@@ -298,7 +295,6 @@ function buildCoachingPatterns(dashboard: GoalDashboard) {
       kind: 'strength',
       title: 'Your speaking pace is clear and conversational',
       detail: `Your ${pace} WPM average stays within the 100–165 WPM clarity reference.`,
-      meta: `Across ${answerCount} answers`,
       priority: 55,
     });
   }
@@ -312,7 +308,6 @@ function buildCoachingPatterns(dashboard: GoalDashboard) {
       kind: 'focus',
       title: `“${topFiller.phrase}” is your most common filler`,
       detail: `${fillerList} ${commonFillers.length === 1 ? 'appears' : 'appear'} most often, for an overall rate of ${dashboard.fluency.fillerRatePer100Words} per 100 words.`,
-      meta: `Across ${answerCount} ${answerCount === 1 ? 'answer' : 'answers'}`,
       priority: 125,
     });
   }
@@ -324,7 +319,6 @@ function buildCoachingPatterns(dashboard: GoalDashboard) {
       kind: 'focus',
       title: 'Several answers begin in the same way',
       detail: `The opening “${repeatedOpening.phrase}” appears ${repeatedOpening.count} times. Vary the opening and lead with the answer you want the interviewer to remember.`,
-      meta: `Across ${answerCount} ${answerCount === 1 ? 'answer' : 'answers'}`,
       priority: 110,
     });
   }
@@ -342,7 +336,6 @@ function buildCoachingPatterns(dashboard: GoalDashboard) {
       kind: group.latest.positive ? 'strength' : 'focus',
       title: feedbackPatternTitle(group.latest),
       detail: feedbackPatternDetail(group.latest, group.supportCount),
-      meta: group.supportCount >= 2 ? `Seen in ${group.supportCount} answers` : 'Early signal',
       priority: (group.latest.positive ? 45 : 80) + group.supportCount,
     }));
   patterns.push(...feedbackPatterns);
@@ -405,8 +398,8 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
     : `Patterns across ${dashboard.completedAnswerCount} answers`;
 
   return (
-    <section className="my-9 space-y-5 rounded-[30px] bg-[#f3f2ef] p-4 md:p-5">
-      <section className="overflow-hidden rounded-3xl border border-[#e4e2dd] bg-white shadow-[0_10px_30px_rgba(19,45,59,0.07)]" aria-labelledby="progress-at-a-glance-title">
+    <section className="my-9 space-y-5 rounded-[30px] bg-[var(--canvas)] p-4 md:p-5">
+      <section className="overflow-hidden rounded-3xl border border-[#d9d0f5] bg-[#f8f6fc] shadow-[0_10px_30px_rgba(19,45,59,0.07)]" aria-labelledby="progress-at-a-glance-title">
         <header className="px-6 pt-6 md:px-7 md:pt-7">
           <h2 id="progress-at-a-glance-title" className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">Your progress at a glance</h2>
           <p className="mt-1 text-base leading-7 text-[var(--muted-ink)]">A combined view of your interview delivery and language feedback</p>
@@ -460,7 +453,7 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
           {coachingPatterns.length > 0 ? (
             <ul className="mt-5 border-t border-[var(--line)]">
               {coachingPatterns.map((pattern) => (
-                <li key={pattern.id} className="grid gap-3 border-b border-[var(--line)] py-5 last:border-b-0 md:grid-cols-[18px_minmax(0,1fr)_auto] md:gap-4">
+                <li key={pattern.id} className="grid gap-3 border-b border-[var(--line)] py-5 last:border-b-0 md:grid-cols-[18px_minmax(0,1fr)] md:gap-4">
                   <span className={cn('mt-2 size-2.5 rounded-full', pattern.kind === 'strength' ? 'bg-[#6842d8]' : 'bg-[#d6a44f]')} aria-hidden="true" />
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -469,15 +462,14 @@ function ProgressRecap({ dashboard }: { dashboard: GoalDashboard }) {
                     </div>
                     <p className="mt-1.5 max-w-4xl text-base leading-7 text-[var(--muted-ink)]">{pattern.detail}</p>
                   </div>
-                  <span className="text-xs font-medium text-[var(--muted-ink)] md:pt-1">{pattern.meta}</span>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="mt-5 border-t border-[var(--line)] pt-5 text-base leading-7 text-[var(--muted-ink)]">
               {dashboard.completedAnswerCount > 0
-                ? 'No recurring pattern is strong enough yet. Complete another lesson and Sayform will keep looking across your feedback.'
-                : 'Complete a lesson to start identifying recurring interview patterns.'}
+                ? 'No recurring pattern is strong enough yet. Complete another session and Sayform will keep looking across your feedback.'
+                : 'Complete a session to start identifying recurring interview patterns.'}
             </p>
           )}
       </section>
@@ -496,7 +488,7 @@ export function GoalsView() {
   const [exercisesLoading, setExercisesLoading] = useState(true);
   const [startingExerciseId, setStartingExerciseId] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [lessonPage, setLessonPage] = useState(1);
+  const [sessionPage, setSessionPage] = useState(1);
 
   useEffect(() => {
     void listGoals()
@@ -510,16 +502,16 @@ export function GoalsView() {
   const recommendedExercises = exercises
     .filter((exercise) => exercise.status !== 'completed' && exercise.nextStep.stage !== 'summary')
     .slice(0, 3);
-  const lessonPageCount = dashboard ? Math.max(1, Math.ceil(dashboard.lessons.length / LESSONS_PER_PAGE)) : 1;
-  const currentLessonPage = Math.min(lessonPage, lessonPageCount);
-  const lessonPageStart = (currentLessonPage - 1) * LESSONS_PER_PAGE;
-  const visibleLessons = dashboard?.lessons.slice(lessonPageStart, lessonPageStart + LESSONS_PER_PAGE) ?? [];
+  const sessionPageCount = dashboard ? Math.max(1, Math.ceil(dashboard.sessions.length / SESSIONS_PER_PAGE)) : 1;
+  const currentSessionPage = Math.min(sessionPage, sessionPageCount);
+  const sessionPageStart = (currentSessionPage - 1) * SESSIONS_PER_PAGE;
+  const visibleSessions = dashboard?.sessions.slice(sessionPageStart, sessionPageStart + SESSIONS_PER_PAGE) ?? [];
 
   useEffect(() => {
     if (!activeGoalId) return;
     let cancelled = false;
     void getGoalDashboard(activeGoalId)
-      .then((result) => { if (!cancelled) { setDashboard(result); setLessonPage(1); } })
+      .then((result) => { if (!cancelled) { setDashboard(result); setSessionPage(1); } })
       .catch((caught) => { if (!cancelled) setError(caught instanceof Error ? caught.message : 'Dashboard insights could not be loaded.'); })
       .finally(() => { if (!cancelled) setDashboardLoading(false); });
     return () => { cancelled = true; };
@@ -592,7 +584,7 @@ export function GoalsView() {
                   <h2 id="active-goal-title" className="font-display text-[34px] font-semibold tracking-[-0.04em] text-white">{activeGoal.title}</h2>
                   {activeGoal.description && <p className="mt-3 text-base leading-7 text-white/80">{activeGoal.description}</p>}
                   <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/80">
-                    <span><strong className="mr-1 font-display text-xl font-semibold text-white">{dashboard?.sessionCount ?? activeGoal.sessions}</strong> lessons</span>
+                    <span><strong className="mr-1 font-display text-xl font-semibold text-white">{dashboard?.sessionCount ?? activeGoal.sessions}</strong> sessions</span>
                     <span><strong className="mr-1 font-display text-xl font-semibold text-white">{dashboard ? minutesLabel(dashboard.totalSpeakingSeconds).replace(' minutes', '') : '—'}</strong> minutes</span>
                     <span>{formatLastPractised(dashboard?.lastPractised ?? activeGoal.lastPractised)}</span>
                   </div>
@@ -608,55 +600,55 @@ export function GoalsView() {
             ) : (
               <>
                 <ProgressRecap dashboard={dashboard} />
-                <section className="border-t border-[var(--line)] py-9" aria-labelledby="lessons-title">
+                <section className="border-t border-[var(--line)] py-9" aria-labelledby="sessions-title">
                   <div className="flex flex-col items-start justify-between gap-5 md:flex-row md:items-end md:gap-8">
                     <div>
-                      <h2 id="lessons-title" className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">{dashboard.lessons.length} {dashboard.lessons.length === 1 ? 'lesson' : 'lessons'} practised</h2>
+                      <h2 id="sessions-title" className="font-display text-2xl font-semibold tracking-[-0.025em] text-[var(--navy)]">{dashboard.sessions.length} {dashboard.sessions.length === 1 ? 'session' : 'sessions'} practised</h2>
                     </div>
-                    <Button onClick={() => startPractice(activeGoal)} variant="outline" className="h-10 rounded-xl border-[var(--line)] bg-white">Start another lesson <ArrowRight className="ml-1 size-4" /></Button>
+                    <Button onClick={() => startPractice(activeGoal)} variant="outline" className="h-10 rounded-xl border-[var(--line)] bg-white">Start another session <ArrowRight className="ml-1 size-4" /></Button>
                   </div>
 
-                  {dashboard.lessons.length ? (
+                  {dashboard.sessions.length ? (
                     <div className="mt-6">
                       <p className="flex items-center gap-2 text-xs font-semibold text-[var(--muted-ink)]"><Clock3 className="size-3.5 text-[#6842d8]" />Newest to oldest</p>
                       <ol className="relative mt-3 space-y-3 before:absolute before:bottom-5 before:left-[17px] before:top-5 before:w-px before:bg-[var(--line)]">
-                        {visibleLessons.map((lesson, index) => {
-                          const lessonNumber = dashboard.lessons.length - (lessonPageStart + index);
-                          const date = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(lesson.completedAt));
+                        {visibleSessions.map((session, index) => {
+                          const sessionNumber = dashboard.sessions.length - (sessionPageStart + index);
+                          const date = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(session.completedAt));
                           return (
-                            <li key={lesson.id} className="relative pl-12">
-                              <span className="absolute left-0 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-[#d9d0f5] bg-[#f0ecff] text-xs font-semibold text-[#6842d8]" aria-hidden="true">{lessonNumber}</span>
+                            <li key={session.id} className="relative pl-12">
+                              <span className="absolute left-0 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-[#d9d0f5] bg-[#f0ecff] text-xs font-semibold text-[#6842d8]" aria-hidden="true">{sessionNumber}</span>
                               <article className="grid items-center gap-3 rounded-xl border border-[var(--line)] bg-white px-4 py-3.5 shadow-[var(--shadow-sm)] md:grid-cols-[110px_minmax(0,1fr)_auto] md:gap-5 md:px-5">
                                 <div>
-                                  <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Lesson {lessonNumber}</p>
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Session {sessionNumber}</p>
                                   <p className="mt-1 text-xs text-[var(--muted-ink)]">{date}</p>
                                 </div>
                                 <div className="min-w-0">
-                                  <h3 className="font-display text-base font-semibold leading-6 text-[var(--navy)]">{lesson.title}</h3>
-                                  <p className="mt-1 text-xs text-[var(--muted-ink)]">{lesson.answerCount} {lesson.answerCount === 1 ? 'answer' : 'answers'} · {minutesLabel(lesson.speakingSeconds)} · {lesson.fluency.averageWpm > 0 ? `${lesson.fluency.averageWpm} WPM` : 'Speed unavailable'}</p>
+                                  <h3 className="font-display text-base font-semibold leading-6 text-[var(--navy)]">{session.title}</h3>
+                                  <p className="mt-1 text-xs text-[var(--muted-ink)]">{session.answerCount} {session.answerCount === 1 ? 'answer' : 'answers'} · {minutesLabel(session.speakingSeconds)} · {session.fluency.averageWpm > 0 ? `${session.fluency.averageWpm} WPM` : 'Speed unavailable'}</p>
                                 </div>
-                                <Button nativeButton={false} render={<Link href={`/goals/${dashboard.goalId}/lessons/${lesson.id}`} />} variant="outline" className="h-9 justify-self-start rounded-lg border-[var(--line)] bg-white px-3 text-xs text-[var(--navy)] hover:bg-[#f0ecff] md:justify-self-end">View insights <ArrowRight className="ml-1 size-3.5" /></Button>
+                                <Button nativeButton={false} render={<Link href={`/goals/${dashboard.goalId}/sessions/${session.id}`} />} variant="outline" className="h-9 justify-self-start rounded-lg border border-[var(--line)] bg-white px-3 text-xs text-[var(--navy)] hover:bg-[#f0ecff] md:justify-self-end">View insights <ArrowRight className="ml-1 size-3.5" /></Button>
                               </article>
                             </li>
                           );
                         })}
                       </ol>
-                      {lessonPageCount > 1 && (
-                        <nav className="mt-5 flex flex-col gap-3 border-t border-[var(--line)] pt-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Lesson pages">
-                          <p className="text-xs text-[var(--muted-ink)]">Showing {lessonPageStart + 1}–{Math.min(lessonPageStart + LESSONS_PER_PAGE, dashboard.lessons.length)} of {dashboard.lessons.length} lessons</p>
+                      {sessionPageCount > 1 && (
+                        <nav className="mt-5 flex flex-col gap-3 border-t border-[var(--line)] pt-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Session pages">
+                          <p className="text-xs text-[var(--muted-ink)]">Showing {sessionPageStart + 1}–{Math.min(sessionPageStart + SESSIONS_PER_PAGE, dashboard.sessions.length)} of {dashboard.sessions.length} sessions</p>
                           <div className="flex items-center gap-2">
-                            <Button type="button" size="sm" variant="outline" disabled={currentLessonPage === 1} onClick={() => setLessonPage((page) => Math.max(1, page - 1))} className="h-9 rounded-lg border-[var(--line)] bg-white px-3 text-xs">Previous</Button>
-                            {Array.from({ length: lessonPageCount }, (_, index) => {
+                            <Button type="button" size="sm" variant="outline" disabled={currentSessionPage === 1} onClick={() => setSessionPage((page) => Math.max(1, page - 1))} className="h-9 rounded-lg border-[var(--line)] bg-white px-3 text-xs">Previous</Button>
+                            {Array.from({ length: sessionPageCount }, (_, index) => {
                               const page = index + 1;
-                              return <button key={page} type="button" onClick={() => setLessonPage(page)} aria-current={currentLessonPage === page ? 'page' : undefined} aria-label={`Lesson page ${page}`} className={cn('grid size-9 place-items-center rounded-lg border text-xs font-semibold transition-colors', currentLessonPage === page ? 'border-[var(--navy)] bg-[var(--navy)] text-white' : 'border-[var(--line)] bg-white text-[var(--navy)] hover:bg-[#f0ecff]')}>{page}</button>;
+                              return <button key={page} type="button" onClick={() => setSessionPage(page)} aria-current={currentSessionPage === page ? 'page' : undefined} aria-label={`Session page ${page}`} className={cn('grid size-9 place-items-center rounded-lg border text-xs font-semibold transition-colors', currentSessionPage === page ? 'border-[var(--navy)] bg-[var(--navy)] text-white' : 'border-[var(--line)] bg-white text-[var(--navy)] hover:bg-[#f0ecff]')}>{page}</button>;
                             })}
-                            <Button type="button" size="sm" variant="outline" disabled={currentLessonPage === lessonPageCount} onClick={() => setLessonPage((page) => Math.min(lessonPageCount, page + 1))} className="h-9 rounded-lg border-[var(--line)] bg-white px-3 text-xs">Next</Button>
+                            <Button type="button" size="sm" variant="outline" disabled={currentSessionPage === sessionPageCount} onClick={() => setSessionPage((page) => Math.min(sessionPageCount, page + 1))} className="h-9 rounded-lg border-[var(--line)] bg-white px-3 text-xs">Next</Button>
                           </div>
                         </nav>
                       )}
                     </div>
                   ) : (
-                    <div className="mt-6 grid min-h-64 place-items-center rounded-2xl border border-dashed border-[#d9d0f5] bg-white px-8 text-center"><div className="max-w-md"><MessageSquareText className="mx-auto size-8 text-[#6842d8]" /><h3 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Your lesson insights will appear here</h3><p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">Complete a practice session to create your first lesson-level interview analysis.</p><Button onClick={() => startPractice(activeGoal)} className="mt-5 rounded-xl bg-[var(--navy)]">Practise this goal <ArrowRight className="ml-1 size-4" /></Button></div></div>
+                    <div className="mt-6 grid min-h-64 place-items-center rounded-2xl border border-dashed border-[#d9d0f5] bg-white px-8 text-center"><div className="max-w-md"><MessageSquareText className="mx-auto size-8 text-[#6842d8]" /><h3 className="mt-4 font-display text-xl font-semibold text-[var(--navy)]">Your session insights will appear here</h3><p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">Complete a practice session to create your first session-level interview analysis.</p><Button onClick={() => startPractice(activeGoal)} className="mt-5 rounded-xl bg-[var(--navy)]">Practise this goal <ArrowRight className="ml-1 size-4" /></Button></div></div>
                   )}
                 </section>
               </>
@@ -683,7 +675,7 @@ export function GoalsView() {
                   ))}
                 </ol>
               ) : (
-                <p className="mt-4 text-base leading-7 text-[var(--muted-ink)]">Complete a lesson and your next recommended exercise will appear here.</p>
+                <p className="mt-4 text-base leading-7 text-[var(--muted-ink)]">Complete a session and your next recommended exercise will appear here.</p>
               )}
             </section>
           </>
