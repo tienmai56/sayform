@@ -12,17 +12,14 @@ import {
   Play,
   RotateCcw,
   Sparkles,
-  ThumbsDown,
-  ThumbsUp,
   VideoOff,
 } from 'lucide-react';
 import { AppShell, Breadcrumbs, Screen } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { getPracticeQuestions } from '@/lib/goal-catalog';
 import { cn } from '@/lib/utils';
 import { usePractice } from '@/components/practice-context';
-import { getResponseAnalysisProgress, rateFeedback } from '@/lib/client-data';
+import { getResponseAnalysisProgress } from '@/lib/client-data';
 import { ExerciseAttemptFeedback } from '@/components/exercise-attempt-feedback';
 import { FeedbackCoachingContent } from '@/components/feedback-coaching-content';
 import { FeedbackProgressSteps } from '@/components/feedback-progress-steps';
@@ -77,7 +74,7 @@ const interviewCheckDefinitions: Array<{
 function InterviewAnswerCheck({ feedback }: { feedback: FeedbackItem[] }) {
   return (
     <div aria-labelledby="interview-answer-check-title">
-      <h3 id="interview-answer-check-title" className="font-display text-xl font-semibold tracking-[-0.025em] text-[#4f23c8]">
+      <h3 id="interview-answer-check-title" className="font-display text-xl font-semibold tracking-[-0.025em] text-[var(--navy)]">
         Your answer at a glance
       </h3>
       <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-3">
@@ -143,7 +140,6 @@ function StandardFeedbackWorkspace() {
     clearRecording,
     completeResponse,
     currentAnalysis,
-    feedbackIds,
     goalSkills,
     goalTemplateKey,
     goalTitle,
@@ -157,15 +153,19 @@ function StandardFeedbackWorkspace() {
   } = usePractice();
   const [fullScreen, setFullScreen] = useState(false);
   const [recordingOpen, setRecordingOpen] = useState(false);
-  const [coachingRating, setCoachingRating] = useState<'helpful' | 'unhelpful' | null>(null);
-  const [coachingNoteOpen, setCoachingNoteOpen] = useState(false);
-  const [note, setNote] = useState('');
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [analysisPreview, setAnalysisPreview] = useState<ResponseAnalysisProgress | null>(null);
   const feedback = useMemo(() => currentAnalysis?.feedback ?? [], [currentAnalysis]);
   const isInterview = goalTemplateKey === 'clarity';
+  const isInterviewPrimary = isInterview && interviewQuestionType === 'primary';
   const interviewFollowUp = currentAnalysis?.followUpQuestion?.trim() ?? '';
-  const requiredFollowUpReady = isInterview && interviewQuestionType === 'primary' && Boolean(interviewFollowUp);
+  const isPreparedInterviewFollowUp = isInterview
+    && interviewQuestionType === 'follow-up'
+    && Boolean(interviewPrimaryResponse)
+    && activeResponseId === interviewPrimaryResponse?.responseId
+    && interviewFollowUp === prompt.trim();
+  const followUpPreparationFailed = analysisStatus === 'failed'
+    || (isInterviewPrimary && analysisStatus === 'completed' && Boolean(currentAnalysis) && !interviewFollowUp);
   const isCompletedInterviewSequence = isInterview && interviewQuestionType === 'follow-up' && Boolean(interviewPrimaryResponse);
   const displayAnalysis = useMemo(
     () => currentAnalysis && isCompletedInterviewSequence && interviewPrimaryResponse
@@ -234,34 +234,10 @@ function StandardFeedbackWorkspace() {
     };
   }, [activeExercise, activeResponseId, analysisStatus, completeResponse, currentAnalysis, setAnalysisProgress]);
 
-  function rateCoachingHelpful() {
-    setCoachingRating('helpful');
-    setCoachingNoteOpen(false);
-    setNote('');
-    void Promise.all(
-      activeFeedback.map((item) => rateFeedback(feedbackIds[item.id], { rating: 'helpful' })),
-    );
-  }
-
-  function openCoachingUnhelpful() {
-    setCoachingNoteOpen(true);
-    setNote('');
-  }
-
-  function submitCoachingUnhelpful() {
-    setCoachingRating('unhelpful');
-    setCoachingNoteOpen(false);
-    void Promise.all(
-      activeFeedback.map((item) => rateFeedback(feedbackIds[item.id], { rating: 'unhelpful', note })),
-    );
-  }
-
-  function answerFollowUp() {
-    if (!requiredFollowUpReady) return;
-    clearRecording();
-    updateSetup({ answerNotes: '', customTopic: '', redoFeedback: [], prompt: interviewFollowUp, interviewQuestionType: 'follow-up' });
-    router.push('/practice/session');
-  }
+  useEffect(() => {
+    if (!isPreparedInterviewFollowUp) return;
+    router.replace('/practice/session');
+  }, [isPreparedInterviewFollowUp, router]);
 
   function nextQuestion() {
     clearRecording();
@@ -293,25 +269,27 @@ function StandardFeedbackWorkspace() {
     router.push('/history');
   }
 
-  if (requiredFollowUpReady) {
+  if (isInterviewPrimary || isPreparedInterviewFollowUp) {
     return (
       <AppShell>
         <Screen>
           <Breadcrumbs items={[{ label: 'Home', href: '/goals' }, { label: 'Unscripted follow-up' }]} />
-          <div className="mx-auto max-w-3xl py-8">
-            <div className="text-center">
-              <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Sparkles className="size-5" /></span>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Main answer complete</p>
-              <h1 className="mt-2 font-display text-3xl font-semibold tracking-[-0.035em] text-[var(--navy)]">One unscripted follow-up</h1>
-              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[var(--muted-ink)]">A real interviewer would naturally probe one point from your answer before giving feedback.</p>
-            </div>
-
-            <section className="mt-8 rounded-3xl border border-[#d7ccef] bg-white p-8 shadow-[var(--shadow-sm)]" aria-labelledby="required-follow-up-question">
-              <p className="text-xs font-semibold uppercase tracking-[0.11em] text-[var(--teal-dark)]">Your interviewer asks</p>
-              <h2 id="required-follow-up-question" className="mt-3 font-display text-2xl font-semibold leading-9 tracking-[-0.025em] text-[var(--navy)]">{interviewFollowUp}</h2>
-              <p className="mt-4 text-sm leading-6 text-[var(--muted-ink)]">Answer naturally without scripting. Your personalized feedback will evaluate this response together with your main answer.</p>
-              <Button onClick={answerFollowUp} className="mt-7 h-11 rounded-xl bg-[var(--navy)] px-5 hover:bg-[#4c1d95]">Answer follow-up <ArrowRight className="ml-1 size-4" /></Button>
-            </section>
+          <div className="mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center py-8">
+            {followUpPreparationFailed ? (
+              <section className="w-full rounded-3xl border border-[#e8c6bf] bg-[var(--rose-soft)] p-8 text-center" aria-labelledby="follow-up-error-title">
+                <AlertCircle className="mx-auto size-7 text-[#914435]" />
+                <h1 id="follow-up-error-title" className="mt-4 font-display text-2xl font-semibold tracking-[-0.03em] text-[var(--navy)]">Your follow-up could not be prepared</h1>
+                <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[#765149]">{analysisError ?? 'Please record your main answer again.'}</p>
+                <Button onClick={redoQuestion} className="mt-6 rounded-xl bg-[var(--navy)]">Try the main question again</Button>
+              </section>
+            ) : (
+              <section className="w-full rounded-3xl border border-[#d7ccef] bg-[#faf8ff] p-8 text-center shadow-[var(--shadow-sm)]" aria-labelledby="follow-up-preparing-title">
+                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Sparkles className="size-5 animate-pulse" /></span>
+                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Main answer complete</p>
+                <h1 id="follow-up-preparing-title" className="mt-2 font-display text-3xl font-semibold tracking-[-0.035em] text-[var(--navy)]">Preparing your unscripted follow-up</h1>
+                <p className="mx-auto mt-3 max-w-lg text-base leading-7 text-[var(--muted-ink)]">Your follow-up will open automatically. Coaching stays hidden until you finish answering it.</p>
+              </section>
+            )}
           </div>
         </Screen>
       </AppShell>
@@ -451,16 +429,9 @@ function StandardFeedbackWorkspace() {
               </div>
             </div>
           )}
-          <section aria-labelledby="coaching-feedback-title">
-            <h2
-              id="coaching-feedback-title"
-              className="font-display text-2xl font-semibold tracking-[-0.03em] text-[#4f23c8]"
-            >
-              Coaching feedback
-            </h2>
-
+          <section aria-label="Personalized feedback details">
             {!activeExercise && isInterview && (
-              <div className="mt-4">
+              <div>
                 <InterviewAnswerCheck feedback={activeFeedback} />
               </div>
             )}
@@ -476,8 +447,8 @@ function StandardFeedbackWorkspace() {
               </div>
             )}
 
-            <h3 className="mt-6 font-display text-xl font-semibold tracking-[-0.025em] text-[#4f23c8]">
-              Detailed coaching
+            <h3 className="mt-6 font-display text-xl font-semibold tracking-[-0.025em] text-[var(--navy)]">
+              Detailed feedback
             </h3>
             <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
               {orderedFeedback.map((item) => (
@@ -490,54 +461,6 @@ function StandardFeedbackWorkspace() {
               ))}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl bg-[#f8f6fc] px-5 py-3.5">
-              <span className="mr-auto text-xs font-medium text-[var(--ink)]">Was this coaching useful?</span>
-              <button
-                type="button"
-                aria-pressed={coachingRating === 'helpful'}
-                onClick={rateCoachingHelpful}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-                  coachingRating === 'helpful'
-                    ? 'bg-[#dff4e7] text-[#17613a]'
-                    : 'text-[var(--muted-ink)] hover:bg-white hover:text-[var(--ink)]',
-                )}
-              >
-                <ThumbsUp className="size-3.5" /> Helpful
-              </button>
-              <button
-                type="button"
-                aria-pressed={coachingRating === 'unhelpful'}
-                onClick={openCoachingUnhelpful}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors',
-                  coachingRating === 'unhelpful'
-                    ? 'bg-[var(--rose-soft)] text-[#914435]'
-                    : 'text-[var(--muted-ink)] hover:bg-white hover:text-[#914435]',
-                )}
-              >
-                <ThumbsDown className="size-3.5" /> Unhelpful
-              </button>
-            </div>
-
-            {coachingNoteOpen && (
-              <div className="mt-3 rounded-2xl bg-[#fff8f6] p-4">
-                <label htmlFor="coaching-note" className="text-xs font-medium text-[var(--ink)]">
-                  What missed the mark? <span className="font-normal text-[var(--muted-ink)]">Optional</span>
-                </label>
-                <Textarea
-                  id="coaching-note"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  placeholder="Add a short note for future coaching"
-                  className="mt-2 min-h-20 border-[#ead8d3] bg-white text-xs"
-                />
-                <div className="mt-3 flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={() => setCoachingNoteOpen(false)}>Cancel</Button>
-                  <Button size="sm" variant="destructive" onClick={submitCoachingUnhelpful}>Send feedback</Button>
-                </div>
-              </div>
-            )}
           </section>
 
           <section className="mt-7 rounded-2xl bg-[#f8f6fc] p-5" aria-labelledby="response-metrics-title">

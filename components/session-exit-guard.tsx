@@ -35,7 +35,9 @@ export function SessionExitGuard() {
   const [destination, setDestination] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requiresSignIn, setRequiresSignIn] = useState(false);
   const pageExitHandled = useRef(false);
+  const authRedirecting = useRef(false);
   const previousPath = useRef(pathname);
 
   const hasSavableSession = Boolean(
@@ -84,6 +86,7 @@ export function SessionExitGuard() {
     const requestedDestination = `${pathname}${window.location.search}${window.location.hash}`;
     setDestination(requestedDestination);
     setError(null);
+    setRequiresSignIn(false);
     setOpen(true);
     router.replace(previous);
   }, [hasSavableSession, pathname, router]);
@@ -114,6 +117,7 @@ export function SessionExitGuard() {
       event.stopPropagation();
       setDestination(`${url.pathname}${url.search}${url.hash}`);
       setError(null);
+      setRequiresSignIn(false);
       setOpen(true);
     }
 
@@ -125,10 +129,12 @@ export function SessionExitGuard() {
     if (!shouldGuard) return;
 
     function warnBeforeUnload(event: BeforeUnloadEvent) {
+      if (authRedirecting.current) return;
       event.preventDefault();
     }
 
     function finishOnPageExit() {
+      if (authRedirecting.current) return;
       if (pageExitHandled.current) return;
       pageExitHandled.current = true;
       const input = finishInput();
@@ -179,10 +185,22 @@ export function SessionExitGuard() {
       setDestination(null);
       router.push(nextDestination);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The session could not be saved. Please try again.');
+      const message = caught instanceof Error ? caught.message : 'The session could not be saved. Please try again.';
+      if (message === 'Sign in to continue.') {
+        setRequiresSignIn(true);
+        setError('Your sign-in expired. Sign in again to save and end this session.');
+      } else {
+        setError(message);
+      }
     } finally {
       setSaving(false);
     }
+  }
+
+  function signInAgain() {
+    authRedirecting.current = true;
+    const returnTo = `${pathname}${window.location.search}${window.location.hash}`;
+    window.location.assign(`/signin?next=${encodeURIComponent(returnTo)}`);
   }
 
   return (
@@ -194,6 +212,7 @@ export function SessionExitGuard() {
         if (!nextOpen) {
           setDestination(null);
           setError(null);
+          setRequiresSignIn(false);
         }
       }}
     >
@@ -210,8 +229,8 @@ export function SessionExitGuard() {
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={saving}>Keep practising</AlertDialogCancel>
-          <Button onClick={() => void endSessionAndLeave()} disabled={saving}>
-            {saving ? 'Saving session…' : 'End session and leave'}
+          <Button onClick={requiresSignIn ? signInAgain : () => void endSessionAndLeave()} disabled={saving}>
+            {requiresSignIn ? 'Sign in again' : saving ? 'Saving session…' : 'End session and leave'}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

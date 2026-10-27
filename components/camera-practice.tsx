@@ -403,9 +403,9 @@ export function CameraPractice() {
 
   return (
     <div className="min-h-screen bg-white text-[var(--ink)]">
-      <div className="grid h-screen grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
+      <div className={cn('grid h-screen', isInterviewFollowUp ? 'grid-cols-1' : 'grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]')}>
         <section className="relative flex min-h-0 items-start justify-center overflow-hidden bg-white px-8 pb-20 pt-7">
-          <div className="w-full max-w-[1120px]">
+          <div className={cn('w-full', isInterviewFollowUp ? 'flex h-full max-w-none flex-col' : 'max-w-[1120px]')}>
             {activeExercise ? (
               <section className="mb-4 border-b border-[var(--line)] pb-4" aria-labelledby="exercise-prompt-title">
                 <p id="exercise-prompt-title" className="text-sm font-semibold uppercase tracking-[0.09em] text-[var(--teal-dark)]">Exercise prompt</p>
@@ -466,7 +466,10 @@ export function CameraPractice() {
               </section>
             )}
 
-            <div className="relative h-[calc(100vh-230px)] min-h-[420px] max-h-[700px] w-full overflow-hidden rounded-[20px] bg-[#f7f4fc] ring-1 ring-[var(--line)]">
+            <div className={cn(
+              'relative w-full overflow-hidden rounded-[20px] bg-[#f7f4fc] ring-1 ring-[var(--line)]',
+              isInterviewFollowUp ? 'min-h-0 flex-1' : 'h-[calc(100vh-230px)] min-h-[420px] max-h-[700px]',
+            )}>
             {!activeExercise && <video ref={videoRef} muted playsInline className="h-full w-full object-cover [transform:scaleX(-1)]" />}
 
             {(status === 'permission' || status === 'requesting' || status === 'error' || demoMode) && (
@@ -528,8 +531,8 @@ export function CameraPractice() {
                 <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]">
                   <Sparkles className="size-6 animate-pulse" />
                 </div>
-                <h2 className="mt-5 font-display text-2xl font-semibold">Preparing your feedback</h2>
-                <p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">Reviewing your transcript, speaking pace, vocabulary, structure, and reasoning.</p>
+                <h2 className="mt-5 font-display text-2xl font-semibold">{isInterviewFollowUp ? 'Preparing your combined feedback' : goalTemplateKey === 'clarity' ? 'Preparing your follow-up' : 'Preparing your feedback'}</h2>
+                <p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">{isInterviewFollowUp ? 'Evaluating your main answer and unscripted follow-up together.' : goalTemplateKey === 'clarity' ? 'Choosing one natural question to probe your answer further.' : 'Reviewing your transcript, speaking pace, vocabulary, structure, and reasoning.'}</p>
                 <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[var(--line)]"><div className="h-full w-3/4 animate-pulse rounded-full bg-[var(--teal)]" /></div>
               </div>
             </div>
@@ -553,7 +556,7 @@ export function CameraPractice() {
           </div>
         </section>
 
-        <aside className="flex min-h-0 flex-col border-l border-[var(--line)] bg-white p-7">
+        {!isInterviewFollowUp && <aside className="flex min-h-0 flex-col border-l border-[var(--line)] bg-white p-7">
           {activeExercise && (
             <>
               <div>
@@ -673,7 +676,7 @@ export function CameraPractice() {
               </Link>
             )}
           </div>
-        </aside>
+        </aside>}
       </div>
     </div>
   );

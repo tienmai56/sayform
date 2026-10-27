@@ -187,20 +187,30 @@ export function PracticeProvider({ children }: { children: React.ReactNode }) {
         }));
       },
       completeResponse(responseId, feedbackIds, analysis) {
-        setState((current) => ({
-          ...current,
-          activeResponseId: responseId,
-          answerCount: current.activeResponseId === responseId && current.analysisStatus === 'completed'
-            ? current.answerCount
-            : current.answerCount + 1,
-          feedbackIds,
-          currentAnalysis: analysis,
-          analysisStatus: 'completed',
-          analysisError: null,
-          interviewPrimaryResponse: current.goalTemplateKey === 'clarity' && current.interviewQuestionType === 'primary'
-            ? { responseId, prompt: current.prompt, analysis }
-            : current.interviewPrimaryResponse,
-        }));
+        setState((current) => {
+          const interviewFollowUp = current.goalTemplateKey === 'clarity' && current.interviewQuestionType === 'primary'
+            ? analysis.followUpQuestion?.trim() ?? ''
+            : '';
+          return {
+            ...current,
+            activeResponseId: responseId,
+            answerCount: current.activeResponseId === responseId && current.analysisStatus === 'completed'
+              ? current.answerCount
+              : current.answerCount + 1,
+            feedbackIds,
+            currentAnalysis: analysis,
+            analysisStatus: 'completed',
+            analysisError: null,
+            answerNotes: interviewFollowUp ? '' : current.answerNotes,
+            customTopic: interviewFollowUp ? '' : current.customTopic,
+            redoFeedback: interviewFollowUp ? [] : current.redoFeedback,
+            prompt: interviewFollowUp || current.prompt,
+            interviewQuestionType: interviewFollowUp ? 'follow-up' : current.interviewQuestionType,
+            interviewPrimaryResponse: interviewFollowUp
+              ? { responseId, prompt: current.prompt, analysis }
+              : current.interviewPrimaryResponse,
+          };
+        });
       },
       setAnalysisProgress(status, error = null) {
         setState((current) => ({ ...current, analysisStatus: status, analysisError: error }));
