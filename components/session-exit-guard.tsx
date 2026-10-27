@@ -186,9 +186,9 @@ export function SessionExitGuard() {
       router.push(nextDestination);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'The session could not be saved. Please try again.';
-      if (message === 'Sign in to continue.') {
+      if (/sign in|unauthor/i.test(message)) {
         setRequiresSignIn(true);
-        setError('Your sign-in expired. Sign in again to save and end this session.');
+        setError('Your sign-in expired. Sign in again to save this session, or leave without saving.');
       } else {
         setError(message);
       }
@@ -201,6 +201,17 @@ export function SessionExitGuard() {
     authRedirecting.current = true;
     const returnTo = `${pathname}${window.location.search}${window.location.hash}`;
     window.location.assign(`/signin?next=${encodeURIComponent(returnTo)}`);
+  }
+
+  function leaveWithoutSaving() {
+    if (!destination) return;
+    const nextDestination = destination;
+    practice.resetSession();
+    setOpen(false);
+    setDestination(null);
+    setError(null);
+    setRequiresSignIn(false);
+    router.push(nextDestination);
   }
 
   return (
@@ -229,6 +240,11 @@ export function SessionExitGuard() {
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={saving}>Keep practising</AlertDialogCancel>
+          {requiresSignIn && (
+            <Button variant="outline" onClick={leaveWithoutSaving} disabled={saving}>
+              Leave without saving
+            </Button>
+          )}
           <Button onClick={requiresSignIn ? signInAgain : () => void endSessionAndLeave()} disabled={saving}>
             {requiresSignIn ? 'Sign in again' : saving ? 'Saving session…' : 'End session and leave'}
           </Button>

@@ -93,21 +93,25 @@ export function ExercisesView() {
             <div className="max-w-md"><span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Dumbbell className="size-5" /></span><h2 className="mt-5 font-display text-xl font-semibold text-[var(--navy)]">No exercises for {activeGoal.title.toLocaleLowerCase()} yet</h2><p className="mt-2 text-base leading-7 text-[var(--muted-ink)]">Complete a practice session first. Sayform will create an evidence-linked exercise from your feedback.</p><Button nativeButton={false} render={<Link href="/goals" />} className="mt-5 rounded-xl bg-[var(--navy)]">Go to Home <ArrowRight className="ml-1 size-4" /></Button></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
             {exercises.map((exercise) => {
               const status = exerciseStatusCopy[exercise.status];
               const date = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(exercise.createdAt));
               return (
-                <article key={exercise.id} className="flex min-h-[260px] flex-col rounded-2xl border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)]">
-                  <div className="flex items-start justify-between gap-4"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Dumbbell className="size-[18px]" /></span><span className={cn('rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.07em]', status.className)}>{status.label}</span></div>
-                  <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#6842d8]">Skill · {exercise.targetSkill}</p>
-                  <h2 className="mt-1 font-display text-lg font-semibold leading-6 text-[var(--navy)]">{exercise.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">{exercise.targetBehavior}</p>
-                  <div className="mt-auto pt-4">
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-[var(--line)] pt-3 text-xs text-[var(--muted-ink)]">
-                      <span><Clock3 className="mr-1 inline size-3.5" />{exercise.estimatedMinutes} min</span>
-                      <span>{date}</span>
-                      <Button size="sm" disabled={Boolean(startingId)} onClick={() => void startSavedExercise(exercise)} className="ml-auto rounded-xl bg-[var(--navy)] hover:bg-[#4c1d95]">{startingId === exercise.id ? 'Opening…' : exercise.attemptCount ? 'Continue exercise' : 'Start exercise'} <ArrowRight className="ml-1 size-3.5" /></Button>
+                <article key={exercise.id} className="group relative min-h-[190px] overflow-hidden rounded-[20px] border border-[#d9d0f5] bg-[linear-gradient(135deg,#ffffff_0%,#faf8ff_48%,#f0ecff_100%)] p-4 shadow-[0_8px_24px_rgba(104,66,216,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#bdaef0] hover:shadow-[0_14px_32px_rgba(104,66,216,0.12)]">
+                  <span aria-hidden="true" className="absolute -right-8 -top-9 size-24 rounded-full bg-[#d9d0f5]/65 blur-2xl transition-transform duration-300 group-hover:scale-110" />
+                  <span aria-hidden="true" className="absolute -bottom-10 left-14 size-20 rounded-full bg-white/80 blur-2xl" />
+                  <div className="relative flex h-full flex-col">
+                    <div className="flex items-start justify-between gap-2.5"><span className="grid size-8 shrink-0 place-items-center rounded-xl border border-white/80 bg-white/85 text-[#6842d8] shadow-sm"><Dumbbell className="size-3.5" /></span><span className={cn('rounded-full border border-white/80 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] shadow-sm', status.className)}>{status.label}</span></div>
+                    <p className="mt-2.5 text-[9px] font-semibold uppercase tracking-[0.09em] text-[#6842d8]">Skill · {exercise.targetSkill}</p>
+                    <h2 className="mt-0.5 font-display text-base font-semibold leading-5 text-[var(--navy)]">{exercise.title}</h2>
+                    <p className="mt-1 text-xs leading-[1.15rem] text-[var(--muted-ink)]">{exercise.targetBehavior}</p>
+                    <div className="mt-auto pt-2.5">
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-t border-[#d9d0f5] pt-2 text-[10px] text-[var(--muted-ink)]">
+                        <span><Clock3 className="mr-1 inline size-3.5" />{exercise.estimatedMinutes} min</span>
+                        <span>{date}</span>
+                        <Button size="sm" disabled={Boolean(startingId)} onClick={() => void startSavedExercise(exercise)} className="ml-auto h-7 rounded-lg bg-[var(--navy)] px-2.5 text-[11px] shadow-sm hover:bg-[#4c1d95]">{startingId === exercise.id ? 'Opening…' : exercise.attemptCount ? 'Continue exercise' : 'Start exercise'} <ArrowRight className="ml-1 size-3" /></Button>
+                      </div>
                     </div>
                   </div>
                 </article>

@@ -26,7 +26,9 @@ export function Brand({ inverted = false }: { inverted?: boolean }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const useWhiteCanvas = pathname.startsWith('/goals');
+  const useWhiteCanvas = pathname.startsWith('/goals')
+    || pathname.startsWith('/exercises')
+    || pathname.startsWith('/history');
   const { configured, user, signOut } = useAuth();
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Tien';
   const initials = String(displayName).split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();

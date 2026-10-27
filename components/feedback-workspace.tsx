@@ -283,11 +283,35 @@ function StandardFeedbackWorkspace() {
                 <Button onClick={redoQuestion} className="mt-6 rounded-xl bg-[var(--navy)]">Try the main question again</Button>
               </section>
             ) : (
-              <section className="w-full rounded-3xl border border-[#d7ccef] bg-[#faf8ff] p-8 text-center shadow-[var(--shadow-sm)]" aria-labelledby="follow-up-preparing-title">
-                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-[var(--mint-soft)] text-[var(--teal-dark)]"><Sparkles className="size-5 animate-pulse" /></span>
-                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Main answer complete</p>
-                <h1 id="follow-up-preparing-title" className="mt-2 font-display text-3xl font-semibold tracking-[-0.035em] text-[var(--navy)]">Preparing your unscripted follow-up</h1>
-                <p className="mx-auto mt-3 max-w-lg text-base leading-7 text-[var(--muted-ink)]">Your follow-up will open automatically. Coaching stays hidden until you finish answering it.</p>
+              <section className="relative w-full overflow-hidden rounded-3xl border border-[#d7ccef] bg-[linear-gradient(145deg,#ffffff_0%,#faf8ff_50%,#f1ecff_100%)] p-8 text-center shadow-[0_18px_50px_rgba(76,29,149,0.09)] motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500" aria-labelledby="follow-up-preparing-title" aria-live="polite">
+                <span aria-hidden="true" className="absolute -right-14 -top-16 size-44 rounded-full bg-[#ddd3ff]/60 blur-3xl motion-safe:animate-pulse" />
+                <span aria-hidden="true" className="absolute -bottom-20 -left-8 size-40 rounded-full bg-white blur-3xl" />
+                <div className="relative">
+                  <div className="relative mx-auto size-20" aria-hidden="true">
+                    <span className="absolute inset-0 rounded-full border border-[#ddd3f5] bg-white/80 shadow-[0_10px_30px_rgba(104,66,216,0.12)]" />
+                    <span className="absolute inset-0 rounded-full border-2 border-transparent border-r-[#b9a7ed] border-t-[#6842d8] motion-safe:animate-[spin_2.2s_linear_infinite]" />
+                    <span className="absolute inset-[10px] grid place-items-center rounded-2xl bg-[#eee9ff] text-[#6842d8]">
+                      <Sparkles className="size-6 motion-safe:animate-pulse" />
+                    </span>
+                    <span className="absolute right-1 top-2 size-2.5 rounded-full bg-[#8b5cf6] shadow-[0_0_0_5px_rgba(139,92,246,0.13)]" />
+                  </div>
+                  <p className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--teal-dark)]">Main answer complete</p>
+                  <h1 id="follow-up-preparing-title" className="mt-2 font-display text-3xl font-semibold tracking-[-0.035em] text-[var(--navy)]">Preparing your unscripted follow-up</h1>
+                  <p className="mx-auto mt-3 max-w-lg text-base leading-7 text-[var(--muted-ink)]">Your follow-up will open automatically. Coaching stays hidden until you finish answering it.</p>
+                  <div className="mx-auto mt-7 max-w-sm" aria-busy="true" aria-label="Preparing your follow-up question">
+                    <div className="h-2 overflow-hidden rounded-full bg-[#e6def8] shadow-inner">
+                      <span className="block h-full w-2/5 rounded-full bg-[linear-gradient(90deg,#8b5cf6,#c4b5fd,#6842d8)] shadow-[0_0_16px_rgba(104,66,216,0.45)] motion-safe:animate-[follow-up-progress_1.8s_ease-in-out_infinite]" />
+                    </div>
+                    <div className="mt-3 flex items-center justify-center gap-2 text-xs font-medium text-[#6d5b7f]">
+                      <span>Creating your next question</span>
+                      <span className="flex gap-1" aria-hidden="true">
+                        <span className="size-1.5 rounded-full bg-[#8b5cf6] motion-safe:animate-bounce" />
+                        <span className="size-1.5 rounded-full bg-[#8b5cf6] motion-safe:animate-bounce motion-safe:[animation-delay:150ms]" />
+                        <span className="size-1.5 rounded-full bg-[#8b5cf6] motion-safe:animate-bounce motion-safe:[animation-delay:300ms]" />
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </section>
             )}
           </div>
