@@ -631,6 +631,10 @@
       .learning-journey #who-its-for { padding:44px 0 24px; }
       .learning-journey #how-it-works { padding:24px 0 52px; }
     }
+
+    #who-its-for > .container, #how-it-works > .container { width:min(1040px,calc(100% - 56px)); max-width:1040px; margin-left:auto; margin-right:auto; }
+    #who-its-for h2, #how-it-works h2 { display:block; width:100%; max-width:none; text-align:center; margin-left:auto; margin-right:auto; }
+    @media(max-width:760px) { #who-its-for > .container, #how-it-works > .container { width:calc(100% - 38px); } }
 </style>
 </head>
 <body>

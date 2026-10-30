@@ -50,7 +50,7 @@ const sections = [
 ];
 
 export default function PrivacyPage() {
-  return <main className="min-h-screen bg-[#fbf9ff] px-6 py-10 text-[#211b29]">
+  return <main data-public-page="true" className="min-h-screen bg-[#fbf9ff] px-6 py-10 text-[#211b29]">
     <div className="mx-auto max-w-3xl">
       <Link href="/home" className="font-display text-2xl font-semibold tracking-tight text-violet-700">sayform</Link>
       <header className="mb-10 mt-14">

@@ -148,3 +148,6 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Public signup and policy pages also support narrow screens. */
+body:has(main[data-public-page]) { min-width: 0; }

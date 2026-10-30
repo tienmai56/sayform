@@ -64,7 +64,7 @@ export function AccessRequestView() {
     } finally { setPending(false); }
   }
 
-  return <main className="relative min-h-screen bg-[linear-gradient(145deg,#faf7ff_0%,#f2edff_50%,#ffffff_100%)] px-5 pb-14 pt-28 sm:px-8">
+  return <main data-public-page="true" className="relative min-h-screen bg-[linear-gradient(145deg,#faf7ff_0%,#f2edff_50%,#ffffff_100%)] px-5 pb-14 pt-28 sm:px-8">
     <Link href="/" aria-label="Sayform home" className="absolute left-8 top-8 font-display text-2xl font-semibold tracking-[-0.045em] text-[#6842d8]">sayform</Link>
     <section className="mx-auto w-full max-w-2xl rounded-[2rem] border border-[#ddd3f2] bg-white p-6 shadow-[0_20px_60px_rgba(76,29,149,0.08)] sm:p-10">
       {submitted ? <div className="py-8 text-center">
