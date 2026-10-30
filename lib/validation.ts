@@ -1,8 +1,13 @@
 import { z } from 'zod';
+import { coachingGoals, speakingChallenges, sessionBudgets } from '@/lib/coach-matching';
 
 export const accessRequestSchema = z.object({
-  email: z.email().trim().max(254),
-  targetRoles: z.string().trim().min(2).max(160),
+  email: z.string().trim().toLowerCase().max(254).pipe(z.email()),
+  currentRole: z.string().trim().min(2).max(160),
+  company: z.string().trim().min(2).max(160),
+  goals: z.array(z.enum(coachingGoals)).min(1).max(coachingGoals.length),
+  challenges: z.array(z.enum(speakingChallenges)).min(1).max(speakingChallenges.length),
+  sessionBudget: z.enum(sessionBudgets),
 });
 
 export const goalUpdateSchema = z

@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     return apiError(
       503,
       'supabase_not_configured',
-      'Access requests are not available yet.',
+      'Coach matching requests are not available yet.',
     );
   }
 
@@ -20,11 +20,19 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { error } = await supabase.from('access_requests').insert({
     email,
-    target_roles: parsed.data.targetRoles,
+    current_role: parsed.data.currentRole,
+    company: parsed.data.company,
+    coaching_goals: parsed.data.goals,
+    speaking_challenges: parsed.data.challenges,
+    session_budget: parsed.data.sessionBudget,
+    request_type: 'coach_matching',
   });
 
   // Repeated requests should not reveal whether an email is already registered.
   if (error?.code === '23505') return NextResponse.json({ ok: true });
+  if (error && ['42703', 'PGRST204'].includes(error.code)) {
+    return apiError(503, 'coach_matching_unavailable', 'Coach matching requests are temporarily unavailable. Please try again later.');
+  }
   if (error) return databaseError(error);
 
   return NextResponse.json({ ok: true }, { status: 201 });

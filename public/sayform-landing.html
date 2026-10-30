@@ -6,11 +6,11 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <meta content="#f7f3ff" name="theme-color"/>
 <title>Sayform | Say it better. Change what's possible</title>
-<meta content="Practice more with targeted feedback, feel more like yourself and improve how you say what you mean" name="description"/>
+<meta content="Human-led communication coaching, with personalized practice and support to speak with clarity and confidence." name="description"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet" />
 <style>
     :root{--navy:#132d3b;--ink:#233c45;--muted:#637780;--teal:#167f76;--darkteal:#0b5f59;--canvas:#fcfbf7;--paper:#fffefa;--line:#e3e7e2;--mint:#e3f0ec;--peach:#f9eadc;--sand:#f1ebdf;--shadow:0 20px 65px rgba(19,45,59,.085);}
-    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--navy);font-family:Inter,"Avenir Next",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--canvas);-webkit-font-smoothing:antialiased}button,input,textarea{font:inherit}a{color:inherit;text-decoration:none}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #4b9b93;outline-offset:3px}::selection{background:#c8e8df}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--navy);font-family:Inter,"Avenir Next",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--canvas);-webkit-font-smoothing:antialiased}button,input,textarea{font:inherit}a{color:inherit;text-decoration:none}button{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #4b9b93;outline-offset:3px}::selection{background:#c8e8df}[data-peer-practice-cta][hidden]{display:none}
     .container{width:min(1232px,calc(100% - 88px));margin-inline:auto}.site-header{position:absolute;z-index:10;top:0;left:0;right:0}.nav{height:91px;display:flex;justify-content:space-between;align-items:center}.brand{font-family:"Avenir Next",Inter,Arial,sans-serif;font-weight:750;letter-spacing:-.075em;font-size:34px;line-height:1}.brand-dot{color:#df9773}.nav-links{display:flex;align-items:center;gap:36px;font-size:13px;font-weight:620}.nav-links>a:not(.top-cta){transition:color .2s}.nav-links>a:not(.top-cta):hover{color:var(--teal)}.pill,.outline-pill{display:inline-flex;justify-content:center;align-items:center;gap:15px;min-height:51px;border-radius:999px;padding:0 26px;border:1px solid var(--navy);font-size:13px;font-weight:720;white-space:nowrap;transition:transform .2s,box-shadow .2s,background .2s}.pill{background:var(--navy);color:#fff;box-shadow:0 8px 18px rgba(15,47,60,.14)}.pill:hover{transform:translateY(-2px);box-shadow:0 15px 25px rgba(15,47,60,.22)}.outline-pill{background:transparent}.outline-pill:hover{background:white}.top-cta{min-height:42px;padding:0 21px;font-size:12px}
     .hero{height:735px;position:relative;overflow:hidden;background:linear-gradient(109deg,#dbedf0 0%,#f1f0e8 46%,#ffe9d8 100%)}.hero:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(234,244,241,.42),rgba(251,244,232,.06) 55%,rgba(249,225,208,.08));pointer-events:none;z-index:1}.landscape{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}.hero-content{position:relative;z-index:2;display:grid;grid-template-columns:1.12fr .88fr;align-items:center;gap:60px;padding-top:136px;height:100%}.hero-copy{align-self:center;padding-bottom:30px}.eyebrow{display:flex;align-items:center;gap:10px;font-weight:750;letter-spacing:.16em;font-size:11px;color:var(--darkteal);text-transform:uppercase}.eyebrow .sparkle{font-size:20px;color:var(--teal)}h1,h2,h3,p{margin-top:0}.hero h1{font-family:"Avenir Next",Inter,sans-serif;font-size:clamp(56px,5.7vw,83px);line-height:1.03;letter-spacing:-.071em;font-weight:750;margin:24px 0 23px;max-width:750px}.hero-description{font-size:18px;line-height:1.7;color:#465f67;max-width:525px}.hero-actions{display:flex;align-items:center;gap:24px;margin-top:32px}.text-link{font-weight:730;display:inline-flex;align-items:center;gap:11px;font-size:13px}.play-circle{display:grid;place-items:center;background:rgba(255,255,255,.78);height:43px;width:43px;border-radius:100%;box-shadow:0 2px 12px rgba(19,45,59,.05)}
     .mock-window{width:100%;max-width:472px;justify-self:end;transform:rotate(-2deg) translateY(10px);background:rgba(255,255,255,.95);border:1px solid rgba(255,255,255,.8);border-radius:22px;box-shadow:0 32px 85px rgba(26,58,64,.19);padding:18px;position:relative}.window-bar{height:25px;display:flex;align-items:flex-start;gap:7px}.window-bar span{width:8px;height:8px;border-radius:50%;background:#f2a592}.window-bar span:nth-child(2){background:#f3ce86}.window-bar span:nth-child(3){background:#8bc2a9}.mock-head{font-weight:750;letter-spacing:-.05em;font-size:18px;margin:3px 0 12px}.mock-inner{display:grid;grid-template-columns:1fr 1.12fr;gap:10px;min-height:238px}.question-box{background:#f6f7f4;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}.tiny-status{display:flex;gap:7px;align-items:center;font-size:10px;font-weight:750;color:#547168}.tiny-status .dot{background:#5faf91;border-radius:50%;width:7px;height:7px;box-shadow:0 0 0 4px #dceee7}.question{font-size:14px;line-height:1.46;font-weight:680;letter-spacing:-.025em}.wave{display:flex;gap:3px;align-items:center;margin-top:auto;height:15px}.wave i{width:3px;background:#2e9189;border-radius:4px;height:5px;animation:breath 1.7s ease-in-out infinite}.wave i:nth-child(2){height:13px;animation-delay:.15s}.wave i:nth-child(3){height:8px;animation-delay:.3s}.wave i:nth-child(4){height:15px;animation-delay:.45s}.wave i:nth-child(5){height:7px;animation-delay:.6s}.wave-label{font-size:10px;color:var(--muted)}@keyframes breath{0%,100%{transform:scaleY(.55)}50%{transform:scaleY(1)}}.camera{border-radius:14px;background:radial-gradient(circle at 50% 38%,#d1e1db 0,#d9e7e1 33%,#b7d0c7 100%);display:flex;flex-direction:column;position:relative;justify-content:center;align-items:center;overflow:hidden}.camera:after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 100% 0,rgba(255,253,243,.65),transparent 56%)}.cam-tag{position:absolute;top:11px;right:10px;background:white;border-radius:99px;font-size:9px;font-weight:700;z-index:2;padding:7px 9px;color:#345e58}.cam-tag:before{content:"";display:inline-block;width:5px;height:5px;background:#399c82;border-radius:50%;margin-right:6px;vertical-align:1px}.self-illustration{position:relative;z-index:1;width:146px;height:141px;display:grid;place-items:center}.self-illustration:before{content:"";position:absolute;width:86px;height:86px;background:#86a7a2;border-radius:50%;top:8px;opacity:.8}.self-illustration:after{content:"";position:absolute;bottom:-29px;width:174px;height:111px;border-radius:100px 100px 0 0;background:#789994;opacity:.72}.self-label{position:absolute;z-index:2;color:#39534f;font-size:11px;top:60%;background:rgba(255,255,255,.7);border-radius:99px;padding:7px 12px}.controls{position:absolute;bottom:13px;left:0;right:0;z-index:2;display:flex;justify-content:center;align-items:center;gap:10px}.control{width:33px;height:33px;display:grid;place-items:center;background:#153543;border-radius:50%;color:white}.control.stop{background:white;color:#d9685d;font-size:17px}.caption-preview{position:absolute;bottom:-45px;right:0;text-align:right;color:#617680;font-size:12px;transform:rotate(2deg)}
@@ -476,13 +476,168 @@
       .why-created h2 { font-size:clamp(38px,10vw,50px); }
       .why-created p { font-size:16px; line-height:1.7; }
     }
+
+    /* A quiet banner and a readable, single-column founder letter. */
+    .hero-content { display:flex; align-items:center; }
+    .hero-copy { width:100%; }
+    .hero h1 { max-width:none; font-size:clamp(27px,5.35vw,76px); }
+    .hero-tagline { white-space:nowrap; }
+    .why-created-card { display:block; max-width:700px; margin:0 auto; padding:0; border:0; border-radius:0; background:none; box-shadow:none; overflow:visible; }
+    .why-created-card:after, .why-created:before { display:none; }
+    .why-created { background:#fbf9ff; }
+    .why-created h2 { max-width:none; margin:0 0 28px; font-size:22px; line-height:1.4; letter-spacing:-.02em; font-weight:700; }
+    .why-created-copy p + p { margin-top:24px; padding-top:0; border-top:0; }
+    .why-created .privacy-note { margin-top:32px; padding-top:24px; border-top:1px solid #d8cced; }
+    @media(max-width:760px) {
+      .hero-content { justify-content:center; flex-direction:row; }
+      .hero h1 { font-size:clamp(24px,6.5vw,49px); }
+      .why-created h2 { font-size:20px; }
+      .why-created-card { padding:0; border-radius:0; }
+    }
+
+    /* Compact banner keeps the introduction close to the fold. */
+    .hero { height:auto; min-height:0; }
+    .hero-content { height:auto; min-height:360px; padding-top:125px; padding-bottom:55px; }
+    .hero-copy { padding-bottom:0; }
+    .hero h1 { font-size:clamp(28px,4vw,54px); line-height:1.12; margin:0 0 22px; }
+    .hero-actions { margin-top:22px; }
+    @media(max-width:760px) {
+      .hero-content { min-height:290px; padding-top:105px; padding-bottom:38px; }
+      .hero h1 { font-size:clamp(24px,6.2vw,40px); margin:0 0 18px; }
+      .hero-actions { margin-top:18px; }
+    }
+
+    .steps .step { padding:0; overflow:hidden; display:flex; flex-direction:column; }
+    .steps .step-art.coaching-art { width:100%; height:auto; aspect-ratio:1; flex:none; margin:0; padding:0; border:0; border-radius:0; background-image:url('/coaching-how-it-works.png'); background-size:300% 100%; background-repeat:no-repeat; }
+    .steps .coaching-art-goals { background-position:left center; }
+    .steps .coaching-art-trial { background-position:center center; }
+    .steps .coaching-art-practice { background-position:right center; }
+    .steps .coaching-art:before, .steps .coaching-art:after { display:none; }
+    .step-copy { padding:24px; }
+    .step-copy .step-count { margin:0 0 16px; }
+    .step-copy h3 { margin:0 0 12px; font-size:23px; line-height:1.25; }
+    .step-copy p { margin:0; font-size:16px; line-height:1.65; }
+
+    /* Match the rounded How it works cards, at the same desktop width. */
+    #benefits .benefits-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; width:calc((100% - 18px) * 2 / 3); margin:31px auto 0; }
+    #benefits .benefit { background:rgba(255,255,255,.78); border:1.5px solid #d9cff0; border-radius:23px; box-shadow:0 8px 28px rgba(76,29,149,.055); padding:24px; min-height:287px; display:flex; flex-direction:column; }
+    #benefits .benefit:hover { border-color:#b9a6df; box-shadow:0 18px 42px rgba(88,28,135,.11); }
+    #benefits .benefit-icon { width:61px; height:61px; padding:0; margin-bottom:28px; background:linear-gradient(135deg,#ede9fe,#ddd6fe); border-radius:18px; display:grid; place-items:center; }
+    #benefits .benefit-icon svg { width:27px; height:27px; stroke:#6d28d9; fill:none; }
+    #benefits .benefit h3 { font-size:23px; line-height:1.25; margin:0 0 12px; }
+    #benefits .benefit p { font-size:16px; line-height:1.65; margin:0; }
+    @media(max-width:1080px) { #benefits .benefits-grid { width:80%; gap:12px; } }
+    @media(max-width:760px) { #benefits .benefits-grid { width:100%; grid-template-columns:1fr; } #benefits .benefit { min-height:0; } }
+
+    #how-it-works .section-heading, #how-it-works .section-row,
+    #benefits .section-heading { text-align:center; justify-content:center; }
+    #how-it-works h2, #benefits h2 { width:100%; font-size:clamp(28px,3vw,38px); line-height:1.2; text-align:center; margin-left:auto; margin-right:auto; }
+
+    /* Compact coaching steps with full-width illustration areas. */
+    #how-it-works .steps { max-width:960px; margin:0 auto; gap:16px; }
+    #how-it-works .step { min-height:0; }
+    #how-it-works .step-art.coaching-art { aspect-ratio:1.35; }
+    #how-it-works .coaching-art-trial { background-image:url('/coaching-trial.png'); background-size:cover; background-position:center; }
+    #how-it-works .step-copy { padding:20px; }
+    #how-it-works .step-count { margin-bottom:12px; }
+    #how-it-works .step-count span { width:28px; height:28px; font-size:12px; }
+    #how-it-works .step-copy h3 { font-size:20px; margin-bottom:10px; }
+    #how-it-works .step-copy p { font-size:14px; line-height:1.6; }
+    @media(max-width:760px) { #how-it-works .steps { max-width:380px; } }
+
+    /* Preserve illustration proportions and give the cards a little more room. */
+    #how-it-works .steps { max-width:1040px; gap:18px; }
+    #how-it-works .step-art.coaching-art { aspect-ratio:1.15; background-size:300% auto; }
+    #how-it-works .step-art.coaching-art-goals { background-position:left center; }
+    #how-it-works .step-art.coaching-art-practice { background-position:right center; }
+    #how-it-works .step-art.coaching-art-trial { background-size:cover; background-position:center; }
+    #how-it-works .step-copy { padding:24px; }
+    #how-it-works .step-copy h3 { font-size:22px; }
+    #how-it-works .step-copy p { font-size:15px; }
+    @media(max-width:760px) { #how-it-works .steps { max-width:420px; } }
+
+    .letter-highlight { background:#e2d5ff; color:#3b1765; padding:3px 2px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+
+    .closing-actions { display:flex; justify-content:center; margin-top:28px; }
+    .site-footer { background:linear-gradient(120deg,#d8c8f4 0%,#cbb6ed 52%,#c2a6e5 100%); border-top:1px solid #bda2dd; }
+    .site-footer .brand, .site-footer .foot-note { color:#3b225a; }
+    .site-footer a:hover { color:#5b21b6; }
+
+    .coaches-section { padding:76px 0; background:#fbf9ff; }
+    .coaches-intro { max-width:700px; margin:0 auto; text-align:center; }
+    .coaches-kicker { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6d28d9; margin-bottom:14px; }
+    .coaches-section h2 { font-size:clamp(28px,3vw,38px); line-height:1.2; margin-bottom:20px; }
+    .coaches-intro > p:last-child, .coaches-details p { font-size:17px; line-height:1.75; color:#514161; margin-bottom:0; }
+    .coaches-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:48px; max-width:840px; margin:38px auto 0; }
+    .coaches-details > div { border-top:1px solid #d9cff0; padding-top:22px; }
+    .coaches-details h3 { font-size:21px; line-height:1.3; margin-bottom:12px; }
+    .coaches-section .closing-actions { margin-top:34px; }
+    @media(max-width:760px) { .coaches-section { padding:56px 0; } .coaches-details { grid-template-columns:1fr; gap:26px; } .coaches-intro > p:last-child, .coaches-details p { font-size:16px; } }
+
+    .coaches-intro { max-width:900px; }
+    .coaches-section h2 { white-space:nowrap; font-size:clamp(18px,3.8vw,38px); letter-spacing:-.035em; }
+    @media(max-width:760px) { .coaches-section h2 { font-size:clamp(14px,3.8vw,28px); } }
+
+    .coaches-illustration { display:block; width:min(100%,660px); height:auto; object-fit:contain; margin:0 auto 34px; border-radius:18px; }
+    @media(max-width:760px) { .coaches-illustration { margin-bottom:26px; } }
+
+    .coaches-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center; gap:48px; }
+    .coaches-text .coaches-intro { max-width:none; text-align:left; }
+    .coaches-text h2 { white-space:normal; font-size:clamp(28px,3vw,38px); }
+    .coaches-text .closing-actions { justify-content:flex-start; }
+    .coaches-layout .coaches-illustration { width:100%; height:auto; margin:0; }
+    @media(max-width:760px) {
+      .coaches-layout { grid-template-columns:1fr; gap:32px; }
+      .coaches-text h2 { font-size:28px; }
+    }
+
+    .coaching-gap { padding:76px 0; background:#fbf9ff; }
+    .coaching-gap > .container { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr); gap:76px; align-items:center; max-width:1040px; }
+    .coaching-gap h2 { font-size:clamp(30px,3.2vw,42px); line-height:1.15; margin-bottom:24px; }
+    .coaching-gap-intro > p:not(.coaches-kicker), .coaching-gap-goals p, .coaching-gap-goals li { font-size:17px; line-height:1.75; color:#514161; }
+    .coaching-gap-intro > p:last-child { margin:20px 0 0; }
+    .coaching-gap-goals { border-left:2px solid #d8c8f4; padding-left:32px; }
+    .coaching-gap-goals h3 { font-size:24px; line-height:1.3; margin-bottom:14px; }
+    .coaching-gap-goals p { margin-bottom:14px; }
+    .coaching-gap-goals ul { padding-left:20px; margin:0; }
+    .coaching-gap-goals li + li { margin-top:16px; }
+    .coaching-gap-goals li::marker { color:#8b5cf6; }
+    @media(max-width:760px) { .coaching-gap { padding:56px 0; } .coaching-gap > .container { grid-template-columns:1fr; gap:32px; } .coaching-gap-intro > p:not(.coaches-kicker), .coaching-gap-goals p, .coaching-gap-goals li { font-size:16px; } .coaching-gap-goals { padding-left:22px; } }
+
+    #who-its-for > .container { display:block; max-width:760px; }
+    #who-its-for .coaching-gap-goals { border-left:0; padding-left:0; }
+    #who-its-for h2 { margin-bottom:26px; }
+
+    #who-its-for { background:#fbf9ff; padding:56px 0 64px; }
+    #who-its-for > .container { display:block; max-width:1040px; }
+    #who-its-for h2 { text-align:center; font-size:clamp(28px,3vw,38px); line-height:1.2; margin:0 0 38px; }
+    .outcomes-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:72px; row-gap:32px; max-width:840px; margin:0 auto; }
+    .outcome { padding-left:20px; border-left:2px solid #d8c8f4; }
+    #who-its-for .outcome h3 { font-size:22px; line-height:1.3; margin:0 0 9px; letter-spacing:-.025em; }
+    #who-its-for .outcome p { font-size:17px; line-height:1.65; color:#514161; margin:0; }
+    @media(max-width:760px) {
+      #who-its-for { padding:44px 0 48px; }
+      #who-its-for h2 { margin-bottom:30px; }
+      .outcomes-grid { grid-template-columns:1fr; gap:26px; }
+      #who-its-for .outcome h3 { font-size:21px; }
+      #who-its-for .outcome p { font-size:16px; }
+    }
+
+    .learning-journey { background:linear-gradient(180deg,#ede5fc 0%,#f0e9ff 55%,#e9dff9 100%); }
+    .learning-journey #who-its-for { background:transparent; padding:60px 0 30px; }
+    .learning-journey #how-it-works { background:transparent; padding:30px 0 72px; }
+    .learning-journey #how-it-works:before { display:none; }
+    @media(max-width:760px) {
+      .learning-journey #who-its-for { padding:44px 0 24px; }
+      .learning-journey #how-it-works { padding:24px 0 52px; }
+    }
 </style>
 </head>
 <body>
 <header class="site-header"><div class="container nav">
 <a aria-label="Sayform home" class="brand" href="#top">sayform</a>
 <nav aria-label="Main navigation" class="nav-links">
-<a href="#how-it-works">How it works</a><a href="#benefits">Benefits</a><a href="/login">Request access</a>
+<a href="#how-it-works">How it works</a><a href="#benefits">Benefits</a><a href="/login">Find a coach · Join the beta</a>
 
 </nav>
 </div></header>
@@ -512,46 +667,55 @@
 </svg>
 <div class="container hero-content">
 <div class="hero-copy">
-<h1>Say it better.<br/>Change what's<br/>possible</h1>
-<p class="hero-description">Practice more with targeted feedback, feel more like yourself and improve how you say what you mean</p>
-<div class="hero-actions"><a class="pill" href="/login">Request access</a><a class="outline-pill" href="/peer-practice">Sign up to practice</a></div>
-</div>
-<div aria-label="Illustration of the Sayform recording experience" class="mock-window">
-<div class="window-bar"><span></span><span></span><span></span></div><div class="mock-head">sayform</div>
-<div class="mock-inner">
-<div class="question-box"><div class="tiny-status"><span class="dot"></span> YOUR PRACTICE</div><div class="question">Tell me about a time you had to persuade someone. What made your approach effective?</div><div class="wave"><i></i><i></i><i></i><i></i><i></i></div><div class="wave-label">Recording your answer · 0:48</div></div>
-<div class="camera"><span class="cam-tag">Camera on</span><div class="self-illustration"></div><span class="self-label">Your camera preview</span><div class="controls"><span aria-hidden="true" class="control">Ⅱ</span><span aria-hidden="true" class="control stop">■</span><span aria-hidden="true" class="control">◎</span></div></div>
-</div>
+<h1>Say it better.<br/><span class="hero-tagline">Change what’s possible.</span></h1>
+<div class="hero-actions"><a class="pill" href="/login">Find a coach · Join the beta</a></div>
 </div>
 </div>
 </section>
 <main class="main">
 <section class="section why-created" id="why-sayform"><div class="container">
 <div class="why-created-card" data-reveal="">
-<div class="why-created-heading"><div class="why-created-kicker">A note from the creator</div><h2>Why I created Sayform</h2></div>
-<div class="why-created-copy"><p>AI is reshaping the hiring market and raising the bar for every role. Interviews are getting harder, while thoughtful human coaching remains too expensive for many people. I created Sayform while going through interview after interview myself, and I want to share this tool for free with those navigating the same uncertain process.</p><p class="privacy-note"><strong>Your privacy matters:</strong> Your data is never used to train AI models. Audio and video recordings are not saved—they are deleted immediately after each practice session.</p></div>
+<div class="why-created-heading"><h2>What differentiates us in the era of AI?</h2></div>
+<div class="why-created-copy"><p>The way we communicate.<br/>How we explain what we believe, reason on our feet, make sense of a difficult question, and help someone see what we see.</p><p>Executive coaching often comes with a price that puts it out of reach. Self-paced courses let you learn on your own, but leave you without someone who listens, gives specific feedback, and asks the question you didn’t see coming.</p><p>Sayform was created by people who know what it feels like to be good at your job and still feel like you’re not enough. People who have something to say but struggle to get it out.</p><p>Finding your voice takes practice, encouragement, and someone who pays attention.</p><p><mark class="letter-highlight">Sayform puts human coaches at the center and makes coaching more accessible.</mark> AI helps them understand your progress, shape your practice, and take care of the paperwork.</p><p>Our goal is simple: give more people the support to speak with clarity and confidence, especially when it matters.</p></div>
+</div>
+</div></section>
+<div class="learning-journey">
+<section class="section coaching-gap" id="who-its-for" aria-labelledby="outcomes-heading"><div class="container">
+<h2 id="outcomes-heading">For people who want to...</h2>
+<div class="outcomes-grid">
+<div class="outcome"><h3>Think on your feet</h3><p>Handle unexpected questions.</p></div>
+<div class="outcome"><h3>Make yourself heard</h3><p>Explain ideas clearly and advocate for yourself.</p></div>
+<div class="outcome"><h3>Tell better stories</h3><p>Make your message memorable.</p></div>
+<div class="outcome"><h3>Create more opportunities</h3><p>Speak confidently when it matters.</p></div>
 </div>
 </div></section>
 <section class="section how" id="how-it-works"><div class="container">
 <div class="section-row" data-reveal=""><div class="section-heading"><h2>How it works</h2></div></div>
 <div class="steps">
-<article class="step" data-reveal=""><div class="step-count"><span>01</span></div><div class="step-art"><div class="plan-paper"><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div></div></div><h3>Sign up and practice interviews</h3><p>Create a free account and start practicing realistic interview questions</p></article>
-<article class="step" data-reveal=""><div class="step-count"><span>02</span></div><div class="step-art"><div class="plan-paper"><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div><div class="plan-row"></div></div></div><h3>Get tailored feedback</h3><p>Respond to unscripted follow-up questions, then get tailored feedback and targeted exercises</p></article>
-<article class="step" data-reveal=""><div class="step-count"><span>03</span></div><div class="step-art"><div class="art-camera"><div class="art-top">◉</div><div class="art-line"></div><div class="art-line"></div></div><span class="art-record"></span></div><h3>Practice and improve</h3><p>Record an answer, review personal feedback and try a targeted exercise</p></article>
+<article class="step" data-reveal=""><div class="step-art coaching-art coaching-art-goals" role="img" aria-label="A professional reflecting on her goals and writing in a notebook"></div><div class="step-copy"><div class="step-count"><span>01</span></div><h3>Tell us your goals</h3><p>Share what you’d like to work on and the moments when you want to feel more confident.</p></div></article>
+<article class="step" data-reveal=""><div class="step-art coaching-art coaching-art-trial" role="img" aria-label="A coach and learner getting to know each other in a video session"></div><div class="step-copy"><div class="step-count"><span>02</span></div><h3>Meet your coach. Try a session on us.</h3><p>We’ll match you with a coach for a free trial session, so you can see how it feels to learn together.</p></div></article>
+<article class="step" data-reveal=""><div class="step-art coaching-art coaching-art-practice" role="img" aria-label="A learner practicing speaking with a microphone and personalized feedback"></div><div class="step-copy"><div class="step-count"><span>03</span></div><h3>Keep learning with your coach</h3><p>Meet with your coach for personalized feedback, and keep practicing between sessions with targeted exercises.</p></div></article>
 </div>
 </div></section>
+</div>
+<section class="section coaches-section" id="our-coaches"><div class="container coaches-layout"><div class="coaches-text">
+
+<div class="coaches-intro"><p class="coaches-kicker">The people behind your progress</p><h2>Experienced coaches. Different perspectives.</h2><p>Our public speaking coaches bring at least five years of coaching experience, with backgrounds spanning tech, finance, improv, and beyond.</p></div>
+
+<div class="closing-actions"><a class="pill" href="/login">Find a coach · Join the beta</a></div>
+</div><img class="coaches-illustration" src="/experienced-coaches.png" alt="A coach and learner sharing ideas in a relaxed conversation" width="1536" height="1024" loading="lazy"/></div></section>
 <section class="section benefits" id="benefits"><div class="container">
 <div class="section-heading" data-reveal=""><h2>Why Sayform</h2></div>
 <div class="benefits-grid">
-<article class="benefit benefit-free" data-reveal=""><span class="benefit-icon"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M14.8 8.6c-.7-.8-1.8-1.1-3-1.1-1.8 0-3 .8-3 2.2 0 3.1 5.9 1.2 5.9 4.3 0 1.4-1.2 2.3-3 2.3-1.3 0-2.5-.5-3.3-1.3M12 5.8v12.4"></path></svg></span><h3>Free to use</h3><p>Practice your speaking and get personal feedback at no cost</p></article>
-<article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><path d="M5 19V12m5 7V6m5 13v-9m5 9V4"></path><path d="M3 21h19"></path></svg></span><h3>Targeted feedback</h3><p>Get feedback on your word choices, pace and reasoning after every answer</p></article>
-<article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="4.5"></circle><path d="m12 12 8-8"></path></svg></span><h3>Personalized exercises</h3><p>Practice with exercises based on the skills you need to improve</p></article>
-<article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><rect height="11" rx="2" width="14" x="5" y="10"></rect><path d="M8 10V7a4 4 0 1 1 8 0v3m-4 5v2"></path></svg></span><h3>Protected privacy</h3><p>Your audio and video recordings are temporary and never saved in your history</p></article>
+<article class="benefit benefit-free" data-reveal=""><span class="benefit-icon"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewbox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M14.8 8.6c-.7-.8-1.8-1.1-3-1.1-1.8 0-3 .8-3 2.2 0 3.1 5.9 1.2 5.9 4.3 0 1.4-1.2 2.3-3 2.3-1.3 0-2.5-.5-3.3-1.3M12 5.8v12.4"></path></svg></span><h3>Affordable coaching</h3><p>Get personal support without the executive coaching price tag. Start with a free trial.</p></article>
+<article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><path d="M5 19V12m5 7V6m5 13v-9m5 9V4"></path><path d="M3 21h19"></path></svg></span><h3>Targeted feedback</h3><p>Know what’s working and what to improve, with clear, specific feedback from your coach.</p></article>
+<article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="4.5"></circle><path d="m12 12 8-8"></path></svg></span><h3>Personalized exercises</h3><p>Build your skills between sessions with exercises tailored to your goals and progress.</p></article>
+<article class="benefit" data-reveal=""><span class="benefit-icon"><svg viewbox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21v-2a8 8 0 0 1 16 0v2"></path></svg></span><h3>A real human coach</h3><p>Learn with someone who listens, understands your challenges, and helps you find your voice.</p></article>
 </div>
 </div></section>
-<section class="last-cta"><div class="container" style="position:relative"><h2 data-reveal="">Your next opportunity starts with how you say it</h2></div></section>
+<section class="last-cta"><div class="container" style="position:relative"><h2 data-reveal="">Your next opportunity starts with how you say it</h2><div class="closing-actions"><a class="pill" href="/login">Find a coach · Join the beta</a></div></div></section>
 </main>
-<footer class="site-footer"><div class="container footer-inner"><a class="brand" href="#top">sayform</a><div class="foot-note">© 2026 Sayform</div></div></footer>
+<footer class="site-footer"><div class="container footer-inner"><a class="brand" href="#top">sayform</a><div class="foot-note"><a href="/privacy">Privacy Policy</a> · © 2026 Sayform</div></div></footer>
 <script>
 (function(){
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
